@@ -1,0 +1,99 @@
+#-*- coding: UTF-8 -*-
+import os
+from time import sleep
+import pyautogui
+import pygetwindow as gw
+import openpyxl
+import schedule
+import pyperclip
+from datetime import datetime, timedelta
+
+
+scm = "scm_verificaca"
+
+def abrirscm():
+    # Abrir o aplicativo
+    os.startfile(r"C:\Users\00082300\Downloads\Projeto 2\atalhos\scm.SAP")
+    sleep(10)
+
+    # Tentar encontrar a janela aberta
+    windows = gw.getWindowsWithTitle('SCP')
+
+    if windows:
+        app_window = windows[0]
+        app_window.maximize()
+    else:
+        print("Janela do aplicativo não encontrada")
+def exescm():
+    # Obter a data e hora atuais
+    data_hora_atual = datetime.now()
+    # Formatar a data e hora em uma string
+    nomearquivo = data_hora_atual.strftime("%d-%m-%y %H%M%S")
+    # Exibir a data e hora formatadas
+    print("Data e hora atuais formatadas:", nomearquivo)
+
+    # Obter a data de inicio e fim do periodo de pesquisa
+    data_inicio = datetime.now()
+    data_fim = datetime.now() + timedelta(days=35)
+    # Formatar a data e hora em uma string
+    datainicio = data_inicio.strftime("%d%m%Y")
+    datafim = data_fim.strftime("%d%m%Y")
+
+    pyautogui.hotkey('shift', 'f5')
+    sleep(2)
+    janelaexportar = pyautogui.locateCenterOnScreen('variantescm.png', confidence=0.9)
+    pyautogui.click(janelaexportar[0],janelaexportar[1], duration=1, clicks=2)
+    sleep(2)
+    pyautogui.write(scm)
+    confvariavel = pyautogui.locateCenterOnScreen('conf_variavel.png', confidence=0.9)
+    pyautogui.click(confvariavel[0],confvariavel[1], duration=1, clicks=2)
+    sleep(3)
+
+    datestart = pyautogui.locateCenterOnScreen('datestart.png', confidence=0.9)
+    pyautogui.click(datestart[0],datestart[1], duration=1, clicks=2)
+    sleep(2)
+    sair_x = pyautogui.locateCenterOnScreen('X_vemerlho.png', confidence=0.9)
+    pyautogui.click(sair_x[0],sair_x[1], duration=1, clicks=1)
+    sleep(3)
+    pyautogui.write(datainicio)
+
+    inicioscm = pyautogui.locateCenterOnScreen('000.png', confidence=0.9)
+    pyautogui.click(inicioscm[0],inicioscm[1], duration=1)
+
+    pyautogui.hotkey('tab')
+    pyautogui.write("*")
+    
+    pyautogui.hotkey('f8')
+    sleep(60)
+    print("Em execução a transação")
+def export_scm():
+    # Obter a data e hora atuais
+    data_hora_atual = datetime.now()
+    # Formatar a data e hora em uma string
+    nomearquivo = data_hora_atual.strftime("%d-%m-%y %H%M%S")
+    # Exibir a data e hora formatadas
+    print("Data e hora atuais formatadas:", nomearquivo)
+
+    pyautogui.hotkey('shift','f9')
+    sleep(20)
+
+    arquivo = r'O:\02-Blades\02-Process Engineering\9. Projetos\23. Controle SCM\BD_diario\SCM_' + nomearquivo
+    pyautogui.write(arquivo)
+    pyautogui.hotkey('enter')
+    sleep(10)
+    pyautogui.hotkey('alt','f4')
+    sleep(10)
+
+    sair_x = pyautogui.locateCenterOnScreen('sair_x.png', confidence=0.9)
+    pyautogui.click(sair_x[0],sair_x[1], duration=1, clicks=2)
+    sleep(3)
+    sairyes = pyautogui.locateCenterOnScreen('yes_sair.png', confidence=0.9)
+    pyautogui.click(sairyes[0],sairyes[1], duration=1, clicks=1)
+    print("Export finalizado!")
+
+def atualizarscm():
+    abrirscm()
+    exescm()
+    export_scm()
+
+atualizarscm()

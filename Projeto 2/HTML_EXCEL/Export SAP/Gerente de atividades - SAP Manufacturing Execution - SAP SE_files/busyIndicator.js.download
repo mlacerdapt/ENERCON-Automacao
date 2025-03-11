@@ -1,0 +1,66 @@
+var bBusyAnimate = false;
+var iBusyLeft = 0;
+var iBusyDelta = 60;
+var iBusyTimeStep = 50;
+var iBusyWidth = 500;
+var iBusyPageWidth=0;
+var $Busy=0;
+
+
+//this is called internally when the show() is called on the busy indicator
+sap.ui.core.BusyIndicator.attachOpen(function(oEvent) {
+	$Busy = oEvent.getParameter("$Busy");
+	iBusyPageWidth = jQuery(document.body).width();
+	$Busy.css("top", "0").css("width", iBusyPageWidth + "px");
+	bBusyAnimate = true;
+	iBusyLeft = $Busy[0].offsetLeft;
+	window.setTimeout(animationStep, iBusyTimeStep);
+
+//	$(window).delegate('*', 'keypress', function (evt){
+//		sap.ui.core.BusyIndicator.hide();
+//	});
+
+});
+
+//this is called internally when the hide() is called on the busy indicator
+sap.ui.core.BusyIndicator.attachClose(function(oEvent) {
+	bBusyAnimate = false;
+});
+
+//this method is used internally to provide animation of the busy indicator
+//if this is not provided, the indicator will look more like a horizontal bar
+function animationStep() {
+	if (bBusyAnimate) {
+		iBusyLeft += iBusyDelta;
+		if (iBusyLeft > iBusyPageWidth) {
+			iBusyLeft = -iBusyWidth;
+		}
+		$Busy.css("background-position", iBusyLeft + "px 0px");
+		window.setTimeout(animationStep, iBusyTimeStep);
+	}
+}
+
+//this would start the busy indicator
+function showBusyIndicator() {
+	sap.ui.core.BusyIndicator.show(0);
+}
+
+//this would hide the busy indicator
+function hideBusyIndicator() {
+	sap.ui.core.BusyIndicator.hide();
+}
+
+////this method would only change the cursor pointer to a loading circle kinda thing
+//function showBusyCursor(){
+//	$('*').css('cursor', 'wait');
+//}
+//
+////restore the cursor to its original form
+//function hideBusyCursor(){
+//	
+//	$(window).delegate('*', 'keypress', function (evt){
+//		$('*').css('cursor', 'auto');
+//	});
+//	
+//}
+

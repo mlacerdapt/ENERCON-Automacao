@@ -1,0 +1,2830 @@
+/*
+ * This Javscript file is to represent a KPI added to the web page.
+ */
+//declaring the package if the have not been initialised
+
+com.sap.xmii = com.sap.xmii || {};
+
+com.sap.xmii.ssce = com.sap.xmii.ssce || {};
+
+com.sap.xmii.ssce.KPIView = function(chartType, kpiName, kpiPath, fileType, mode, config) {
+
+    if (chartType == undefined || kpiName == undefined || kpiPath == undefined)
+        return;
+
+    // Create default KPI Configuration object.
+    var oKpiObj = {
+        Name: kpiName,
+        Path: kpiPath,
+        Type: chartType,
+        FileType: fileType,
+        Mode: mode
+    };
+
+    this.kpiChart; // The actual i5Chart Object
+    this.oBreadCrumb; // BreadCrumb used for drill down.
+    this.picBreadCrumb;
+    this.groupByBreadCrumb;
+    this.picBreadCrumbList = [];
+    this.oLayout;
+    this.panel;
+    this.oDrillDownCreate = false;
+    this.firstSelectedNameSpace = '';
+    this.kpiConfiguration = {};
+    this.toolbar;
+    this.oDrillDownLayoutRow;
+
+    // get the default initialization of KPI Configuration object
+    if (config == undefined) {
+        this.kpiConfiguration = $.extend(true, {}, createDefaultKPIConfig(oKpiObj), oKpiObj); //createDefaultKPIConfig in KPIUtils.js
+    } else {
+        if (undefined != config && config.indexOf("PICAnalysis") > 0) {
+            config = config.replace(/\\\\\\/g, "\\");
+        } else {
+            config = com.sap.xmii.common.util.MIIi5Util.stringReplaceAll(config, "\\\"", "\"");
+        }
+        this.kpiConfiguration.Config = $.parseJSON(config);
+        this.kpiConfiguration = $.extend(true, {}, this.kpiConfiguration, oKpiObj);
+    }
+
+    // UpdateKPI configuration with the dimension information
+    if (this.kpiConfiguration.Config.dimensions === undefined || this.kpiConfiguration.Config.dimensions < 1) {
+        this.kpiConfiguration = this.loadDimensions(this.kpiConfiguration, false);
+    }
+    this.showConfigureVisualization = true;
+    this.showTimeBar = !this.kpiConfiguration.Config.autoRefresh;
+};
+
+com.sap.xmii.ssce.KPIView.prototype = {
+
+    /*
+     * Draw is the final method to be called to actually placing i5Chart in the given div
+     */
+    draw: function(cellID) {
+
+        // Generate the URL to get the data based on the different configuration done.
+        var url = this.oDataUrlGenerators(this.kpiConfiguration);
+
+        /*if(cellID != "picGroupTagTrendChartLayout"){
+        	ceController.deleteObject(cellID);
+        }*/
+
+        this.kpiConfiguration.Config.cellID = cellID;
+        if (this.kpiConfiguration.Config.chartType == "Tile") {
+
+            var view,
+                controller;
+            jQuery.sap.registerModulePath("CompositionEnvironment.Views", "/XMII/CompositionEnvironment/Views");
+            sap.ui.localResources("CompositionEnvironment");
+            view = new sap.ui.core.mvc.JSView({
+                width: '100%',
+                height: '100%',
+                viewName: 'CompositionEnvironment.Views.KPILayout'
+            });
+
+            controller = view.getController();
+
+            view.setModel(new sap.ui.model.json.JSONModel(this.kpiConfiguration));
+            view.addContent(view.createContent.call(view, view.getController()));
+            this.kpiTileView = view;
+            view.placeAt(cellID, "only");
+
+        } else {
+            if (isNaN(this.kpiConfiguration.Config.chartType))
+                this.kpiConfiguration.Config.chartType = getChartConstant(this.kpiConfiguration.Config.chartType);
+            if (this.kpiConfiguration.FileType == "CatalogQuery") {
+                var queryTemplate = this.kpiConfiguration.Path + "/" + this.kpiConfiguration.Name;
+                this.kpiChart = new com.sap.xmii.chart.hchart.i5Chart(this.kpiConfiguration.Config.chartType, queryTemplate);
+            } else {
+                // create i5Chart with the generated URL
+                this.kpiChart = new com.sap.xmii.chart.hchart.i5Chart(this.kpiConfiguration.Config.chartType, "", url);
+            }
+
+            // final draw call
+            this.applyConfigurationOnChart(cellID);
+            this.kpiChart.draw(cellID);
+            if (this.kpiConfiguration.Config.chartType == 11 && this.kpiConfiguration.Config.fileType != "CatalogQuery" && (isObjectNull(this.kpiConfiguration.Config.isValueSetColorIndicator) || !this.kpiConfiguration.Config.isValueSetColorIndicator))
+                this.setColorIndicatorToGaugeChart(cellID);
+
+        }
+
+    },
+
+    /**
+     * Function responsible to set the color indicator values to the gauge chart
+     * @return
+     */
+    setColorIndicatorToGaugeChart: function(cellID) {
+        var data = this.kpiChart.model.getJSONModel().getData();
+        if (isObjectNotNull(data) && isObjectNotNull(data.Rowsets) &&
+            isObjectNotNull(data.Rowsets.Rowset) && isObjectNotNull(data.Rowsets.Rowset[0]) && isObjectNotNull(data.Rowsets.Rowset[0].Row) &&
+            isObjectNotNull(data.Rowsets.Rowset[0].Row[0])) {
+            var results = data.Rowsets.Rowset[0].Row[0];
+            var colorIndicatorValue = null;
+            if (results.ThresholdType == "Positive") {
+
+                var toGreenLow = results.ToGreenLow == "Infinity" ? results.FromGreenLow : results.ToGreenLow;
+                colorIndicatorValue = "1," + results.FromRedHigh + "," + results.ToRedHigh + ",#DC3912_2," + results.FromYellowHigh + "," + results.ToYellowHigh + ",#F3F049_3," + results.FromGreenLow + "," + toGreenLow + ",#109618";
+                this.kpiChart.getChartObject().setColorIndicator(colorIndicatorValue);
+                this.kpiChart.getChartObject().setXAxisStart(results.FromRedHigh);
+                this.kpiChart.getChartObject().setXAxisEnd(toGreenLow);
+
+
+            } else if (results.ThresholdType == "Negative") {
+
+
+                var toRedHigh = results.ToRedHigh == "Infinity" ? results.FromRedHigh : results.ToRedHigh;
+                colorIndicatorValue = "1," + results.FromGreenLow + "," + results.ToGreenLow + ",#109618_2," + results.FromYellowHigh + "," + results.ToYellowHigh + ",#F3F049_3," + results.FromRedHigh + "," + toRedHigh + ",#DC3912";
+                this.kpiChart.getChartObject().setColorIndicator(colorIndicatorValue);
+                this.kpiChart.getChartObject().setXAxisStart(results.FromGreenLow);
+                this.kpiChart.getChartObject().setXAxisEnd(results.toRedHigh);
+
+
+
+            } else if (results.ThresholdType == "Bi-directional") {
+
+                var toRedHigh = results.ToRedHigh == "Infinity" ? results.FromRedHigh : results.ToRedHigh;
+                colorIndicatorValue = "1," + results.FromRedLow + "," + results.ToRedLow + ",#DC3912_2," + results.FromYellowLow + "," + results.ToYellowLow + ",#F3F049_3," + results.FromGreenLow + "," + results.ToGreenLow + ",#109618_4," + results.FromYellowHigh + "," + results.ToYellowHigh + ",#F3F049_5," + results.FromRedHigh + "," + toRedHigh + ",#DC3912";
+                this.kpiChart.getChartObject().setColorIndicator(colorIndicatorValue);
+                this.kpiChart.getChartObject().setXAxisStart(results.FromRedLow);
+                this.kpiChart.getChartObject().setXAxisEnd(results.toRedHigh);
+            }
+        }
+        var panel = sap.ui.getCore().byId(cellID.replace("kpi",""));
+        if(panel != undefined && panel != null) {
+        	if(panel.data("Object").DisplayParameters == undefined && panel.data("Object").DisplayParameters == null) 
+        		panel.data("Object").DisplayParameters = []
+        	var currentIndex = findIndexOfParameterAndInitialize(panel.data("Object").DisplayParameters, "ColorIndicator", 39, 1, 24, colorIndicatorValue, true);
+        	panel.data("Object").DisplayParameters[currentIndex].Value = colorIndicatorValue;
+
+        }
+    },
+    
+    /**
+     * Handles the drill down of data point select on KPI/PIC Analysis chart. Method is called on click event of lengend item.
+     * handleDataPointDrillDownDispatcher is responsible to update the chart based on click even and also update breadCrumb accordingly
+     */
+    handleDataPointDrillDownDispatcher: function(event) {
+        // get drill down type and flag of wether dill down from PIC Analysis chart
+        if (this.kpiConfiguration.FileType == "CatalogQuery" && "PICAnalysis" == this.kpiConfiguration.Mode) {
+        	var cellID = this.kpiChart.chartPosId;
+        	var drillDownType = $('input[name=' + cellID + '-drillDownType][checked]').val();
+        	var withDateTime = $("#" + this.kpiChart.chartPosId + "-checkWithTime-CB").is(":checked");
+        	var byShiftCheckBoxValue = sap.ui.getCore().byId(cellID + "-checkByShift").getChecked();
+        	this.kpiConfiguration.Config.isAnalysisWithShift = byShiftCheckBoxValue;
+        	var selectionType = "DataPointSelection";
+            if (drillDownType == "GroupByDrillDown") {
+                this.groupByDrillDownProcessor(withDateTime, selectionType, event);
+            }
+            if (drillDownType == "PICDrillDown") {
+                this.PICDrillDownProcessor(withDateTime, selectionType, event);
+            }
+            if ("Hour" === this.kpiConfiguration.Config.selectedDrillDownGranularity && sap.ui.getCore().byId(cellID + "-checkWithTime").getEnabled()){
+                sap.ui.getCore().byId(cellID + "-checkWithTime").setChecked(false);
+                sap.ui.getCore().byId(cellID + "-checkWithTime").setEnabled(false);
+            }
+            if ("Year" === this.kpiConfiguration.Config.selectedDrillDownGranularity || "Quarter" === this.kpiConfiguration.Config.selectedDrillDownGranularity
+                || "Month" === this.kpiConfiguration.Config.selectedDrillDownGranularity || "Week" === this.kpiConfiguration.Config.selectedDrillDownGranularity){
+                sap.ui.getCore().byId(cellID + "-checkByShift").setChecked(false);
+                sap.ui.getCore().byId(cellID + "-checkByShift").setEnabled(false);
+            } else if ("Day" === this.kpiConfiguration.Config.selectedDrillDownGranularity 
+                || undefined === this.kpiConfiguration.Config.selectedDrillDownGranularity && "Day" === this.kpiConfiguration.Config.duration.granularity) {
+                sap.ui.getCore().byId(cellID + "-checkByShift").setEnabled(true);
+            } else if ("Shift" === this.kpiConfiguration.Config.selectedDrillDownGranularity) {
+                sap.ui.getCore().byId(cellID + "-checkByShift").setChecked(true);
+                sap.ui.getCore().byId(cellID + "-checkByShift").setEnabled(false);
+            } else {
+                sap.ui.getCore().byId(cellID + "-checkByShift").setEnabled(false);
+            }
+        } else {
+            this.KPIDrillDownProcessor();
+        }
+    },
+
+    /**
+     * Handles the drill down of legend item select on KPI/PIC Analysis chart. Method is called on click event of lengend item.
+     * handleLegendDrillDownDispatcher is responsible to update the chart based on click even and also update breadCrumb accordingly
+     */
+    handleLegendDrillDownDispatcher: function(event) {
+        // get drill down type and flag of wether dill down from PIC Analysis chart
+        if (this.kpiConfiguration.FileType == "CatalogQuery" && "PICAnalysis" == this.kpiConfiguration.Mode) {
+            var cellID = this.kpiChart.chartPosId;
+            var drillDownType = $('input[name=' + cellID + '-drillDownType][checked]').val();
+            var withDateTime = false; // for legend drill down on PIC Analysis, it drill down always without date
+            var selectionType = "LegendSelection";
+            if (drillDownType == "GroupByDrillDown") {
+                this.groupByDrillDownProcessor(withDateTime, selectionType, event);
+            }
+            if (drillDownType == "PICDrillDown") {
+                this.PICDrillDownProcessor(withDateTime, selectionType, event);
+            }
+        } else {
+            if (this.kpiConfiguration.Config.enableDrillDown == undefined || this.kpiConfiguration.Config.enableDrillDown == "undefined" || this.kpiConfiguration.Config.enableDrillDown)
+                this.KPIDrillDownProcessor();
+        }
+    },
+    
+    /**
+     * Function responsible to process drill down operation of group-by mode for PIC Analysis. 
+     * @param withDateTime
+     * @param selectionType
+     * @param event
+     * @return
+     */
+    groupByDrillDownProcessor: function(withDateTime, selectionType, event) {
+        var drillDownIndex = this.kpiConfiguration.Config.drillDownIndex;
+        var dimensions = this.kpiConfiguration.Config.dimensions;
+        // Drill down only if we have more dimensions to drill down
+        if (drillDownIndex < dimensions.length) {
+            var AGGREGATION_LOGIC_ALL = ["SUM", "AVG", "MIN", "MAX", "RANGE"];
+            // get the value first to add filter
+            var selectedTimeDimension = {};
+            var selectedLegendDimension = {};
+            var selectedCategoriesAliases = [];
+            var selectedAggregationModes = [];
+            // Set the selected date time dimension to kpi configuration
+            var labelColumns = this.getLabelColumnsForSelectedConfiguration();
+            var chartObject = this.kpiChart.getChartObject();
+            var ds = chartObject.ui5ChartElement.getDataset();
+            var dataset = ds.getVIZDataset();
+            //var vizFrame = chartObject.getVizFrame();
+            var compMode = chartObject.getCompatibilityMode();
+            if (!compMode) {
+                // Set the selected time dimension 
+                if (selectionType == "DataPointSelection") {
+                    selectedLegendDimension = chartObject.getSelectedDataPointProperties();
+                    selectedTimeDimension = getSelectedDataPointTimeDimensionsForVizFrameChart(selectedLegendDimension);
+                    this.kpiConfiguration.Config.selectedTimeDimension = selectedTimeDimension;
+                } else {
+                    var selectedLegendValue = chartObject.legendValue;
+                    var regLegend = new RegExp(" / ");
+                    var selectedLegendValueArr = selectedLegendValue.split(regLegend);
+                    $.each(selectedLegendValueArr, function(i,value){
+                        if(value.match(/^Root/)){
+                            selectedLegendDimension.Namespace = value;
+                        } else if (value.match(/^SUM_/) || value.match(/^AVG_/) || value.match(/^MIN_/) || value.match(/^MAX_/) || value.match(/^RANGE_/)){
+                            selectedLegendDimension.measureNames = value;
+                        } else {
+                            var legendDescripArr = [];
+                            if (chartObject.getLegendDescriptionLabel()){
+                                legendDescripArr = chartObject.getLegendDescriptionLabel().split(/,/);
+                            }
+                            selectedLegendDimension[legendDescripArr[i]] = value;
+                        }
+                    });
+                }
+                if(undefined !== selectedLegendDimension.measureNames && "" !== selectedLegendDimension.measureNames){
+                    $.each(AGGREGATION_LOGIC_ALL, function(index, value){
+                        var regAggrProfix = new RegExp("^" + value + "_");
+                        if(selectedLegendDimension.measureNames.match(regAggrProfix)){
+                            selectedAggregationModes[0] = value;
+                            selectedCategoriesAliases[0] = selectedLegendDimension.measureNames;
+                        }
+                    });
+                    this.kpiConfiguration.Config.selectedDrillDownAggregationModes = selectedAggregationModes;
+                } else {
+                    selectedDrillDownAggregationModes = this.kpiConfiguration.Config.selectedDrillDownAggregationModes;
+                    selectedCategoriesAliases = this.kpiConfiguration.Config.selectedDrillDownCategoriesAliases;   
+                }
+                //isArrayNotEmpty(obj.measure) -- this is missing here, understand the purpose here
+                if(isArrayNotEmpty(this.kpiConfiguration.Config.selectedDrillDownCategoriesAliases))
+					selectedCategoriesAliases = this.kpiConfiguration.Config.selectedDrillDownCategoriesAliases;   
+            }else{
+	            var node = event.target;
+	            var d3Datum = d3.select(node).datum();
+	            var obj = dataset.ctx2ArrayData(d3Datum.ctx);
+	            var picDimensions = "";
+	            var isDimensionsCombined = false;
+	            var maxDimensionIndex = 0;
+	            if (obj.dimension && obj.dimension.length > 0) {
+	                var ary = obj.dimension;
+	                selectedLegendDimension = getSelectedDataPointLegendDimension(ary);
+	                // Set the selected time dimension 
+	                if (selectionType == "DataPointSelection") {
+	                    selectedTimeDimension = getSelectedDataPointTimeDimensions(ary);
+	                    this.kpiConfiguration.Config.selectedTimeDimension = selectedTimeDimension;
+	                } else {
+	                    if (selectedLegendDimension['Namespace'] != undefined) {
+	                        picDimensions = selectedLegendDimension["Namespace"];
+	                    }
+	
+	                }
+	            }
+	            if (Object.keys(selectedLegendDimension).length > 1) {
+	                isDimensionsCombined = true;
+	            }
+	            if (isArrayNotEmpty(obj.measure)) {
+	                $.each(obj.measure, function(i, measureObj) {
+	                    selectedCategoriesAliases.push(measureObj.key);
+	                });
+	            } else {
+	                selectedCategoriesAliases = this.kpiConfiguration.Config.selectedDrillDownCategoriesAliases;
+	            }
+            }
+            var drillDownUoM = [];
+            var categoryAliasWithoutAggregation= getCategoryAliasWithoutAggregation(selectedCategoriesAliases);
+            var drillDownCategoryIndex = this.kpiConfiguration.Config.selectedCategoriesAliases.indexOf(categoryAliasWithoutAggregation[0]);
+            drillDownUoM[0] = this.kpiConfiguration.Config.categoryUoMs[drillDownCategoryIndex];
+            this.kpiConfiguration.Config.selectedCategoryUoMs = drillDownUoM;
+            var picDimensionsList = [];
+            var selectedDimension = this.kpiConfiguration.Config.dimensions[drillDownIndex].dimension;
+            this.kpiConfiguration.Config.dimensions[drillDownIndex].selected = true;
+
+            var that = this;
+
+            $.each(selectedCategoriesAliases, function(i, aggAlias) {
+                if (aggAlias.match(/^SUM_/)||aggAlias.match(/^AVG_/)||aggAlias.match(/^MIN_/)||aggAlias.match(/^MAX_/)) {
+                    var alias = aggAlias.slice(4, aggAlias.length);
+                    that.kpiConfiguration.Config.selectedDrillDownCategoriesAliases = [];
+                    that.kpiConfiguration.Config.selectedDrillDownCategoriesAliases.push(alias);
+                    that.kpiConfiguration.Config.selectedDrillDownAggregationModes.push(aggAlias.slice(0,3));
+                } else if (aggAlias.match(/^RANGE_/)) {
+                    var alias = aggAlias.slice(6, aggAlias.length);
+                    that.kpiConfiguration.Config.selectedDrillDownCategoriesAliases = [];
+                    that.kpiConfiguration.Config.selectedDrillDownCategoriesAliases.push(alias);
+                    that.kpiConfiguration.Config.selectedDrillDownAggregationModes.push(aggAlias.slice(0,5));
+                } else {
+                    that.kpiConfiguration.Config.selectedDrillDownCategoriesAliases = [];
+                    that.kpiConfiguration.Config.selectedDrillDownCategoriesAliases.push(aggAlias);
+                }
+            });
+            $.each(that.kpiConfiguration.Config.dimensions, function(i, dimensionObj) {
+                $.each(selectedLegendDimension, function(name, value) {
+                    if (name == dimensionObj.dimension) {
+                        maxDimensionIndex = i;
+                        if (name == "Namespace") {
+                            if (that.kpiConfiguration.Config.drillDownType == '') {
+                                that.firstSelectedNameSpace = value;
+                            }
+                            picDimensions = value;
+                        }
+                        dimensionObj.selected = true;
+                        dimensionObj.filterSelected = value;
+                    }
+                });
+            });
+            // Set drill down type to kpi configuration
+            this.kpiConfiguration.Config.drillDownType = "GroupByDrillDown";
+            if (picDimensions != undefined && picDimensions != '') {
+                if (that.firstSelectedNameSpace.length == 0) {
+                    this.firstSelectedNameSpace = picDimensions;
+                }
+                if (that.firstSelectedNameSpace.length > 1) {
+                    picDimensions = picDimensions.slice(this.firstSelectedNameSpace.length + 1, picDimensions.length);
+                }
+                picDimensionsList.push({
+                    level: 0,
+                    dimension: this.firstSelectedNameSpace,
+                    selected: false,
+                    filterSelected: '',
+                    values: []
+                });
+                if (picDimensions.length > 0) {
+                    picDimensions = picDimensions.split("/");
+                    for (var i = 0; i < picDimensions.length; i++) {
+                        if (i == picDimensions.length - 1) {
+                            picDimensionsList.push({
+                                level: i + 1,
+                                dimension: picDimensions[i],
+                                selected: true,
+                                filterSelected: '',
+                                values: []
+                            });
+
+
+                        } else {
+                            picDimensionsList.push({
+                                level: i + 1,
+                                dimension: picDimensions[i],
+                                selected: false,
+                                filterSelected: '',
+                                values: []
+                            });
+
+                        }
+                    }
+                }
+            }
+            if (picDimensionsList.length > 0) {
+                this.picBreadCrumbList = [];
+                for (var i = 0; i < picDimensionsList.length; i++) {
+                    this.picBreadCrumbList.push(picDimensionsList[i]);
+                }
+            }
+
+            // construct new label columns for drill down with date time
+            if (withDateTime) {
+                labelColumns = "";
+                $.each(selectedTimeDimension, function(name, value) {
+                    labelColumns += name + ",";
+                });
+                var dateTimeDimension = labelColumns.substring(0, (labelColumns.length - 1)).split(",");
+                if (selectionType == "DataPointSelection") {
+                    this.kpiConfiguration.Config.selectedDrillDownGranularity = this.getDrillDownGranularity(dateTimeDimension);
+                }
+                if (this.kpiConfiguration.Config.duration.granularity != "None") {
+                    labelColumns += (this.getDrillDownGranularity(dateTimeDimension).match(/Minutes/) != null) ? "" : this.getDrillDownGranularity(dateTimeDimension) + ",";
+                }
+            } else {
+                selectedTimeDimension = this.kpiConfiguration.Config.selectedTimeDimension;
+                var selectedDrillDownGranularity = this.kpiConfiguration.Config.selectedDrillDownGranularity;
+                if (selectedTimeDimension != undefined) {
+                    var labelColumns = '';
+                    if (Object.keys(selectedTimeDimension).length > 0 && !jQuery.isEmptyObject(selectedTimeDimension)) {
+                        var dimensionList = Object.keys(selectedTimeDimension);
+                        for (var i = 0; i < dimensionList.length; i++) {
+                            if (i == dimensionList.length - 1) {
+                                labelColumns += dimensionList[i] + ',';
+                                if (selectedDrillDownGranularity != undefined && selectedDrillDownGranularity != "" && dimensionList[i] != selectedDrillDownGranularity) {
+                                    labelColumns += (selectedDrillDownGranularity.match(/Minutes/) != null) ? "" : selectedDrillDownGranularity + ",";
+                                }
+                            } else {
+                                labelColumns += dimensionList[i] + ',';
+                            }
+                        }
+                    } else {
+                        labelColumns = this.getLabelColumnsForSelectedConfiguration();
+                    }
+                }
+            }
+            // increment the drill down Index
+            if (isDimensionsCombined) {
+                drillDownIndex = maxDimensionIndex;
+            }
+            if (drillDownIndex < dimensions.length - 1) {
+                drillDownIndex = drillDownIndex + 1;
+            }
+            // CSS 1102701 Fix, If the Dimensional Value is selected from the last Drillable Dimension we have to ignore this call
+            // as there are no further dimesnions to drill down
+            // Set the selected property of the dimension to true
+            this.kpiConfiguration.Config.dimensions[drillDownIndex].selected = true;
+
+            if (this.kpiConfiguration.Config.dimensions[drillDownIndex]) {
+                this.kpiConfiguration.Config.drillDownIndex = drillDownIndex;
+                this.kpiConfiguration.Config.selectedDimensions = this.kpiConfiguration.Config.dimensions[drillDownIndex].dimension;
+
+                var that = this;
+                var queryParams = getParametersForCatalogQuery(this.kpiConfiguration);
+                if (queryParams != undefined) {
+                    $.each(queryParams, function(name, value) {
+                        if (picDimensionsList.length > 0) {
+                            if (name == "SelectedGroupCategories") {
+                                that.kpiChart.getQueryObject().setParameter(name, '');
+                                that.kpiChart.getQueryObject().setSelectedGroupCategories('');
+                                return true;
+                            }
+                            if (name == "NodeSelectionExpression") {
+                                that.kpiChart.getQueryObject().setParameter(name, '');
+                                that.kpiChart.getQueryObject().setNodeSelectionExpression('');
+                                return true;
+                            }
+                        }
+                        that.kpiChart.getQueryObject().setParameter(name, value);
+                    });
+                }
+                // Set the i5Chart property to take care of newly selected Dimension
+                this.kpiChart.getChartObject().setXDimensions(labelColumns.substring(0, (labelColumns.length - 1)));
+                this.kpiChart.getChartObject().setYDimensions(this.kpiConfiguration.Config.selectedDimensions);
+                this.kpiChart.getChartTemplateObject().setProperty("LabelColumns", labelColumns + this.kpiConfiguration.Config.selectedDimensions);
+                if ("None" !== this.kpiConfiguration.Config.duration.granularity) {
+                    this.kpiChart.getChartObject().setLegendDescriptionLabel(this.kpiConfiguration.Config.selectedDimensions);
+                } else {
+                    this.kpiChart.getChartObject().setLegendDescriptionLabel(oBundle.getText("XLTP_TAG_CATEGORY"));
+                }
+                var valueCols = this.getValueColumnsForChart();
+                var valueColLabel = this.getValueColumnsLabelForChart();
+                this.kpiChart.getChartTemplateObject().setProperty("ValueColumns", valueCols);
+                this.kpiChart.getChartTemplateObject().setProperty("YAxisLabel", valueColLabel);
+                // update the breadcrumb with current dimension and Filter
+                this.groupByBreadCrumb.updateBreadCrumbStateByDimensionsConfig(this.kpiConfiguration.Config.dimensions);
+                this.picBreadCrumb.updateBreadCrumbStateByPIC(this.picBreadCrumbList);
+
+                // Redraw chart
+                try {
+                    this.kpiChart.update(true);
+                } catch(err){
+                    var message = err.message!=undefined?err.message:err;
+                    console.error(message);
+                    var selectedDrillDownGranularity = this.kpiConfiguration.Config.selectedDrillDownGranularity;
+                    var granularity = this.kpiConfiguration.Config.duration.granularity;
+                    if(selectedDrillDownGranularity && selectedDrillDownGranularity != granularity) {
+                        this.kpiConfiguration.Config.selectedDrillDownGranularity = this.rollbackDrillDownGranularity(selectedDrillDownGranularity);
+                    }
+                    this.kpiConfiguration.Config.isAnalysisWithShift = false;
+                }
+                if(!this.showTimeBar || "DataPointSelection" === selectionType){
+                    this.kpiChart.getTimeBar().toggleTimeBarOpener(false);
+                    this.showTimeBar = false;
+                }
+            }
+        }
+    },
+    
+    /**
+     * Function responsible to process drill down of PIC structure for PIC Analysis 
+     * @param withDateTime
+     * @param selectionType
+     * @param event
+     * @return
+     */
+    PICDrillDownProcessor: function(withDateTime, selectionType, event) {
+        var previousNameSpace = "";
+        var AGGREGATION_LOGIC_ALL = ["SUM", "AVG", "MIN", "MAX", "RANGE"];
+        $.each(this.kpiConfiguration.Config.dimensions, function(i, obj) {
+            if (obj.selected) {
+                if (obj.dimension == 'Namespace')
+                    previousNameSpace = obj.filterSelected;
+                return;
+            }
+        });
+        this.kpiConfiguration.Config.picDimensions = [];
+        var picDimensions = previousNameSpace;
+        // get the value first to add filter
+        var selectedTimeDimension = {};
+        var selectedLegendDimension = {};
+        var selectedCategoriesAliases = [];
+        var selectedAggregationModes = [];
+        // Set the selected date time dimension to kpi configuration
+        var labelColumns = this.getLabelColumnsForSelectedConfiguration();
+        var chartObject = this.kpiChart.getChartObject();
+        var ds = chartObject.ui5ChartElement.getDataset();
+        var dataset = ds.getVIZDataset();
+        //var vizFrame = chartObject.getVizFrame();
+        var compMode = chartObject.getCompatibilityMode();
+        if (!compMode) {
+            // Set the selected time dimension 
+            if (selectionType == "DataPointSelection") {
+                selectedLegendDimension = chartObject.getSelectedDataPointProperties();
+                selectedTimeDimension = getSelectedDataPointTimeDimensionsForVizFrameChart(selectedLegendDimension);
+                this.kpiConfiguration.Config.selectedTimeDimension = selectedTimeDimension;
+            } else {
+                    var selectedLegendValue = chartObject.legendValue;
+                    var regLegend = new RegExp(" / ");
+                    var selectedLegendValueArr = selectedLegendValue.split(regLegend);
+                    $.each(selectedLegendValueArr, function(i,value){
+                        if(value.match(/^Root/)){
+                            selectedLegendDimension.Namespace = value;
+                        } else if (value.match(/^SUM_/) || value.match(/^AVG_/) || value.match(/^MIN_/) || value.match(/^MAX_/) || value.match(/^RANGE_/)){
+                            selectedLegendDimension.measureNames = value;
+                        } else {
+                            var legendDescripArr = [];
+                            if (chartObject.getLegendDescriptionLabel()){
+                                legendDescripArr = chartObject.getLegendDescriptionLabel().split(/,/);
+                            }
+                            selectedLegendDimension[legendDescripArr[i]] = value;
+                        }
+                    });
+                }
+                if(undefined !== selectedLegendDimension.measureNames && "" !== selectedLegendDimension.measureNames){
+                    $.each(AGGREGATION_LOGIC_ALL, function(index, value){
+                        var regAggrProfix = new RegExp("^" + value + "_");
+                        if(selectedLegendDimension.measureNames.match(regAggrProfix)){
+                            selectedAggregationModes[0] = value;
+                            selectedCategoriesAliases[0] = selectedLegendDimension.measureNames;
+                        }
+                    });
+                    this.kpiConfiguration.Config.selectedDrillDownAggregationModes = selectedAggregationModes;
+                } else {
+                    selectedDrillDownAggregationModes = this.kpiConfiguration.Config.selectedDrillDownAggregationModes;
+                    selectedCategoriesAliases = this.kpiConfiguration.Config.selectedCategoriesAliases;   
+                }
+
+            //isArrayNotEmpty(obj.measure) -- this is missing here, understand the purpose here
+            if(isArrayNotEmpty(this.kpiConfiguration.Config.selectedDrillDownCategoriesAliases))
+                selectedCategoriesAliases = this.kpiConfiguration.Config.selectedDrillDownCategoriesAliases;
+        } else {
+            var node = event.target;
+            var d3Datum = d3.select(node).datum();
+            var obj = dataset.ctx2ArrayData(d3Datum.ctx);
+            if (obj.dimension && obj.dimension.length > 0) {
+                var ary = obj.dimension;
+                selectedLegendDimension = getSelectedDataPointLegendDimension(ary);
+                // Set the selected time dimension 
+                if (selectionType == "DataPointSelection") {
+                    selectedTimeDimension = getSelectedDataPointTimeDimensions(ary);
+                    this.kpiConfiguration.Config.selectedTimeDimension = selectedTimeDimension;
+                }
+            }
+            if (isArrayNotEmpty(obj.measure)) {
+                $.each(obj.measure, function(i, measureObj) {
+                    selectedCategoriesAliases.push(measureObj.key);
+                });
+            } else {
+                selectedCategoriesAliases = this.kpiConfiguration.Config.selectedDrillDownCategoriesAliases;
+            }
+        }
+        var drillDownUoM = [];
+        var categoryAliasWithoutAggregation= getCategoryAliasWithoutAggregation(selectedCategoriesAliases);
+        var drillDownCategoryIndex = this.kpiConfiguration.Config.selectedCategoriesAliases.indexOf(categoryAliasWithoutAggregation[0]);
+        drillDownUoM[0] = this.kpiConfiguration.Config.categoryUoMs[drillDownCategoryIndex];
+        this.kpiConfiguration.Config.selectedCategoryUoMs = drillDownUoM;
+        var that = this;
+        $.each(selectedCategoriesAliases, function(i, aggAlias) {
+            if (aggAlias.match(/^SUM_/)||aggAlias.match(/^AVG_/)||aggAlias.match(/^MIN_/)||aggAlias.match(/^MAX_/)) {
+                var alias = aggAlias.slice(4, aggAlias.length);
+                that.kpiConfiguration.Config.selectedDrillDownCategoriesAliases = [];
+                that.kpiConfiguration.Config.selectedDrillDownCategoriesAliases.push(alias);
+                that.kpiConfiguration.Config.selectedDrillDownAggregationModes.push(aggAlias.slice(0,3));
+            } else if (aggAlias.match(/^RANGE_/)) {
+                var alias = aggAlias.slice(6, aggAlias.length);
+                that.kpiConfiguration.Config.selectedDrillDownCategoriesAliases = [];
+                that.kpiConfiguration.Config.selectedDrillDownCategoriesAliases.push(alias);
+                that.kpiConfiguration.Config.selectedDrillDownAggregationModes.push(aggAlias.slice(0,5));
+            } else {
+                that.kpiConfiguration.Config.selectedDrillDownCategoriesAliases = [];
+                that.kpiConfiguration.Config.selectedDrillDownCategoriesAliases.push(aggAlias);
+            }
+        });
+        $.each(that.kpiConfiguration.Config.dimensions, function(i, dimensionObj) {
+            $.each(selectedLegendDimension, function(name, value) {
+                if (name == dimensionObj.dimension) {
+                    if (name == "Namespace") {
+                        if (that.picBreadCrumbList.length == 0) {
+                            that.firstSelectedNameSpace = value;
+                        }
+                        picDimensions = value;
+                    }
+                    dimensionObj.selected = true;
+                    dimensionObj.filterSelected = value;
+                }
+            });
+        });
+        // Set drill down type to kpi configuration
+        this.kpiConfiguration.Config.drillDownType = "PICDrillDown";
+        // construct new label columns for drill down with date time
+        if (withDateTime) {
+            labelColumns = "";
+            $.each(selectedTimeDimension, function(name, value) {
+                labelColumns += name + ",";
+            });
+            var dateTimeDimension = labelColumns.substring(0, (labelColumns.length - 1)).split(",");
+            if (selectionType == "DataPointSelection") {
+                this.kpiConfiguration.Config.selectedDrillDownGranularity = this.getDrillDownGranularity(dateTimeDimension);
+            }
+            if (this.kpiConfiguration.Config.duration.granularity != "None" 
+                && this.getDrillDownGranularity(dateTimeDimension).match(/Minutes/) == null 
+                && labelColumns.match(this.getDrillDownGranularity(dateTimeDimension)) == null ) {
+            	labelColumns += this.getDrillDownGranularity(dateTimeDimension) + ",";
+            }
+        } else {
+            selectedTimeDimension = this.kpiConfiguration.Config.selectedTimeDimension;
+            var selectedDrillDownGranularity = this.kpiConfiguration.Config.selectedDrillDownGranularity;
+            if (selectedTimeDimension != undefined) {
+                var labelColumns = '';
+                if (Object.keys(selectedTimeDimension).length > 0 && !jQuery.isEmptyObject(selectedTimeDimension)) {
+                    var dimensionList = Object.keys(selectedTimeDimension);
+                    for (var i = 0; i < dimensionList.length; i++) {
+                        if (i == dimensionList.length - 1) {
+                            labelColumns += dimensionList[i] + ',';
+                            if (selectedDrillDownGranularity != undefined && selectedDrillDownGranularity != "" && dimensionList[i] != selectedDrillDownGranularity) {
+                                labelColumns += (selectedDrillDownGranularity.match(/Minutes/) != null) ? "" : selectedDrillDownGranularity + ",";
+                            }
+                        } else {
+                            labelColumns += dimensionList[i] + ',';
+                        }
+                    }
+                } else {
+                    labelColumns = this.getLabelColumnsForSelectedConfiguration();
+                }
+            }
+        }
+        // CSS 1102701 Fix, If the Dimensional Value is selected from the last Drillable Dimension we have to ignore this call
+        // as there are no further dimesnions to drill down
+        var that = this;
+        var picDimensionsList = [];
+        this.picBreadCrumbList = [];
+        if (picDimensions != undefined && picDimensions != '') {
+            if (that.firstSelectedNameSpace.length > 1) {
+                picDimensions = picDimensions.slice(that.firstSelectedNameSpace.length + 1, picDimensions.length);
+            }
+            picDimensionsList.push({
+                level: 0,
+                dimension: that.firstSelectedNameSpace,
+                selected: false,
+                filterSelected: '',
+                values: []
+            });
+            if (picDimensions.length > 0) {
+                picDimensions = picDimensions.split("/");
+                for (var i = 0; i < picDimensions.length; i++) {
+                    if (i == picDimensions.length - 1) {
+                        picDimensionsList.push({
+                            level: i + 1,
+                            dimension: picDimensions[i],
+                            selected: true,
+                            filterSelected: '',
+                            values: []
+                        });
+
+
+                    } else {
+                        picDimensionsList.push({
+                            level: i + 1,
+                            dimension: picDimensions[i],
+                            selected: false,
+                            filterSelected: '',
+                            values: []
+                        });
+
+                    }
+                }
+            }
+
+        }
+        for (var i = 0; i < picDimensionsList.length; i++) {
+            this.picBreadCrumbList.push(picDimensionsList[i]);
+        }
+
+
+        var queryParams = getParametersForCatalogQuery(this.kpiConfiguration);
+        if (queryParams != undefined) {
+            $.each(queryParams, function(name, value) {
+                if ((queryParams['SelectedNodes'] != '' && queryParams['SelectedNodes'] != undefined)) {
+                    if (name == "SelectedGroupCategories") {
+                        that.kpiChart.getQueryObject().setParameter(name, '');
+                        that.kpiChart.getQueryObject().setSelectedGroupCategories('');
+                        return true;
+                    }
+                    if (name == "NodeSelectionExpression") {
+                        that.kpiChart.getQueryObject().setParameter(name, '');
+                        that.kpiChart.getQueryObject().setNodeSelectionExpression('');
+                        return true;
+                    }
+
+                }
+                that.kpiChart.getQueryObject().setParameter(name, value);
+            });
+        }
+        // Set the i5Chart property to take care of newly selected Dimension
+        this.kpiChart.getChartObject().setXDimensions(labelColumns.substring(0, (labelColumns.length - 1)));
+        this.kpiChart.getChartObject().setYDimensions("Namespace");
+        if (this.kpiConfiguration.Config.duration.granularity == "None") {
+            this.kpiChart.getChartTemplateObject().setProperty("LabelColumns", "Namespace");
+        } else {
+            this.kpiChart.getChartTemplateObject().setProperty("LabelColumns", labelColumns + this.kpiConfiguration.Config.selectedDimensions);
+        }
+        if ("None" !== this.kpiConfiguration.Config.duration.granularity) {
+            this.kpiChart.getChartObject().setLegendDescriptionLabel("Namespace");
+        } else {
+            this.kpiChart.getChartObject().setLegendDescriptionLabel(oBundle.getText("XLTP_TAG_CATEGORY"));
+        }
+        var valueCols = this.getValueColumnsForChart();
+        var valueColLabel = this.getValueColumnsLabelForChart();
+        this.kpiChart.getChartTemplateObject().setProperty("ValueColumns", valueCols);
+        this.kpiChart.getChartTemplateObject().setProperty("YAxisLabel", valueColLabel);
+        this.groupByBreadCrumb.updateBreadCrumbStateByDimensionsConfig(this.kpiConfiguration.Config.dimensions);
+        this.picBreadCrumb.updateBreadCrumbStateByPIC(picDimensionsList);
+        // Redraw chart
+        try {
+            this.kpiChart.update(true);
+        } catch(err){
+            var message = err.message!=undefined?err.message:err;
+            console.error(message);
+            var selectedDrillDownGranularity = this.kpiConfiguration.Config.selectedDrillDownGranularity;
+            var granularity = this.kpiConfiguration.Config.duration.granularity;
+            if(selectedDrillDownGranularity && selectedDrillDownGranularity != granularity) {
+                this.kpiConfiguration.Config.selectedDrillDownGranularity = this.rollbackDrillDownGranularity(selectedDrillDownGranularity);
+            }
+            this.kpiConfiguration.Config.isAnalysisWithShift = false;
+        }
+        if(!this.showTimeBar || "DataPointSelection" === selectionType){
+            this.kpiChart.getTimeBar().toggleTimeBarOpener(false);
+            this.showTimeBar = false;
+        }
+    },
+
+    /**
+     * Function to process drill down opration for KPI Object chart.
+     * @return
+     */
+    KPIDrillDownProcessor: function() {
+        var drillDownIndex = this.kpiConfiguration.Config.drillDownIndex;
+        var dimensions = this.kpiConfiguration.Config.dimensions;
+        var legendIndex;
+
+        // Drill down only if we have more dimensions to drill down
+        if (drillDownIndex < dimensions.length) {
+            // get the value first to add filter
+            var selectedValue = this.kpiChart.getChartObject().getSelectedDataSetNames();
+            legendIndex = this.kpiChart.getChartObject().getSelectedDataSetIndices();
+            //set the filter for this dimension
+            this.kpiConfiguration.Config.dimensions[drillDownIndex].filterSelected = selectedValue;
+            // Set the selected property of the dimension to true
+            this.kpiConfiguration.Config.dimensions[drillDownIndex].selected = true;
+            // increment the drill down Index
+            drillDownIndex = drillDownIndex + 1;
+            // CSS 1102701 Fix, If the Dimensional Value is selected from the last Drillable Dimension we have to ignore this call
+            // as there are no further dimesnions to drill down
+            if (this.kpiConfiguration.Config.dimensions[drillDownIndex]) {
+                this.kpiConfiguration.Config.drillDownIndex = drillDownIndex;
+                this.kpiConfiguration.Config.selectedDimensions = this.kpiConfiguration.Config.dimensions[drillDownIndex].dimension;
+                // Set the i5Chart property to take care of newly selected Dimension
+                var labelColumns = this.getLabelColumnsForSelectedConfiguration();
+                this.kpiChart.getChartObject().setXDimensions(labelColumns.substring(0, (labelColumns.length - 1)));
+                this.kpiChart.getChartObject().setYDimensions(this.kpiConfiguration.Config.selectedDimensions);
+                this.kpiChart.getChartTemplateObject().setProperty("LabelColumns", labelColumns + this.kpiConfiguration.Config.selectedDimensions);
+                this.kpiChart.getChartObject().setLegendDescriptionLabel(this.kpiConfiguration.Config.selectedDimensions);
+                if (this.kpiConfiguration.FileType.match(/KPI/) != null) {
+                    // get the updated URL for changed dimensions and update the URL in chart's query Object
+                    var url = this.oDataUrlGenerators(this.kpiConfiguration);
+                    this.kpiChart.getQueryObject().setQueryResultUrl(url);
+                } else {
+                    var that = this;
+                    var queryParams = getParametersForCatalogQuery(this.kpiConfiguration);
+                    if (queryParams != undefined) {
+                        $.each(queryParams, function(name, value) {
+                            that.kpiChart.getQueryObject().setParameter(name, value);
+                        });
+                    }
+                }
+                // update the breadcrumb with current dimension and Filter
+                this.oBreadCrumb.updateBreadCrumbStateByDimensionsConfig(this.kpiConfiguration.Config.dimensions);
+
+                // Redraw chart
+                this.kpiChart.update(true);
+
+            }
+        }
+    },
+
+    /**
+     * 
+     */
+    getDrillDownGranularity: function(labelColumns) {
+        var lowestGranularity = labelColumns[labelColumns.length - 1];
+        var cellID = this.kpiChart.chartPosId;
+        var byShiftCheckBoxValue = sap.ui.getCore().byId(cellID + "-checkByShift").getChecked();
+        if (lowestGranularity == "Year") {
+            return "Quarter";
+        }
+        if (lowestGranularity == "Quarter") {
+            return "Month";
+        }
+        if (lowestGranularity == "Month") {
+            return "Week";
+        }
+        if (lowestGranularity == "Week") {
+            return "Day";
+        }
+        if (lowestGranularity == "Day") {
+            if(true == byShiftCheckBoxValue){
+                return "Shift";
+            } else {
+                return "Hour";
+            }
+        }
+        if (lowestGranularity == "Shift") {
+            return "Hour";
+        }
+        if (lowestGranularity == "Hour") {
+            return "Hour";
+        }
+        if (lowestGranularity == "Min_30") {
+            return "30 Minutes";
+        }
+        if (lowestGranularity == "Min_20") {
+            return "20 Minutes";
+        }
+        if (lowestGranularity == "Min_15") {
+            return "15 Minutes";
+        }
+        if (lowestGranularity == "Min_10") {
+            return "10 Minutes";
+        }
+        if (lowestGranularity == "Min_5") {
+            return "5 Minutes";
+        }
+    },
+    
+    /**
+     * Method to rollback drilldown granularity. Used while catch exception during drilldown
+     **/
+     rollbackDrillDownGranularity: function(drillDownGranularity) {
+         if(drillDownGranularity) {
+             if(drillDownGranularity.match(/Minutes/)) {
+                 return "Hour";
+             }else if("Hour" == drillDownGranularity || "Shift" == drillDownGranularity) {
+                 return "Day";
+             }else if("Day" == drillDownGranularity) {
+                 return "Week";
+             }else if("Week" == drillDownGranularity) {
+                 return "Month";
+             }else if("Month" == drillDownGranularity) {
+                 return "Quarter";
+             }else if("Quarter" == drillDownGranularity || "Year" == drillDownGranularity) {
+                 return "Year";
+             } else {
+                 return "None";
+             }
+         }
+     },
+     
+    /**
+     * intialize breadcrumb object with default properties
+     * @return
+     */
+    createBreadCrumb: function() {
+
+        jQuery.sap.registerModulePath("CECustomControls", "/XMII/CompositionEnvironment/js/customControls");
+        jQuery.sap.require("CECustomControls.BreadCrumb");
+
+        // creates the array of dimesnions.
+        var aDim = [];
+        for (var i = 0; i < this.kpiConfiguration.Config.dimensions.length; i++) {
+            aDim.push(this.kpiConfiguration.Config.dimensions[i].dimension);
+        }
+
+        this.oBreadCrumb = new com.sap.mii.ui.composite.BreadCrumb({
+            dimensions: aDim,
+            click: function(oEvent) { // handle the click event for each breadCrumb item
+                    var iIndex = oEvent.getParameter("dimensionIndex");
+
+                    for (var i = 0; i < this.kpiConfiguration.Config.dimensions.length; i++) {
+                        if (i > iIndex) {
+                            this.kpiConfiguration.Config.dimensions[i].filterSelected = "";
+                            this.kpiConfiguration.Config.dimensions[i].selected = false;
+                        } else {
+                            this.kpiConfiguration.Config.dimensions[i].selected = true;
+                        }
+
+                    }
+                    this.kpiConfiguration.Config.selectedTimeDimension = {};
+                    this.kpiConfiguration.Config.selectedDrillDownGranularity = "";
+                    this.kpiConfiguration.Config.drillDownType = "GroupByDrillDown";
+                    this.kpiConfiguration.Config.isAnalysisWithShift = false;
+                    this.kpiChart.getQueryObject().removeFromOverrides("SelectedNodes");
+                    //this.kpiChart.getQueryObject().removeFromOverrides("DrillDownType");
+                    this.kpiChart.getQueryObject().removeFromOverrides("SelectedGroupByProperties");
+                    this.kpiChart.getQueryObject().removeFromOverrides("ScopePropertyExpression");
+                    this.kpiChart.getQueryObject().removeFromOverrides("SelectedTimeDimension");
+                    var drillDownIndex = iIndex + 1;
+                    //var sDimName = aDim[drillDownIndex];
+
+                    var sDimName = "";
+                    var isLastDimention = false;
+                    if (this.kpiConfiguration.FileType == "CatalogQuery" && "PICAnalysis" == this.kpiConfiguration.Mode) {
+                        var dim = aDim[drillDownIndex];
+                        if (dim != undefined) {
+                            sDimName = dim + ",";
+                        } else {
+                            isLastDimention = true;
+                        }
+                    } else {
+                        for (var j = 0; j <= drillDownIndex; j++) {
+                            var dim = aDim[j];
+                            if (dim != undefined) {
+                                sDimName = sDimName + dim + ",";
+                            } else {
+                                isLastDimention = true;
+
+
+                            }
+                        }
+                    }
+                    sDimName = sDimName.substring(0, (sDimName.length - 1));
+                    //CSS 1102701 Fix, if the selected dimension is the last dimension int the bread crumb, then sDimName will be undefined and no need to
+                    //drill down the chart further.
+                    if (!isLastDimention) {
+                        this.kpiConfiguration.Config.drillDownIndex = drillDownIndex;
+                        this.kpiConfiguration.Config.selectedDimensions = sDimName;
+                        if (this.kpiConfiguration.Config.selectedDimensions != undefined) {
+                            var labelColumns = this.getLabelColumnsForSelectedConfiguration();
+                            this.kpiChart.getChartObject().setXDimensions(labelColumns.substring(0, (labelColumns.length - 1)));
+                            this.kpiChart.getChartObject().setYDimensions(this.kpiConfiguration.Config.selectedDimensions);
+
+
+                            this.kpiChart.getChartTemplateObject().setProperty("LabelColumns", labelColumns + this.kpiConfiguration.Config.selectedDimensions);
+                        }
+
+                        // get the updated URL for changed dimensions
+                        var url = this.oDataUrlGenerators(this.kpiConfiguration);
+
+                        // update the URL for i5chart
+                        if ("None" !== this.kpiConfiguration.Config.duration.granularity) {
+                            this.kpiChart.getChartObject().setLegendDescriptionLabel(this.kpiConfiguration.Config.selectedDimensions);
+                        } else {
+                            this.kpiChart.getChartObject().setLegendDescriptionLabel(oBundle.getText("XLTP_TAG_CATEGORY"));
+                        }
+                        if (this.kpiConfiguration.Config.fileType.match(/KPI/) != null) {
+                            this.kpiChart.getQueryObject().setQueryResultUrl(url);
+                        } else {
+                            var that = this;
+                            var queryParams = getParametersForCatalogQuery(this.kpiConfiguration);
+                            if (queryParams != undefined) {
+                                $.each(queryParams, function(name, value) {
+                                    that.kpiChart.getQueryObject().setParameter(name, value);
+                                });
+                            }
+                        }
+
+                        this.oBreadCrumb.updateBreadCrumbStateByDimensionsConfig(this.kpiConfiguration.Config.dimensions);
+
+                        // Redraw chart
+                        this.kpiChart.update(true);
+                    }
+
+                }
+                .bind(this)
+        });
+
+        this.oBreadCrumb.addTooltip(oBundle.getText("XMSG_WORLD_BUTTON_TOOLTIP"));
+        this.oBreadCrumb.updateBreadCrumbStateByDimensionsConfig(this.kpiConfiguration.Config.dimensions);
+
+    },
+
+    /**
+     * 
+     */
+    createGroupByBreadCrumb: function() {
+
+        jQuery.sap.registerModulePath("CECustomControls", "/XMII/CompositionEnvironment/js/customControls");
+        jQuery.sap.require("CECustomControls.PICAnalysisBreadCrumb");
+
+        // creates the array of dimesnions.
+        var aDim = [];
+        for (var i = 0; i < this.kpiConfiguration.Config.dimensions.length; i++) {
+            aDim.push(this.kpiConfiguration.Config.dimensions[i].dimension);
+        }
+
+        this.groupByBreadCrumb = new com.sap.mii.ui.composite.PICAnalysisBreadCrumb({
+            dimensions: aDim,
+            click: function(oEvent) { // handle the click event for each breadCrumb item
+                    var iIndex = oEvent.getParameter("dimensionIndex");
+                    iIndex = iIndex + 1;
+                    for (var i = 0; i < this.kpiConfiguration.Config.dimensions.length; i++) {
+                        if (i > iIndex) {
+                            this.kpiConfiguration.Config.dimensions[i].filterSelected = "";
+                            this.kpiConfiguration.Config.dimensions[i].selected = false;
+                        } else {
+                            this.kpiConfiguration.Config.dimensions[i].selected = true;
+                        }
+
+                    }
+                    if (iIndex == 0) {
+                        this.kpiChart.getQueryObject().removeFromOverrides("DisplayTagCategories");
+                        this.kpiConfiguration.Config.selectedDrillDownCategoriesAliases = [];
+                    } else
+                        this.kpiConfiguration.Config.drillDownType = "GroupByDrillDown";
+                    this.kpiChart.getQueryObject().removeFromOverrides("SelectedGroupByProperties");
+                    this.kpiChart.getQueryObject().removeFromOverrides("ScopePropertyExpression");
+                    this.kpiChart.getQueryObject().removeFromOverrides("ScopePeColExpression");
+                    this.kpiChart.getQueryObject().removeFromOverrides("ScopeDimColExpression");
+                    this.kpiChart.getQueryObject().removeFromOverrides("ScopeShiftExpression");
+                    this.kpiConfiguration.Config.selectedDrillDownAggregationModes = [];
+                    this.kpiConfiguration.Config.selectedCategoryUoMs = this.kpiConfiguration.Config.categoryUoMs;
+                    if(this.kpiConfiguration.Config.selectedTimeDimension.Shift) {
+                        this.kpiConfiguration.Config.isAnalysisWithShift = true;
+                    } else {
+                        this.kpiConfiguration.Config.isAnalysisWithShift = false;
+                    }
+                    var selectedDrillDownGranularity = this.kpiConfiguration.Config.selectedDrillDownGranularity;
+                    var selectedTimeDimension = this.kpiConfiguration.Config.selectedTimeDimension;
+
+                    var drillDownIndex = iIndex;
+
+                    var sDimName = [];
+                    if(drillDownIndex === 0 || "" === this.kpiConfiguration.Config.dimensions[0].filterSelected){
+                        sDimName.push("Namespace");
+                    }
+                    var isLastDimention = false;
+                    if (this.kpiConfiguration.FileType == "CatalogQuery" && "PICAnalysis" == this.kpiConfiguration.Mode) {
+                        var dim = aDim[drillDownIndex];
+                        if (dim != undefined) {
+                            if(drillDownIndex > 0) {
+                                sDimName.push(dim);
+                            }
+                        } else {
+                            isLastDimention = true;
+                        }
+                    } else {
+                        for (var j = 0; j <= drillDownIndex; j++) {
+                            var dim = aDim[j];
+                            if (dim != undefined) {
+                                sDimName.push(dim);
+                            } else {
+                                isLastDimention = true;
+                            }
+                        }
+                    }
+                    dimNames = sDimName.toString();
+                    //CSS 1102701 Fix, if the selected dimension is the last dimension int the bread crumb, then dimNames will be undefined and no need to
+                    //drill down the chart further.
+                    if (!isLastDimention) {
+                        this.kpiConfiguration.Config.drillDownIndex = drillDownIndex;
+                        this.kpiConfiguration.Config.selectedDimensions = dimNames;
+                        if (this.kpiConfiguration.Config.selectedDimensions != undefined) {
+                            var labelColumns = '';
+                            if (Object.keys(selectedTimeDimension).length > 0) {
+                                var dimensionList = Object.keys(selectedTimeDimension);
+                                for (var i = 0; i < dimensionList.length; i++) {
+                                    if (i == dimensionList.length - 1) {
+                                        labelColumns += dimensionList[i] + ',';
+                                        if (selectedDrillDownGranularity != undefined && selectedDrillDownGranularity != "" && dimensionList[i] != selectedDrillDownGranularity) {
+                                            labelColumns += (selectedDrillDownGranularity.match(/Minutes/) != null) ? "" : selectedDrillDownGranularity + ",";
+                                        }
+                                    } else {
+                                        labelColumns += dimensionList[i] + ',';
+                                    }
+
+                                }
+                            } else {
+                                labelColumns = this.getLabelColumnsForSelectedConfiguration();
+                            }
+                            this.kpiChart.getChartObject().setXDimensions(labelColumns.substring(0, (labelColumns.length - 1)));
+                            this.kpiChart.getChartObject().setYDimensions(this.kpiConfiguration.Config.selectedDimensions);
+                            this.kpiChart.getChartTemplateObject().setProperty("LabelColumns", labelColumns + this.kpiConfiguration.Config.selectedDimensions);
+                            var valueCols = this.getValueColumnsForChart();
+                            var valueColLabel = this.getValueColumnsLabelForChart();
+                            this.kpiChart.getChartTemplateObject().setProperty("ValueColumns", valueCols);
+                            this.kpiChart.getChartTemplateObject().setProperty("YAxisLabel", valueColLabel);
+                        }
+
+                        // get the updated URL for changed dimensions
+                        var url = this.oDataUrlGenerators(this.kpiConfiguration);
+
+                        // update the URL for i5chart
+                        if ("None" !== this.kpiConfiguration.Config.duration.granularity) {
+                            this.kpiChart.getChartObject().setLegendDescriptionLabel(this.kpiConfiguration.Config.selectedDimensions);
+                        } else {
+                            this.kpiChart.getChartObject().setLegendDescriptionLabel(oBundle.getText("XLTP_TAG_CATEGORY"));
+                        }
+                        if (this.kpiConfiguration.Config.fileType.match(/KPI/) != null) {
+                            this.kpiChart.getQueryObject().setQueryResultUrl(url);
+                        } else {
+                            var that = this;
+                            var queryParams = getParametersForCatalogQuery(this.kpiConfiguration);
+                            if (queryParams != undefined) {
+                                $.each(queryParams, function(name, value) {
+                                    if (queryParams['SelectedNodes'] != '' && queryParams['SelectedNodes'] != undefined) {
+                                        if (name == "SelectedGroupCategories") {
+                                            that.kpiChart.getQueryObject().setParameter(name, '');
+                                            that.kpiChart.getQueryObject().setSelectedGroupCategories('');
+                                            return true;
+                                        }
+                                        if (name == "NodeSelectionExpression") {
+                                            that.kpiChart.getQueryObject().setParameter(name, '');
+                                            that.kpiChart.getQueryObject().setNodeSelectionExpression('');
+                                            return true;
+                                        }
+                                    }
+                                    that.kpiChart.getQueryObject().setParameter(name, value);
+                                });
+                            }
+                        }
+
+                        this.groupByBreadCrumb.updateBreadCrumbStateByDimensionsConfig(this.kpiConfiguration.Config.dimensions);
+
+                        // Redraw chart
+                        this.kpiChart.update(true);
+                        this.kpiChart.getTimeBar().toggleTimeBarOpener(this.showTimeBar);
+                    }
+
+                }
+                .bind(this)
+        });
+
+        this.groupByBreadCrumb.addTooltip(oBundle.getText("XMSG_WORLD_BUTTON_TOOLTIP"));
+        this.groupByBreadCrumb.updateBreadCrumbStateByDimensionsConfig(this.kpiConfiguration.Config.dimensions);
+
+    },
+
+    /**
+     * 
+     */
+    createPICBreadCrumb: function() {
+
+        jQuery.sap.registerModulePath("CECustomControls", "/XMII/CompositionEnvironment/js/customControls");
+        jQuery.sap.require("CECustomControls.PICAnalysisBreadCrumb");
+
+        // creates the array of dimesnions.
+        var picDim = [];
+        //this.picDimensions = [];
+        for (var i = 0; i < this.kpiConfiguration.Config.dimensions.length; i++) {
+            picDim.push(this.kpiConfiguration.Config.dimensions[i].dimension);
+        }
+
+        this.picBreadCrumb = new com.sap.mii.ui.composite.PICAnalysisBreadCrumb({
+            dimensions: picDim,
+            click: function(oEvent) { // handle the click event for each breadCrumb item
+                    var iIndex = oEvent.getParameter("dimensionIndex");
+                    for (var i = 0; i < this.picBreadCrumbList.length; i++) {
+                        if (i > iIndex) {
+                            this.picBreadCrumbList[i].filterSelected = "";
+                            this.picBreadCrumbList[i].selected = false;
+                        } else {
+                            this.picBreadCrumbList[i].selected = true;
+                        }
+
+                    }
+                    var sDimName = [];
+                    var isLastDimention = false;
+                    if (this.kpiConfiguration.FileType == "CatalogQuery" && "PICAnalysis" == this.kpiConfiguration.Mode) {
+                        for (var i = 0; i < this.kpiConfiguration.Config.dimensions.length - 1; i++) {
+                            if (this.kpiConfiguration.Config.dimensions[i].selected) {
+                                if (this.kpiConfiguration.Config.dimensions[i + 1].selected) {
+                                    sDimName.push(this.kpiConfiguration.Config.dimensions[i + 1].dimension);
+                                } else {
+                                    sDimName.push(this.kpiConfiguration.Config.dimensions[i].dimension);
+                                }
+                            }
+                        }
+                    }
+                    if (iIndex == -1) {
+
+                        if (sDimName.indexOf("Namespace") < 0) {
+                            sDimName.push("Namespace");
+                        }
+                        this.firstSelectedNameSpace = '';
+                        /*	if(sDimName!= "Namespace,") {
+                        		this.kpiConfiguration.Config.drillDownType = "GroupByDrillDown";
+                        	}else{
+                        		 this.kpiConfiguration.Config.drillDownType = "PICDrillDown";
+                        	}*/
+                        this.kpiConfiguration.Config.drillDownType = "GroupByDrillDown";
+                        this.picBreadCrumbList = [];
+                        this.kpiChart.getQueryObject().removeFromOverrides("DisplayTagCategories");
+                        //clear DrillDownCategoriesAliases
+                        this.kpiConfiguration.Config.selectedDrillDownCategoriesAliases = [];
+
+                    } else {
+                        this.kpiConfiguration.Config.drillDownType = "PICDrillDown";
+                        sDimName.push("Namespace");
+                    }
+                    this.kpiChart.getQueryObject().removeFromOverrides("SelectedNodes");
+                    this.kpiChart.getQueryObject().removeFromOverrides("SelectedGroupByProperties");
+                    this.kpiChart.getQueryObject().removeFromOverrides("ScopePropertyExpression");
+                    this.kpiChart.getQueryObject().removeFromOverrides("ScopePeColExpression");
+                    this.kpiConfiguration.Config.selectedDrillDownAggregationModes = [];
+                    this.kpiConfiguration.Config.selectedCategoryUoMs = this.kpiConfiguration.Config.categoryUoMs;
+                    if(this.kpiConfiguration.Config.selectedTimeDimension.Shift) {
+                        this.kpiConfiguration.Config.isAnalysisWithShift = true;
+                    } else {
+                        this.kpiConfiguration.Config.isAnalysisWithShift = false;
+                    }
+                    var selectedDrillDownGranularity = this.kpiConfiguration.Config.selectedDrillDownGranularity;
+                    var selectedTimeDimension = this.kpiConfiguration.Config.selectedTimeDimension;
+                    // set for PIC breadCrumb update
+                    var tempPicBreadCrumList = [];
+                    var picBreadDim = "";
+                    if (this.kpiConfiguration.FileType == "CatalogQuery" && "PICAnalysis" == this.kpiConfiguration.Mode) {
+                        for (var j = 0; j < this.picBreadCrumbList.length; j++) {
+                            var dim = this.picBreadCrumbList[j].dimension;
+                            if (dim != undefined) {
+                                if (this.picBreadCrumbList[j].selected) {
+                                    tempPicBreadCrumList.push(this.picBreadCrumbList[j]);
+                                    picBreadDim = picBreadDim + dim + '/';
+
+                                }
+                            } else {
+                                isLastDimention = true;
+                            }
+                        }
+                    }
+                    var dimNames = sDimName.toString();
+                    picBreadDim = picBreadDim.substring(0, (picBreadDim.length - 1));
+                    this.kpiConfiguration.Config.dimensions[0].filterSelected = picBreadDim;
+                    //CSS 1102701 Fix, if the selected dimension is the last dimension int the bread crumb, then dimNames will be undefined and no need to
+                    //drill down the chart further.
+                    if (!isLastDimention) {
+                    	this.kpiConfiguration.Config.selectedDimensions = dimNames;
+                        if (this.kpiConfiguration.Config.selectedDimensions != undefined) {
+                            var labelColumns = '';
+                            if (Object.keys(selectedTimeDimension).length > 0 && !jQuery.isEmptyObject(selectedTimeDimension)) {
+                                var dimensionList = Object.keys(selectedTimeDimension);
+                                for (var i = 0; i < dimensionList.length; i++) {
+                                    if (i == dimensionList.length - 1) {
+                                        labelColumns += dimensionList[i] + ',';
+                                        if (selectedDrillDownGranularity != undefined && selectedDrillDownGranularity != "" && dimensionList[i] != selectedDrillDownGranularity) {
+                                            labelColumns += (selectedDrillDownGranularity.match(/Minutes/) != null) ? "" : selectedDrillDownGranularity + ",";
+                                        }
+                                    } else {
+                                        labelColumns += dimensionList[i] + ',';
+                                    }
+                                }
+                            } else {
+                                labelColumns = this.getLabelColumnsForSelectedConfiguration();
+                            }
+                            this.kpiChart.getChartObject().setXDimensions(labelColumns.substring(0, (labelColumns.length - 1)));
+                            this.kpiChart.getChartObject().setYDimensions(this.kpiConfiguration.Config.selectedDimensions);
+                            this.kpiChart.getChartTemplateObject().setProperty("LabelColumns", labelColumns + this.kpiConfiguration.Config.selectedDimensions);
+                            //set ValueColumns
+                            var valueCols = this.getValueColumnsForChart();
+                            var valueColLabel = this.getValueColumnsLabelForChart();
+                            this.kpiChart.getChartTemplateObject().setProperty("ValueColumns", valueCols);
+                            this.kpiChart.getChartTemplateObject().setProperty("YAxisLabel", valueColLabel);
+                        }
+                        // get the updated URL for changed dimensions
+                        var url = this.oDataUrlGenerators(this.kpiConfiguration);
+
+                        // update the URL for i5chart
+                        if ("None" !== this.kpiConfiguration.Config.duration.granularity) {
+                            this.kpiChart.getChartObject().setLegendDescriptionLabel(this.kpiConfiguration.Config.selectedDimensions);
+                        } else {
+                            this.kpiChart.getChartObject().setLegendDescriptionLabel(oBundle.getText("XLTP_TAG_CATEGORY"));
+                        }
+                        if (this.kpiConfiguration.Config.fileType.match(/KPI/) != null) {
+                            this.kpiChart.getQueryObject().setQueryResultUrl(url);
+                        } else {
+                            var that = this;
+                            var queryParams = getParametersForCatalogQuery(this.kpiConfiguration);
+                            if (queryParams != undefined) {
+                                $.each(queryParams, function(name, value) {
+                                    if (queryParams['SelectedNodes'] != '' && queryParams['SelectedNodes'] != undefined) {
+                                        if (name == "SelectedGroupCategories") {
+                                            that.kpiChart.getQueryObject().setParameter(name, '');
+                                            that.kpiChart.getQueryObject().setSelectedGroupCategories('');
+                                            return true;
+                                        }
+                                        if (name == "NodeSelectionExpression") {
+                                            that.kpiChart.getQueryObject().setParameter(name, '');
+                                            that.kpiChart.getQueryObject().setNodeSelectionExpression('');
+                                            return true;
+                                        }
+                                    }
+                                    that.kpiChart.getQueryObject().setParameter(name, value);
+                                });
+                            }
+                        }
+
+                        this.picBreadCrumb.updateBreadCrumbStateByPIC(tempPicBreadCrumList);
+
+                        // Redraw chart
+                        this.kpiChart.update(true);
+                        this.kpiChart.getTimeBar().toggleTimeBarOpener(this.showTimeBar);
+                    }
+
+                }
+                .bind(this)
+        });
+        this.picBreadCrumb.addTooltip(oBundle.getText("XMSG_WORLD_BUTTON_TOOLTIP"));
+        this.picBreadCrumb.updateBreadCrumbStateByPIC(this.picBreadCrumbList);
+    },
+
+    /**
+     * Loads the KPI dimensions
+     * @param oKpiConfigParams
+     * @param bSelectFirst
+     * @param successCallback
+     * @return
+     */
+    loadDimensions: function(oKpiConfigParams, bSelectFirst, successCallback) {
+        var that = this;
+        var kpiConfig = oKpiConfigParams;
+
+        if (kpiConfig.Config.fileType.match(/KPI/) != null) {
+            if (CURRENT_SESSION_XSRF_ID === null) {
+                fetchCurrentSessionXSRFID(); // fetchCurrentSessionXSRFID in KPIUtils.js
+            }
+
+            $.ajax({
+                type: 'GET',
+                url: XMII_KPI_ODATA_URL + "?xsrfid=" + CURRENT_SESSION_XSRF_ID +
+                    '&$format=json&Mode=GetDimensions&KpiName=' +
+                    oKpiConfigParams.Path + '/' + removeExtension(oKpiConfigParams.Name),
+                cache: false,
+                async: false
+            }).done(function(json, textStatus, jqXHR) {
+                var i,
+                    dimensions;
+
+                if (json.d.results[0].FatalError === undefined &&
+                    json.d.results[0].Rowset &&
+                    json.d.results[0].Rowset.results &&
+                    json.d.results[0].Rowset.results[0] &&
+                    json.d.results[0].Rowset.results[0].Row.results) {
+                    dimensions = json.d.results[0].Rowset.results[0].Row.results;
+                } else {
+                    showNotificationBarMsg(3, oBundle.getText("XMSG_DATA_RETRIEVAL_ERROR"));
+                    return; // a fatal error may occurred
+                }
+
+                if (oKpiConfigParams.Config.dimensions.length === 0) {
+                    for (i = 0; i < dimensions.length; i++) {
+                        oKpiConfigParams.Config.dimensions.push({
+                            level: i + 1,
+                            dimension: dimensions[i].DIMENSION_NAME,
+                            selected: i === 0 && bSelectFirst,
+                            filterSelected: '',
+                            inputParam: '',
+                            values: []
+                        });
+
+                        // Sets the first dimension as selected
+                        if (i === 0) {
+                            oKpiConfigParams.Config.selectedDimensions = dimensions[i].DIMENSION_NAME;
+                        }
+                    }
+
+                }
+            });
+        } else {
+            // Sets the first dimension as Namespace
+            oKpiConfigParams.Config.selectedDimensions = "Namespace";
+            oKpiConfigParams.Config.dimensions.push({
+                level: 0,
+                dimension: "Namespace",
+                selected: true,
+                filterSelected: '',
+                inputParam: '',
+                values: []
+            });
+            var params = {
+                "Mode": "loadParameters",
+                "objectname": oKpiConfigParams.Path + '/' + removeExtension(oKpiConfigParams.Name),
+                "GroupId": 55,
+                "content-type": "text/json",
+                "isPropAliasUsed": true
+            };
+            var result = getDataFromServer(XMII_CECATALOG_URL, params);
+            //Get the selected Group by conditions from PICAnalysis query.
+            if (isObjectNotNull(result) && isObjectNotNull(result.Rowsets) && isObjectNotNull(result.Rowsets.Rowset) && isObjectNotNull(result.Rowsets.Rowset[0])) {
+                var row = result.Rowsets.Rowset[0].Row;
+                if (row != null && row.length > 0) {
+                    for (var k = 0; k < row.length; k++) {
+                        if (row[k].Name == "SelectedGroupByProperties" && row[k].DefaultValue != "") {
+                            var dimensions = row[k].DefaultValue.split(",");
+                            for (var i = 0; i < dimensions.length; i++) {
+                                var iIndex = dimensions[i].indexOf("=");
+                                if (iIndex > -1) {
+                                    var list = dimensions[i].split('=');
+                                    dimensions[i] = list[0];
+                                    var property = list[1];
+                                } else {
+                                    var index = dimensions[i].indexOf(".");
+                                    var property = dimensions[i];
+                                    if (index > -1) {
+                                        property = dimensions[i].substring(index + 1);
+                                    }
+                                }
+                                oKpiConfigParams.Config.dimensions.push({
+                                    level: i + 2,
+                                    dimension: property,
+                                    groupByName: dimensions[i],
+                                    selected: false,
+                                    filterSelected: '',
+                                    inputParam: '',
+                                    values: []
+                                });
+                            }
+
+                        } else if (row[k].Name == "ScopePropertyExpression") {
+                            oKpiConfigParams.Config.queryScopePropertyExpression = row[k].DefaultValue;
+                        }
+
+                    }
+                }
+            }
+
+        }
+        kpiConfig = oKpiConfigParams;
+        return kpiConfig;
+    },
+
+    /**
+     * 
+     * @param propName
+     * @param propValue
+     */
+    setProperty: function(propName, propValue) {},
+
+    /**
+     * Update the property and the KPI's configuration
+     */
+    setChartType: function(chartType) {
+        //this.setProperty('chartType', chartType);
+        this.kpiConfiguration.Config.chartType = chartType;
+    },
+
+    /**
+     * Set the given filter for a particular dimension
+     */
+    setKpiDimensionFilter: function(dimensionName, filterValue) {
+
+        // find out the given KPI and set filter value for the same
+        for (var i = 0; i < this.kpiConfiguration.Config.dimensions.length; i++) {
+            var sDimName = this.kpiConfiguration.Config.dimensions[i].dimension;
+            var groupByProperty = this.kpiConfiguration.Config.dimensions[i].groupByName;
+
+            if (sDimName == dimensionName || (groupByProperty != undefined && groupByProperty == dimensionName)) {
+                this.kpiConfiguration.Config.dimensions[i].filterSelected = filterValue;
+                this.kpiConfiguration.Config.dimensions[i].selected = true;
+                break;
+            }
+
+        }
+    },
+    
+    /**
+     * 
+     * @param value
+     */
+    setEnableDrillDown: function(value) {
+        this.kpiConfiguration.Config.enableDrillDown = value;
+    },
+    /**
+     * Set the filter for the dimension whose value is given by input parameter
+     * @param dimensionName
+     * @param filterValue
+     * @return
+     */
+    setKpiDimensionParamFilter: function(dimensionName, filterValue) {
+
+        // find out the given KPI and set filter value for the same
+        for (var i = 0; i < this.kpiConfiguration.Config.dimensions.length; i++) {
+            var sDimName = this.kpiConfiguration.Config.dimensions[i].dimension;
+            var groupByProperty = this.kpiConfiguration.Config.dimensions[i].groupByName;
+            if (sDimName == dimensionName || (groupByProperty != undefined && groupByProperty == dimensionName)) {
+                this.kpiConfiguration.Config.dimensions[i].filterSelected = window[filterValue];
+                this.kpiConfiguration.Config.dimensions[i].inputParam = filterValue;
+                this.kpiConfiguration.Config.dimensions[i].selected = true;
+                break;
+            }
+
+        }
+    },
+    
+    /**
+     * Update both properties as well.
+     */
+    setKpiName: function(kpiName) {
+        this.setProperty('kpiName', kpiName);
+        this.kpiConfiguration.Name = kpiName;
+    },
+
+    /**
+     * 
+     * @param kpiPath
+     */
+    setKpiPath: function(kpiPath) {
+        this.setProperty('kpiPath', kpiPath);
+        this.kpiConfiguration.Path = kpiPath;
+    },
+
+    /**
+     * 
+     * @param type
+     */
+    setType: function(type) {
+        this.setProperty('type', type);
+        this.kpiConfiguration.Config.type = type;
+    },
+
+    /**
+     * 
+     * @param selectedDuration
+     */
+    setSelectedDuration: function(selectedDuration) {
+        this.setProperty('selectedDuration', selectedDuration);
+        this.kpiConfiguration.Config.duration.selectedDuration = selectedDuration;
+    },
+
+    /**
+     * 
+     * @param startDate
+     */
+    setStartDate: function(startDate) {
+        this.setProperty('startDate', startDate);
+        this.kpiConfiguration.Config.duration.startDate = startDate;
+    },
+
+    /**
+     * 
+     * @param startTime
+     */
+    setStartTime: function(startTime) {
+        this.setProperty('startTime', startTime);
+        this.kpiConfiguration.Config.duration.startTime = startTime;
+    },
+
+    /**
+     * 
+     * @param start_ISO8601
+     */
+    setStart_ISO8601: function(start_ISO8601) {
+        this.setProperty('start_ISO8601', start_ISO8601);
+        this.kpiConfiguration.Config.duration.start_ISO8601 = start_ISO8601;
+    },
+
+    /**
+     * 
+     * @param endDate
+     */
+    setEndDate: function(endDate) {
+        this.setProperty('endDate', endDate);
+        this.kpiConfiguration.Config.duration.endDate = endDate;
+    },
+
+    /**
+     * 
+     * @param endTime
+     */
+    setEndTime: function(endTime) {
+        this.setProperty('endTime', endTime);
+        this.kpiConfiguration.Config.duration.endTime = endTime;
+    },
+
+    /**
+     * 
+     * @param end_ISO8601
+     */
+    setEnd_ISO8601: function(end_ISO8601) {
+        this.setProperty('end_ISO8601', end_ISO8601);
+        this.kpiConfiguration.Config.duration.end_ISO8601 = end_ISO8601;
+    },
+
+    /**
+     * 
+     * @param granularity
+     */
+    setGranularity: function(granularity) {
+        if (granularity === undefined || granularity == "") {
+            granularity = "";
+        }
+        this.kpiConfiguration.Config.duration.granularity = granularity;
+    },
+
+    /**
+     * 
+     * @param schedule
+     */
+    setSelectedSchedule: function(schedule) {
+        if (schedule === undefined || schedule == "") {
+            this.kpiConfiguration.Config.duration.selectedSchedule = "";
+        }
+        this.kpiConfiguration.Config.duration.selectedSchedule = schedule;
+    },
+
+    /**
+     * 
+     * @param callBackData
+     */
+    setCallBackData: function(callBackData) {
+        if (callBackData != undefined && callBackData != "") {
+            this.kpiConfiguration.Config.CallBackData = callBackData;
+        } else {
+            this.kpiConfiguration.Config.CallBackData = {
+                SelectCallback: false,
+                SelectFunctionName: "",
+                ShowTrend: false,
+                SelectDuration: "CurrentValue",
+                SelectGranularity: "",
+                SelectedCustomTime: {
+                    startTime: null,
+                    startDate: null,
+                    endDate: null,
+                    endTime: null
+                }
+            };
+        }
+    },
+
+    /**
+     * 
+     * @param selectedDimension
+     */
+    setSelectedDimensions: function(selectedDimension) {
+        if (selectedDimension != undefined && selectedDimension != '') {
+            this.kpiConfiguration.Config.selectedDimensions = selectedDimension;
+        }
+    },
+    
+    /**
+     * 
+     * @param refreshRate
+     */
+    setRefreshRate: function(refreshRate) {
+        if (refreshRate != undefined && refreshRate != '') {
+            this.kpiConfiguration.Config.refreshRate = refreshRate;
+        }
+    },
+    
+    /**
+     * 
+     * @param autoRefresh
+     */
+    setAutoRefresh: function(autoRefresh) {
+        if (autoRefresh !== undefined && autoRefresh !== "") {
+            if (autoRefresh == "true" || autoRefresh == true) {
+                this.kpiConfiguration.Config.autoRefresh = true;
+            } else {
+                this.kpiConfiguration.Config.autoRefresh = false;
+            }
+        }
+    },
+
+    /**
+     * 
+     * @param minute
+     */
+    setMinuteDisplay: function(minute) {
+        if (minute == "true" || minute == true)
+            this.kpiConfiguration.Config.duration.minuteDisplay = true;
+        else
+            this.kpiConfiguration.Config.duration.minuteDisplay = false;
+    },
+
+    /**
+     * 
+     * @param hour
+     */
+    setHourDisplay: function(hour) {
+        if (hour == "true" || hour == true)
+            this.kpiConfiguration.Config.duration.hourDisplay = true;
+        else
+            this.kpiConfiguration.Config.duration.hourDisplay = false;
+    },
+
+    /**
+     * 
+     * @param day
+     */
+    setDayDisplay: function(day) {
+        if (day == "true" || day == true)
+            this.kpiConfiguration.Config.duration.dayDisplay = true;
+        else
+            this.kpiConfiguration.Config.duration.dayDisplay = false;
+    },
+
+    /**
+     * 
+     * @param week
+     */
+    setWeekDisplay: function(week) {
+        if (week == "true" || week == true)
+            this.kpiConfiguration.Config.duration.weekDisplay = true;
+        else
+            this.kpiConfiguration.Config.duration.weekDisplay = false;
+    },
+
+    /**
+     * 
+     * @param month
+     */
+    setMonthDisplay: function(month) {
+        if (month == "true" || month == true)
+            this.kpiConfiguration.Config.duration.monthDisplay = true;
+        else
+            this.kpiConfiguration.Config.duration.monthDisplay = false;
+    },
+
+    /**
+     * 
+     * @param quarter
+     */
+    setQuarterDisplay: function(quarter) {
+        if (quarter == "true" || quarter == true)
+            this.kpiConfiguration.Config.duration.quarterDisplay = true;
+        else
+            this.kpiConfiguration.Config.duration.quarterDisplay = false;
+    },
+
+    /**
+     * 
+     * @param year
+     */
+    setYearDisplay: function(year) {
+        if (year == "true" || year == true)
+            this.kpiConfiguration.Config.duration.yearDisplay = true;
+        else
+            this.kpiConfiguration.Config.duration.yearDisplay = false;
+    },
+
+    setShiftDisplay: function(shift) {
+        if (shift == "true" || shift == true)
+            this.kpiConfiguration.Config.duration.shiftDisplay = true;
+        else
+            this.kpiConfiguration.Config.duration.shiftDisplay = false;
+    },
+
+    /**
+     * 
+     * @param modes
+     */
+    setAggregationModes: function(modes) {
+        this.kpiConfiguration.Config.aggregationModes = modes.toString().split(/,/);
+    },
+
+    /**
+     * 
+     * @param categories
+     */
+    setSelectedCategories: function(categories) {
+        this.kpiConfiguration.Config.selectedCategories = categories.split(",");
+    },
+    
+    /**
+     * 
+     * @param aliases
+     */
+    setSelectedCategoriesAliases: function(aliases) {
+        this.kpiConfiguration.Config.selectedCategoriesAliases = aliases.split(",");
+        //change "/" to "_DIV_" OF the legend in bar chart
+        if (this.kpiConfiguration.FileType == "CatalogQuery" && "PICAnalysis" == this.kpiConfiguration.Mode) {
+            this.kpiConfiguration.Config.selectedCategoriesAliases = replaceOperator(this.kpiConfiguration.Config.selectedCategoriesAliases);
+        }
+    },
+    
+    /**
+     * 
+     * @param categories
+     */
+    setCandidateCategories: function(categories) {
+        this.kpiConfiguration.Config.candidateCategories = categories.split(",");
+    },
+    
+    /**
+     * 
+     * @param aliases
+     */
+    setCandidateCategoriesAliases: function(aliases) {
+        this.kpiConfiguration.Config.candidateCategoriesAliases = aliases.split(",");
+        //change "/" to "_DIV_" the legend in bar chart
+        if (this.kpiConfiguration.FileType == "CatalogQuery" && "PICAnalysis" == this.kpiConfiguration.Mode) {
+            this.kpiConfiguration.Config.candidateCategoriesAliases = replaceOperator(this.kpiConfiguration.Config.candidateCategoriesAliases);
+        }
+    },
+
+    /**
+     * Setting the display properties to KPI
+     */
+    setDisplayProperties: function(DisplayParametersName, DisplayParametersValue) {
+        var property = {
+            "Name": "" + DisplayParametersName + "",
+            "Value": DisplayParametersValue
+        };
+        if (this.kpiConfiguration.Config.DisplayParameters != undefined) {
+            var index = this.kpiConfiguration.Config.DisplayParameters.length;
+            this.kpiConfiguration.Config.DisplayParameters[index] = property;
+            this.kpiConfiguration.Config.DisplayParameters.length = index + 1;
+        } else {
+            this.kpiConfiguration.Config.DisplayParameters = {};
+            this.kpiConfiguration.Config.DisplayParameters[0] = property;
+            this.kpiConfiguration.Config.DisplayParameters.length = 1;
+        }
+    },
+
+    /**
+     * 
+     * @param name
+     * @param value
+     */
+    setQueryParameters: function(name, value) {
+        var property = {
+            "Name": "" + name + "",
+            "Value": "" + value + ""
+        };
+        if (this.kpiConfiguration.Config.QueryParameters != undefined) {
+            var index = this.kpiConfiguration.Config.QueryParameters.length;
+            this.kpiConfiguration.Config.QueryParameters[index] = property;
+            this.kpiConfiguration.Config.QueryParameters.length = index + 1;
+        } else {
+            this.kpiConfiguration.Config.QueryParameters = {};
+            this.kpiConfiguration.Config.QueryParameters.length = 0;
+            if (name != "SelectedGroupByProperties") {
+                this.kpiConfiguration.Config.QueryParameters[0] = property;
+                this.kpiConfiguration.Config.QueryParameters.length = 1;
+            }
+        }
+        if (name == "SelectedGroupByProperties") {
+            this.addToDimensions(value);
+        }
+    },
+    
+    /**
+     * 
+     * @param enableColor
+     */
+    setTileColor: function(enableColor) {
+        this.kpiConfiguration.Config.enableTileColor = enableColor;
+    },
+    
+    /**
+     * 
+     * @param value
+     */
+    addToDimensions: function(value) {
+        //get alias for selectedGroupByProperties
+        var sPath = this.kpiConfiguration.Path + "/" + removeExtension(this.kpiConfiguration.Name);
+        var isPropAliasUsed = true;
+        var params = {
+            "Mode": "loadGroupByAlias",
+            "objectname": sPath,
+            "GroupId": 55,
+            "content-type": "text/json",
+            "isPropAliasUsed": isPropAliasUsed,
+            "SelectedGroupByProperties": value
+        };
+        //alias resultSet from server	
+        var result = getDataFromServer(XMII_CECATALOG_URL, params);
+        var defaultValues = "";
+        if (isObjectNotNull(result) && isObjectNotNull(result.Rowsets) && isObjectNotNull(result.Rowsets.Rowset) && isObjectNotNull(result.Rowsets.Rowset[0])) {
+            var row = result.Rowsets.Rowset[0].Row;
+            if (row != null && row.length > 0) {
+                for (var i = 0; i < row.length; i++) {
+                    var rowAt = row[i];
+                    if (rowAt.Name == 'SelectedGroupByProperties') {
+                        // get alias
+                        defaultValues = rowAt.DefaultValue;
+                    }
+                }
+            }
+            if (defaultValues.length > 0) {
+                var arrayOfDims = defaultValues.split(",");
+                var dimensions = this.kpiConfiguration.Config.dimensions;
+                var maxLevel = this.kpiConfiguration.Config.dimensions[this.kpiConfiguration.Config.dimensions.length - 1].level;
+                for (var j = 0; j < arrayOfDims.length; j++) {
+                    var dimensionName = arrayOfDims[j];
+                    var found = false;
+                    for (var i = 0; i < this.kpiConfiguration.Config.dimensions.length; i++) {
+                        var sDimName = this.kpiConfiguration.Config.dimensions[i].dimension;
+                        var groupByProperty = this.kpiConfiguration.Config.dimensions[i].groupByName;
+                        if ((dimensionName.indexOf("=") > -1 && sDimName == dimensionName.split("=")[1]) ||
+                            (groupByProperty != undefined && groupByProperty == dimensionName)) {
+                            found = true;
+                            break;
+                        }
+
+                    }
+                    //split value from formatted dimensionName
+                    if (dimensionName.indexOf("=") > -1) {
+                        var property = dimensionName.split("=")[1];
+                        dimensionName = dimensionName.split("=")[0];
+                    } else {
+                        var index = dimensionName.indexOf(".");
+                        var property = dimensionName;
+                        if (index > -1) {
+                            property = dimensionName.substring(index + 1);
+                        }
+                    }
+
+                    if (found == false) {
+                        maxLevel = maxLevel + 1;
+                        this.kpiConfiguration.Config.dimensions.push({
+                            level: maxLevel,
+                            dimension: property,
+                            groupByName: dimensionName,
+                            selected: false,
+                            filterSelected: '',
+                            values: []
+                        });
+                    }
+                }
+            }
+        }
+
+    },
+
+    /**
+     * 
+     */
+    destroy: function() {
+        if (isObjectNotNull(this.kpiTileView))
+            this.kpiTileView.destroy();
+    },
+
+    /**
+     * Generate the URL based on the configuration.
+     */
+    oDataUrlGenerators: function(oKpiConfigParams) {
+
+
+        var chartTypeString = oKpiConfigParams.Config.chartType;
+        if (!isNaN(oKpiConfigParams.Config.chartType)) { // will accept numbers passed as number/string
+            //Get the chart type string
+
+            var chartTypesArray = com.sap.xmii.common.util.MIIi5Util.stringToArray(com.sap.xmii.common.util.CHART_TYPES_ARRAY, ",");
+            chartTypeString = chartTypesArray[oKpiConfigParams.Config.chartType];
+
+        }
+        var url = "";
+        if (chartTypeString == "Gauge") {
+
+            if (CURRENT_SESSION_XSRF_ID === null) {
+                fetchCurrentSessionXSRFID(); // fetchCurrentSessionXSRFID in KPIUtils.js
+            }
+            // according to htmlUtils.js we have at least
+            // "Name", "ParentFolderName", "Path", "ParentPath", "FileType", "MappedQueryTemplate"
+            url = XMII_KPI_ODATA_URL + '?xsrfid=' + CURRENT_SESSION_XSRF_ID,
+                urlParams = ['Dim_', 'Duration', 'StartDate', 'EndDate'],
+                i;
+
+
+            url += '&' + urlParams[1] + '=' + oKpiConfigParams.Config.duration.selectedDuration;
+            if (oKpiConfigParams.Config.duration.selectedDuration === 'Custom') {
+                url += '&' + urlParams[2] + '=' +
+                    oKpiConfigParams.Config.duration.start_ISO8601 +
+                    '&' + urlParams[3] + '=' +
+                    oKpiConfigParams.Config.duration.end_ISO8601;
+            }
+
+            // now append all Dim_xxxx's with their selected filter (only if filter is selected)
+            for (i = 0; i < oKpiConfigParams.Config.dimensions.length; i++) {
+                if (typeof oKpiConfigParams.Config.dimensions[i].filterSelected === 'string' &&
+                    oKpiConfigParams.Config.dimensions[i].filterSelected.length > 0) {
+                    url += '&' + urlParams[0] + oKpiConfigParams.Config.dimensions[i].dimension +
+                        '=' + oKpiConfigParams.Config.dimensions[i].filterSelected;
+                }
+            }
+
+            url += '&Mode=GetTileData&KpiName=' + oKpiConfigParams.Path + '/';
+            url += removeExtension(oKpiConfigParams.Name);
+            url += '&$format=json';
+
+
+        } else {
+
+            //Url is generation has been changed. We have using the default KPIQuery.
+            url = XMII_ILLUMINATOR_URL + '?' +
+                'QueryTemplate=Predefined/DefaultKPIQuery' +
+                '&Kpi=' + oKpiConfigParams.Path + '/' + removeExtension(oKpiConfigParams.Name) +
+                '&AddKPIDetails=false';
+
+            if (oKpiConfigParams.Config.duration.selectedDuration !== "Custom") {
+            	if(oKpiConfigParams.Config.duration.selectedDuration == "" ){
+            		oKpiConfigParams.Config.duration.selectedDuration = "CurrentMonth";
+            	}
+                url += '&TimePeriod=' + oKpiConfigParams.Config.duration.selectedDuration;
+                if (isObjectNotNull(oKpiConfigParams.Config.duration.selectedSchedule)) {
+                    url += '&Schedule=' + oKpiConfigParams.Config.duration.selectedSchedule;
+                }
+            }
+            if (isObjectNotNull(oKpiConfigParams.Config.duration.granularity))
+                url += '&Granularity=' + oKpiConfigParams.Config.duration.granularity;
+
+
+            // Filters
+            var filterExpresion = "";
+            for (var i = 0; i < oKpiConfigParams.Config.dimensions.length; i++) {
+                var sDimName = oKpiConfigParams.Config.dimensions[i].dimension;
+                var sValue = oKpiConfigParams.Config.dimensions[i].filterSelected;
+
+                // No filter set: continue with next dimension
+                if (!sValue) {
+                    continue;
+                }
+                // Set filter parameter
+                var sFilterParam = '[' + sDimName + ']=\'' + sValue + '\'';
+
+                if (filterExpresion == "") {
+                    filterExpresion += '(' + sFilterParam + ')';
+                } else {
+                    filterExpresion += "AND" + '(' + sFilterParam + ')';
+                }
+            }
+            if (filterExpresion != "")
+                url += '&FilterExpr=' + filterExpresion;
+
+            // Attributes
+            if (isObjectNotNull(oKpiConfigParams.Config.selectedDimensions)) {
+                url += '&Attributes=';
+                var dimensionArray = oKpiConfigParams.Config.selectedDimensions.split(',');
+
+                for (var i = 0; i < dimensionArray.length; i++) {
+                    if (i == dimensionArray.length - 1) {
+                        url += '[' + dimensionArray[i] + ']';
+                    } else {
+                        url += '[' + dimensionArray[i] + '],';
+                    }
+                }
+            }
+
+            // Custom time period
+            if (oKpiConfigParams.Config.duration.selectedDuration === 'Custom') {
+                url += '&StartDate=' +
+                    oKpiConfigParams.Config.duration.start_ISO8601 +
+                    '&EndDate=' +
+                    oKpiConfigParams.Config.duration.end_ISO8601 +
+                    '&DateFormat=yyyy-MM-dd\'T\'HH:mm:ss';
+            }
+
+            //As with Donut and Pie type of charts we do not support granularity we need to handle the return of additional time dimensions
+            if (chartTypeString == "Pie" || chartTypeString == "Donut" || oKpiConfigParams.Config.duration.granularity == "None") {
+                url += '&AdditionalTimeDimensions=false';
+            } else {
+                url += '&AdditionalTimeDimensions=true';
+            }
+        }
+        return url;
+    },
+    
+    /**
+     * 
+     * @param cellID
+     */
+    createRadioBarAndCheckWithTime: function(cellID) {
+        var that = this;
+        var granularity = that.kpiConfiguration.Config.duration.granularity;
+        that.toolBar = new sap.m.Toolbar(cellID + "-drillDownToolBar", {
+            height: "28px"
+        });
+        var oLayoutRow = new sap.ui.commons.layout.MatrixLayoutRow();
+        var oLayoutCell = new sap.ui.commons.layout.MatrixLayoutCell();
+        oLayoutRow.addCell(oLayoutCell);
+        this.oLayout.addRow(oLayoutRow);
+        var oTimeResetButton = new sap.ui.commons.Button(cellID + "-timeReset", {
+            icon: "sap-icon://past",
+            tooltip: oBundle.getText("XBUT_TIMERESET"),
+            lite: true,
+            //styled : false,
+            height: "28px",
+            width: "36px",
+            press: function() {
+                that.kpiConfiguration.Config.selectedTimeDimension = {};
+                that.kpiConfiguration.Config.selectedDrillDownGranularity = that.kpiConfiguration.Config.duration.granularity;
+                labelColumns = that.getLabelColumnsForSelectedConfiguration();
+                that.kpiChart.getChartTemplateObject().setProperty("LabelColumns", labelColumns + that.kpiConfiguration.Config.selectedDimensions);
+                that.kpiChart.getChartObject().setXDimensions(labelColumns.substring(0, (labelColumns.length - 1)));
+                var queryParams = getParametersForCatalogQuery(that.kpiConfiguration);
+                if (queryParams != undefined) {
+                    $.each(queryParams, function(name, value) {
+                        that.kpiChart.getQueryObject().setParameter(name, value);
+                    });
+                }
+                var withTimeCheckBox = sap.ui.getCore().byId(cellID + "-checkWithTime");
+                var byShiftCheckBox = sap.ui.getCore().byId(cellID + "-checkByShift");
+                if($.inArray(granularity, ["Year", "Quarter", "Month", "Week"]) > -1){
+                    withTimeCheckBox.setEnabled(true);
+                    withTimeCheckBox.setChecked(true);
+                    byShiftCheckBox.setEnabled(false);
+                    byShiftCheckBox.setChecked(false);
+                } else if($.inArray(granularity, ["Day"]) > -1) {
+                    withTimeCheckBox.setEnabled(true);
+                    withTimeCheckBox.setChecked(true);
+                    byShiftCheckBox.setEnabled(true);
+                    byShiftCheckBox.setChecked(false);
+                } else if($.inArray(granularity, ["Shift"]) > -1){
+                    withTimeCheckBox.setEnabled(true);
+                    withTimeCheckBox.setChecked(true);
+                    byShiftCheckBox.setEnabled(false);
+                    byShiftCheckBox.setChecked(true);
+                } else {
+                    withTimeCheckBox.setEnabled(false);
+                    withTimeCheckBox.setChecked(false);
+                    byShiftCheckBox.setEnabled(false);
+                    byShiftCheckBox.setChecked(false);
+                }
+                that.kpiChart.update(true);
+            }
+
+        });
+        oTimeResetButton.addEventDelegate({
+            onAfterRendering: function() {
+                $("#" + cellID + "-timeReset").children().first().css({
+                    "font-size": '20px'
+                });
+            }
+
+        }, oTimeResetButton);
+        var oRadioButtonGroup = new sap.ui.commons.RadioButtonGroup(cellID + "-drillDownType", {
+            tooltip: com.sap.xmii.common.util.MessageBundle.getText("XMII_PICAYS_CREATERADIO"),
+            columns: 2,
+            selectedIndex: 1
+        });
+        var gItem = new sap.ui.core.Item(cellID + "-GroupBy", {
+            text: com.sap.xmii.common.util.MessageBundle.getText("DRILLDOWN_TYPE_GROUPBY"),
+            tooltip: com.sap.xmii.common.util.MessageBundle.getText("DRILLDOWN_TYPE_GROUPBY"),
+            key: "GroupByDrillDown"
+        });
+        oRadioButtonGroup.addItem(gItem);
+        var pItem = new sap.ui.core.Item(cellID + "-PIC", {
+            text: com.sap.xmii.common.util.MessageBundle.getText("DRILLDOWN_TYPE_PIC"),
+            tooltip: com.sap.xmii.common.util.MessageBundle.getText("DRILLDOWN_TYPE_PIC"),
+            key: "PICDrillDown"
+        });
+        oRadioButtonGroup.addItem(pItem);
+        var oCheckBox, oByShiftCheckBox;
+        if(sap.ui.getCore().byId(cellID + "-checkWithTime") === undefined ){
+            oCheckBox = new sap.ui.commons.CheckBox(cellID + "-checkWithTime", {
+                text: com.sap.xmii.common.util.MessageBundle.getText('CHECK_WITH_TIME'),
+                tooltip: com.sap.xmii.common.util.MessageBundle.getText('CHECK_WITH_TIME'),
+                change:function(oEvent){
+                    var drillDownGranularity = that.kpiConfiguration.Config.selectedDrillDownGranularity;
+                    var checkedValue = this.getChecked();
+                    if("Day" == drillDownGranularity || undefined == drillDownGranularity && "Day" == granularity ){
+                        if(false == checkedValue){
+                            oByShiftCheckBox.setEnabled(false);
+                            oByShiftCheckBox.setChecked(false);
+                        } else {
+                            oByShiftCheckBox.setEnabled(true);
+                        }
+                    }
+                }
+            });
+        }
+        if (sap.ui.getCore().byId(cellID + "-checkByShift") === undefined){
+            oByShiftCheckBox = new sap.ui.commons.CheckBox(cellID + "-checkByShift", {
+                text: com.sap.xmii.common.util.MessageBundle.getText('CHECK_BY_SHIFT'),
+                tooltip: com.sap.xmii.common.util.MessageBundle.getText('CHECK_BY_SHIFT')
+            });
+        }
+        if($.inArray(granularity, ["Year", "Quarter", "Month", "Week"]) > -1){
+            oCheckBox.setEnabled(true);
+            oCheckBox.setChecked(true);
+            oByShiftCheckBox.setEnabled(false);
+            oByShiftCheckBox.setChecked(false);
+        } else if($.inArray(granularity, ["Day"]) > -1) {
+            oCheckBox.setEnabled(true);
+            oCheckBox.setChecked(true);
+            oByShiftCheckBox.setEnabled(true);
+            oByShiftCheckBox.setChecked(false);
+        } else if($.inArray(granularity, ["Shift"]) > -1){
+            oCheckBox.setEnabled(true);
+            oCheckBox.setChecked(true);
+            oByShiftCheckBox.setEnabled(false);
+            oByShiftCheckBox.setChecked(true);
+        } else {
+            oCheckBox.setEnabled(false);
+            oCheckBox.setChecked(false);
+            oByShiftCheckBox.setEnabled(false);
+            oByShiftCheckBox.setChecked(false);
+        }
+        var oLabel = new sap.ui.commons.Label({
+            text: com.sap.xmii.common.util.MessageBundle.getText('XLBL_DRILLDOWN_OPTIONS')
+        });
+        oLabel.setDesign(sap.ui.commons.LabelDesign.Bold);
+        oLabel.addStyleClass("sapUiRb");
+        oLabel.addStyleClass("controlPaddingRightStyle");
+        var hLayout = new sap.ui.layout.HorizontalLayout({
+        	content: [oLabel, oRadioButtonGroup, oCheckBox, oByShiftCheckBox]
+        });
+        var textHeader = new sap.m.Text({
+            text: "BreadCrumb"
+        });
+        var toolBarSpacer = new sap.m.ToolbarSpacer();
+        that.toolBar.addContent(textHeader);
+        that.toolBar.addContent(toolBarSpacer);
+        that.toolBar.addContent(oTimeResetButton);
+        that.toolBar.addContent(hLayout);
+
+    },
+
+    /**
+     * 
+     * @param cellID
+     */
+    applyConfigurationOnChart: function(cellID) {
+
+        var that = this;
+        //Set the chart type in case it is changed at runtime from configure visualization dialog
+        var chartType = this.kpiConfiguration.Config.chartType;
+        if (isNaN(chartType) == false) {
+            var chartTypesArray = com.sap.xmii.common.util.MIIi5Util.stringToArray(com.sap.xmii.common.util.CHART_TYPES_ARRAY, ",");
+            chartType = chartTypesArray[this.kpiConfiguration.Config.chartType];
+        }
+        this.kpiChart.getChartObject().setChartType(chartType);
+
+        if (this.kpiConfiguration.Config.refreshRate != undefined && this.kpiConfiguration.Config.refreshRate != "undefined") {
+            this.kpiChart.getChartTemplateObject().setProperty("RefreshRate", this.kpiConfiguration.Config.refreshRate);
+        }
+
+        if (this.kpiConfiguration.Config.autoRefresh != undefined && this.kpiConfiguration.Config.autoRefresh != "undefined") {
+            this.kpiChart.getChartTemplateObject().setProperty("AutoRefresh", this.kpiConfiguration.Config.autoRefresh);
+        }
+        if (chartType == "Gauge") {
+            //Setting the label Columns
+            var dimensionValues = "";
+            for (var i = 0; i < this.kpiConfiguration.Config.dimensions.length; i++) {
+                var sDimName = this.kpiConfiguration.Config.dimensions[i].dimension;
+                var sValue = this.kpiConfiguration.Config.dimensions[i].filterSelected;
+
+                // No filter set: continue with next dimension
+                if (!sValue) {
+                    continue;
+                }
+                dimensionValues += sValue + " ";
+            }
+            if (dimensionValues != "") {
+                dimensionValues = "(" + (dimensionValues.substring(0, dimensionValues.length - 1)) + ")";
+            }
+            this.kpiChart.setLabels(this.kpiConfiguration.Name + dimensionValues);
+            this.kpiChart.getChartObject().setLabelColumns("Name");
+            this.kpiChart.setCallBackData(this.kpiConfiguration);
+        } else {
+            var labelColumns = this.getLabelColumnsForSelectedConfiguration();
+            this.kpiChart.getChartObject().setXDimensions(labelColumns.substring(0, (labelColumns.length - 1)));
+            this.kpiChart.getChartObject().setYDimensions(this.kpiConfiguration.Config.selectedDimensions);
+            this.kpiChart.getChartTemplateObject().setProperty("LabelColumns", labelColumns + this.kpiConfiguration.Config.selectedDimensions);
+        }
+
+        if (this.kpiConfiguration.FileType != "CatalogQuery") {
+            if (chartType == "Gauge") {
+                this.kpiChart.getChartObject().setValueColumns("VALUE");
+            } else
+                this.kpiChart.getChartTemplateObject().setProperty("ValueColumns", "Value");
+        } else {
+            this.kpiChart.getChartObject().setApplySpecRules(false);
+            var valueCols = this.getValueColumnsForChart();
+            var valueColLabel = this.getValueColumnsLabelForChart();
+            that.kpiChart.getQueryObject().removeFromOverrides("SelectedNodes");
+            this.kpiChart.getChartTemplateObject().setProperty("ValueColumns", valueCols);
+            this.kpiChart.getChartTemplateObject().setProperty("ShowYAxisLabel", true);
+            this.kpiChart.getChartTemplateObject().setProperty("YAxisLabel", valueColLabel);
+            var queryParams = getParametersForCatalogQuery(this.kpiConfiguration);
+            if (queryParams != undefined) {
+                $.each(queryParams, function(name, value) {
+                    that.kpiChart.getQueryObject().setParameter(name, value);
+                });
+            }
+        }
+
+        if (this.kpiConfiguration.Config.DisplayParameters != undefined) {
+            for (var i = 0; i < this.kpiConfiguration.Config.DisplayParameters.length; i++) {
+                if (this.kpiConfiguration.Config.DisplayParameters[i].Name == "ChartType") {
+                    this.kpiConfiguration.Config.chartType = getChartConstant(this.kpiConfiguration.Config.DisplayParameters[i].Value);
+                } else if (this.kpiConfiguration.Config.DisplayParameters[i].Name == "Title") {
+                    this.kpiConfiguration.Config.title = this.kpiConfiguration.Config.DisplayParameters[i].Value;
+                } else if (this.kpiConfiguration.Config.DisplayParameters[i].Name == "ColorIndicator") {
+                    this.kpiConfiguration.Config.isValueSetColorIndicator = true;
+                    this.kpiChart.getChartTemplateObject().setProperty(this.kpiConfiguration.Config.DisplayParameters[i].Name, this.kpiConfiguration.Config.DisplayParameters[i].Value);
+                } else {
+                    this.kpiChart.getChartTemplateObject().setProperty(this.kpiConfiguration.Config.DisplayParameters[i].Name, this.kpiConfiguration.Config.DisplayParameters[i].Value);
+                }
+            }
+        }
+
+        this.kpiChart.getChartTemplateObject().setProperty("Title", this.kpiConfiguration.Config.title);
+
+        if (this.kpiConfiguration.Config.chartHeight != undefined && this.kpiConfiguration.Config.chartHeight != "undefined") {
+            this.kpiChart.setChartHeight(this.kpiConfiguration.Config.chartHeight);
+        }
+
+        if (!ssceLayout.isDesign && jQuery.sap.byId(cellID).height() > 0 && isObjectNull(this.kpiConfiguration.Config.chartHeight))
+            this.kpiChart.setChartHeight(jQuery.sap.byId(cellID).height() + "px");
+
+        /*if(this.kpiConfiguration.Config.enableItemSelection != undefined && this.kpiConfiguration.Config.enableItemSelection != "undefined"){
+        	this.kpiChart.getChartTemplateObject().setProperty("EnableItemSelection" , this.kpiConfiguration.Config.enableItemSelection);
+        }*/
+        //Override with parameters set in the visualization dialog
+
+        // set the creation event to adjust the chart size according to the cell
+        this.kpiChart.registerCreationEventHandler(ceController.addObject(cellID.substring(3), this.kpiChart));
+        if (chartType != "Gauge") {
+
+            // set the legend label to selected dimension
+            if ("None" !== this.kpiConfiguration.Config.duration.granularity) {
+                this.kpiChart.getChartObject().setLegendDescriptionLabel(this.kpiConfiguration.Config.selectedDimensions);
+            } else {
+                this.kpiChart.getChartObject().setLegendDescriptionLabel(oBundle.getText("XLTP_TAG_CATEGORY"));
+            }
+            // register the event handler to the chart data points to handle drill down
+            this.kpiChart.registerChartSelectionEventHandler(this.handleDataPointDrillDownDispatcher.bind(this));
+
+            // register the event handler to the chart legend Items to handle drill down
+            this.kpiChart.registerChartLegendSelectionEventHandler(this.handleLegendDrillDownDispatcher.bind(this));
+
+            // create the breadcrumb object based on the dimensions and set it to the message area of i5Chart.
+
+            this.oLayout = new sap.ui.commons.layout.MatrixLayout();
+            if (this.panel != undefined) {
+                this.panel.destroy();
+            }
+            if (this.kpiConfiguration.FileType == "CatalogQuery" && this.kpiConfiguration.Mode == "PICAnalysis") {
+                this.createPICBreadCrumb();
+                this.createGroupByBreadCrumb();
+                if (this.kpiConfiguration.Config.dimensions.length > 1) {
+                    this.oLayout.createRow(this.groupByBreadCrumb);
+                }
+                this.oLayout.createRow(this.picBreadCrumb);
+                if (!this.oDrillDownCreate) {
+                    var timeResetButtonID = sap.ui.getCore().byId(cellID + "-timeReset");
+                    if (timeResetButtonID == undefined) {
+                        this.createRadioBarAndCheckWithTime(cellID);
+                        this.oDrillDownCreate = true;
+                        if (this.oLayout.getRows().length == 2) {
+                            this.oDrillDownLayoutRow = this.oLayout.getRows()[1];
+                        }
+                        if (this.oLayout.getRows().length > 2) {
+                            this.oDrillDownLayoutRow = this.oLayout.getRows()[2];
+                        }
+                    } else {
+                        if (this.oDrillDownLayoutRow !== undefined) {
+                            this.oLayout.addRow(this.oDrillDownLayoutRow);
+                        }
+                    }
+                }
+                this.panel = new sap.m.Panel({
+                    expandable: true,
+                    expanded: false,
+                    width: 'auto',
+                    headerText: com.sap.xmii.common.util.MessageBundle.getText("XMII_PICAYS_BREADCRUMBLABEL")
+                });
+                this.panel.setHeaderToolbar(this.toolBar);
+                this.panel.addContent(this.oLayout);
+                this.kpiChart.setMessageArea(this.panel);
+                this.panel.attachExpand(function() {
+                    if (that.panel.getExpanded()) {
+                        that.kpiChart.getMessageArea().height = 110;
+                        try{that.kpiChart.update(false);} catch (err) {}
+                    } else {
+                        that.kpiChart.getMessageArea().height = 10;
+                        try{that.kpiChart.update(false);} catch (err) {}
+                    }
+                    that.kpiChart.getTimeBar().toggleTimeBarOpener(that.showTimeBar);
+                });
+
+            } else {
+                this.createBreadCrumb();
+                this.oLayout.createRow(this.oBreadCrumb);
+                this.kpiChart.setMessageArea(this.oBreadCrumb);
+            }
+
+        }
+        if (this.kpiConfiguration.FileType != "CatalogQuery") {
+            if (this.kpiConfiguration.Config.duration.selectedDuration !== "Custom") {
+                this.kpiChart.getQueryObject().setParameter("TimePeriod", this.kpiConfiguration.Config.duration.selectedDuration);
+            }
+            this.kpiChart.getQueryObject().setParameter("TimeBasedQuery", "true");
+            this.kpiChart.getChartTemplateObject().setProperty("KPIObject", "true");
+            this.kpiChart.getChartTemplateObject().setProperty("UseLocaleFormat", "false");
+        }
+
+        var that = this;
+        //Only during runtime
+        if (!ssceLayout.isDesign && this.showConfigureVisualization) {
+            //Adding the setting button to the toolBar
+            var configurationButton = new sap.ui.commons.Button(generateGuid(), {
+                icon: sap.ui.core.IconPool.getIconURI("table-view"),
+                lite: true,
+                tooltip: oBundle.getText("XLBL_CONFIGURE_VISUALIZATION"),
+                press: function(oEvent) {
+
+                    var callbackOnOk = function() {
+                        that.destroy();
+                    };
+                    //opening the dialog for configuring the visualization (ConfigureQueryVisualization.js)
+                    openKPIConfigDialogonPreview(that, callbackOnOk);
+                }
+            });
+            this.kpiChart.removeAllAdditionalTitleBarItem();
+            this.kpiChart.setAdditionalTitleBarItems([configurationButton]);
+        }
+        this.kpiChart.setKpiViewObj(that.kpiConfiguration);
+    },
+    
+    /**
+     * This function is responsible to apply the configurations during runtime when the configure visualization is changed
+     * @param oKpiConf
+     * @return
+     */
+    updateChartConfigurationInRuntime: function(oKpiConf, oCell) {
+        //Retaining the configurations
+        this.kpiChart = oKpiConf.kpiChart;
+        this.oBreadCrumb; // BreadCrumb used for drill down.
+        this.picBreadCrumb;
+        this.groupByBreadCrumb;
+        this.picBreadCrumbList = [];
+        this.toolBar = oKpiConf.toolBar;
+        this.panel;
+        this.oLayout = oKpiConf.oLayout;
+        if (this.oDrillDownLayoutRow !== undefined && oKpiConf.kpiConfiguration.Mode == 'PICAnalysis') {
+            this.oLayout.addRow(this.oDrillDownLayoutRow);
+        }
+
+        this.oDrillDownCreate = false;
+        this.firstSelectedNameSpace = oKpiConf.firstSelectedNameSpace;
+        this.kpiConfiguration = oKpiConf.kpiConfiguration;
+        if (oKpiConf.oLayout !== undefined && oKpiConf.oLayout.getRows() !== undefined && oKpiConf.oLayout.getRows().length == 2) {
+            this.oDrillDownLayoutRow = oKpiConf.oLayout.getRows()[1];
+        }
+        if (oKpiConf.oLayout !== undefined && oKpiConf.oLayout.getRows() !== undefined && oKpiConf.oLayout.getRows().length > 2) {
+            this.oDrillDownLayoutRow = oKpiConf.oLayout.getRows()[2];
+        }
+        //Set the chart type in case it is changed at runtime from configure visualization dialog
+        var chartType = oKpiConf.kpiConfiguration.Config.chartType;
+        if (isNaN(chartType) == false) {
+            var chartTypesArray = com.sap.xmii.common.util.MIIi5Util.stringToArray(com.sap.xmii.common.util.CHART_TYPES_ARRAY, ",");
+            chartType = chartTypesArray[oKpiConf.kpiConfiguration.Config.chartType];
+        }
+        if (chartType != "Gauge")
+            this.oBreadCrumb = oKpiConf.oBreadCrumb;
+
+        //Getting the changed selected Dimension
+        var selectedDimensions = "";
+        var first = true;
+        $.each(this.kpiConfiguration.Config.dimensions, function(i, e) {
+            if (e.selected) {
+                if (!first) {
+                    selectedDimensions = selectedDimensions + "," + e.dimension;
+                } else {
+                    selectedDimensions = e.dimension;
+                    first = false;
+                }
+            }
+
+        });
+        this.setSelectedDimensions(selectedDimensions);
+
+        // Set the filter value for KPI
+        for (var i = 0; i < this.kpiConfiguration.Config.dimensions.length; i++) {
+            if (this.kpiConfiguration.Config.dimensions[i].selected == false || (this.kpiConfiguration.Config.dimensions[i].filterSelected == "" && this.kpiConfiguration.Config.dimensions[i].inputParam == "")) {
+                this.kpiConfiguration.Config.dimensions[i].filterSelected = "";
+                continue;
+            }
+            var sDimName = this.kpiConfiguration.Config.dimensions[i].dimension;
+            if (isObjectNotNull(this.kpiConfiguration.Config.dimensions[i].inputParam)) {
+                var sFilterValue = window[this.kpiConfiguration.Config.dimensions[i].inputParam];
+                this.setKpiDimensionFilter(sDimName, sFilterValue);
+            } else {
+
+                var sFilterValue = this.kpiConfiguration.Config.dimensions[i].filterSelected;
+                this.setKpiDimensionFilter(sDimName, sFilterValue);
+            }
+        }
+        if (this.kpiConfiguration.FileType.match(/KPI/) != null) {
+            // get the updated URL for changed dimensions and update the URL in chart's query Object
+            var url = this.oDataUrlGenerators(this.kpiConfiguration);
+            this.kpiChart.getQueryObject().setQueryResultUrl(url);
+        }
+        this.applyConfigurationOnChart(oCell);
+        this.kpiChart.update(true);
+
+    },
+
+    /**
+     * 
+     * @param labelColumns
+     * @returns
+     */
+    getLabelColumnsForLegendDrillDown: function(labelColumns) {
+        if (this.kpiConfiguration.Config.selectedTimeDimension.Year !== undefined && this.kpiConfiguration.Config.selectedTimeDimension.Year !== "" && labelColumns.match(/Year/) == null) {
+            labelColumns += "Year,";
+        }
+        if (this.kpiConfiguration.Config.selectedTimeDimension.Quarter !== undefined && this.kpiConfiguration.Config.selectedTimeDimension.Quarter !== "" && labelColumns.match(/Quarter/) == null) {
+            labelColumns += "Quarter,";
+        }
+        if (this.kpiConfiguration.Config.selectedTimeDimension.Month !== undefined && this.kpiConfiguration.Config.selectedTimeDimension.Month !== "" && labelColumns.match(/Month/) == null) {
+            labelColumns += "Month,";
+        }
+        if (this.kpiConfiguration.Config.selectedTimeDimension.Week !== undefined && this.kpiConfiguration.Config.selectedTimeDimension.Week !== "" && labelColumns.match(/Week/) == null) {
+            labelColumns += "Week,";
+        }
+        if (this.kpiConfiguration.Config.selectedTimeDimension.Day !== undefined && this.kpiConfiguration.Config.selectedTimeDimension.Day !== "" && labelColumns.match(/Day/) == null) {
+            labelColumns += "Day,";
+        }
+        if (this.kpiConfiguration.Config.selectedTimeDimension.Shift !== undefined && this.kpiConfiguration.Config.selectedTimeDimension.Shift !== "" && labelColumns.match(/Shift/) == null) {
+            labelColumns += "Shift,";
+        }
+        if (this.kpiConfiguration.Config.selectedTimeDimension.Hour !== undefined && this.kpiConfiguration.Config.selectedTimeDimension.Hour !== "" && labelColumns.match(/Hour/) == null) {
+            labelColumns += "Hour,";
+        }
+        if (labelColumns.indexOf(this.kpiConfiguration.Config.selectedDrillDownGranularity) == -1) {
+            labelColumns += (this.kpiConfiguration.Config.selectedDrillDownGranularity.match(/Minutes/) != null) ? "" : this.kpiConfiguration.Config.selectedDrillDownGranularity + ",";
+        }
+        return labelColumns;
+    },
+
+    /**
+     * This function is resposible for creating the label columns for the chart depending upon the selected dimensions and
+     * time dimensions specific columns
+     */
+    getLabelColumnsForSelectedConfiguration: function() {
+        var labelColumns = [];
+
+        //the dimensions are added in reverse order to take care of the chart specific orders
+        if (this.kpiConfiguration.Config.duration.yearDisplay) {
+            labelColumns.push("Year");
+        }
+        if (this.kpiConfiguration.Config.duration.quarterDisplay) {
+            labelColumns.push("Quarter");
+        }
+        if (this.kpiConfiguration.Config.duration.monthDisplay) {
+            labelColumns.push("Month");
+        }
+        if (this.kpiConfiguration.Config.duration.weekDisplay) {
+            labelColumns.push("Week");
+        }
+        if (this.kpiConfiguration.Config.duration.dayDisplay) {
+            labelColumns.push("Day");
+        }
+        if (this.kpiConfiguration.Config.duration.shiftDisplay) {
+            labelColumns.push("Shift");
+        }
+        if (this.kpiConfiguration.Config.duration.hourDisplay) {
+            labelColumns.push("Hour");
+        }
+        if (this.kpiConfiguration.Config.duration.minuteDisplay) {
+            if (this.kpiConfiguration.Config.duration.granularity == "5 Minutes") {
+                labelColumns.push("Min_5");
+            } else if (this.kpiConfiguration.Config.duration.granularity == "10 Minutes") {
+                labelColumns.push("Min_10");
+            } else if (this.kpiConfiguration.Config.duration.granularity == "15 Minutes") {
+                labelColumns.push("Min_15");
+            } else if (this.kpiConfiguration.Config.duration.granularity == "20 Minutes") {
+                labelColumns.push("Min_20");
+            } else if (this.kpiConfiguration.Config.duration.granularity == "30 Minutes") {
+                labelColumns.push("Min_30");
+            }
+        }
+
+        var returnString = "";
+        labelColumns.forEach(function(labelColumn) {
+            returnString = returnString + "," + labelColumn;
+        });
+
+        if (returnString == "") {
+            if (this.kpiConfiguration.Config.duration.granularity != "None") {
+                if (this.kpiConfiguration.Config.selectedDimensions != "")
+                    returnString = returnString + "TimeStamp,";
+                else
+                    returnString = returnString + "TimeStamp";
+            }
+        } else {
+            returnString = returnString.substring(1);
+            if (this.kpiConfiguration.Config.duration.granularity != "None") {
+                if (this.kpiConfiguration.Config.selectedDimensions != "")
+                    returnString = returnString + ",";
+            }
+        }
+        return returnString;
+    },
+    
+    /**
+     * 
+     * @returns {String}
+     */
+    getValueColumnsForChart: function() {
+        var aggrModes = this.kpiConfiguration.Config.aggregationModes;
+        var categoriesAliases = this.kpiConfiguration.Config.selectedCategoriesAliases;
+        if (isArrayNotEmpty(this.kpiConfiguration.Config.selectedAggregationModes)) {
+            aggrModes = this.kpiConfiguration.Config.selectedAggregationModes;
+        }
+        if (isArrayNotEmpty(this.kpiConfiguration.Config.selectedDrillDownAggregationModes)) {
+            aggrModes = this.kpiConfiguration.Config.selectedDrillDownAggregationModes;
+        }
+        if (isArrayNotEmpty(this.kpiConfiguration.Config.selectedDrillDownCategoriesAliases)) {
+        	categoriesAliases = this.kpiConfiguration.Config.selectedDrillDownCategoriesAliases;
+        }
+        var valueCols = "";
+        for (var i = 0; i < categoriesAliases.length; i++) {
+            var splitedAggrModes = aggrModes[i].split(/\|/);
+            for (var j = 0; j < splitedAggrModes.length; j++){
+                valueCols = valueCols + splitedAggrModes[j] + "_" + categoriesAliases[i];
+                valueCols = valueCols + ",";
+            }
+        }
+        if (valueCols.charAt(valueCols.length - 1) == ",")
+            valueCols = valueCols.substring(0, valueCols.length - 1);
+        return valueCols;
+
+    },
+    
+    /**
+     * 
+     * @returns {String}
+     */
+    getValueColumnsLabelForChart: function() {
+        var valueColumnLabel = "";
+        var categories = this.kpiConfiguration.Config.selectedCategories;
+        var selectedCategoryUoMs = this.kpiConfiguration.Config.categoryUoMs || {};
+        var scopePropertyExpression = this.kpiConfiguration.Config.ScopePropertyExpression.toString();
+        var selectedDrillDownCategoriesAliases =  this.kpiConfiguration.Config.selectedDrillDownCategoriesAliases;
+        var selectedCategoriesAliases = this.kpiConfiguration.Config.selectedCategoriesAliases;
+        if (isArrayNotEmpty(this.kpiConfiguration.Config.selectedDrillDownCategoriesAliases)) {
+            categories = categories[selectedCategoriesAliases.indexOf(selectedDrillDownCategoriesAliases[0])];
+        }
+        if (isArrayNotEmpty(this.kpiConfiguration.Config.selectedCategoryUoMs)) {
+            selectedCategoryUoMs = this.kpiConfiguration.Config.selectedCategoryUoMs;
+        }
+        var intermediates = this.kpiConfiguration.Config.categoryIntermediates.toString();
+        var isCosts = this.kpiConfiguration.Config.selectedTagCategoryCostCalculates.toString();
+        var drillDownType = this.kpiConfiguration.Config.drillDownType.toString(); 
+        var SelectedGroupCategories = this.kpiConfiguration.Config.SelectedGroupCategories.toString();
+        var NodeSelectionExpression = this.kpiConfiguration.Config.NodeSelectionExpression.toString();
+        var selectedNodes = this.kpiConfiguration.Config.SelectedNodes.toString();
+        var params = {
+            "mode": "getPICAnalysisUoM",
+            "selectedTagCategory": categories.toString(),
+            "scopePropertyExpression": scopePropertyExpression,
+            "currentUoM" : selectedCategoryUoMs.toString(),
+            "selectedTagCategoryIntermediate" : intermediates,
+            "SelectedTagCategoryCostCalculates" : isCosts,
+            "DrillDownType" : drillDownType,
+            "SelectedGroupCategories" : SelectedGroupCategories,
+            "NodeSelectionExpression" : NodeSelectionExpression,
+            "selectedNodes" : selectedNodes,
+            "content-type": "text/json"
+        };
+        var result = getDataFromServer(XMII_CECATALOG_URL, params);
+        for (var i = 0; i < result.Rowsets.Rowset[0].Row.length; i++){
+            selectedCategoryUoMs[i] = result.Rowsets.Rowset[0].Row[i].UoM;
+        }
+        if (undefined === drillDownType || "" === drillDownType) {
+            this.kpiConfiguration.Config.selectedCategoryUoMs = selectedCategoryUoMs;
+        }
+        this.kpiConfiguration.Config.selectedCategoryUoMs = selectedCategoryUoMs;
+        var selectedCategories = categories.toString().split(/,/);
+        var candidateCategories = this.kpiConfiguration.Config.selectedCategories;
+        var displayCategoryAliases = new Array();
+        for(i in selectedCategories) {
+            displayCategoryAliases.push(selectedCategoriesAliases[candidateCategories.indexOf(selectedCategories[i])]);
+        }
+        for (var i = 0; i < displayCategoryAliases.length; i++) {
+            valueColumnLabel += displayCategoryAliases[i] + "[" + selectedCategoryUoMs[i] + "],";
+        }
+        if (valueColumnLabel.charAt(valueColumnLabel.length - 1) == ",")
+            valueColumnLabel = valueColumnLabel.substring(0, valueColumnLabel.length - 1);
+        return valueColumnLabel;
+    },
+    /**
+     * 
+     * @param height
+     */
+    setChartHeight: function(height) {
+        this.kpiConfiguration.Config.chartHeight = height;
+    },
+
+    /**
+     * this function is for events API
+     * @param handlerName
+     * @param parameters
+     * @return
+     */
+    executeHandler: function(handlerName, parameters) {
+        if (handlerName === "refresh") {
+            if (this.kpiChart) {
+                this.kpiChart.executeHandler(handlerName, parameters);
+            } else if (determineFileType(this.kpiConfiguration.FileType) !== FILE_TYPE_KPI && this.kpiTileView && this.kpiTileView.getModel()) {
+                var startDate, endDate, dateFormat;
+				
+                for (var name in parameters.QueryParameters) {
+					var value = parameters.QueryParameters[name];
+					
+                    this.setQueryParameters(name, value);
+					
+					switch (name) {
+						case "TimePeriod":
+							if (parameters.QueryParameters[name] == "")
+								this.kpiConfiguration.Config.duration.selectedDuration = oBundle.getText("XLI_KPI_DUR_CUSTOM");
+							else
+								this.kpiConfiguration.Config.duration.selectedDuration = value;
+							break;
+						case "StartDate":
+							startDate = value;
+							break;
+						case "EndDate":
+							endDate = value;
+							break;
+						case "DateFormat":
+							dateFormat = value;
+							break;
+					}
+					
+                    this.kpiTileView.setParameter(name, value);
+                }
+				
+                if (startDate != undefined && endDate != undefined && dateFormat != undefined) {
+                    var formattedStartDate = com.sap.xmii.common.util.MIIi5Util.formatDate(startDate, dateFormat, com.sap.xmii.common.util.dateFormats.XML_FORMAT_TIMEZONE_OFFSET);
+                    var formattedEndDate = com.sap.xmii.common.util.MIIi5Util.formatDate(endDate, dateFormat, com.sap.xmii.common.util.dateFormats.XML_FORMAT_TIMEZONE_OFFSET);
+					
+					this.setStart_ISO8601(formattedStartDate);
+					this.setEnd_ISO8601(formattedEndDate);
+                }
+				
+                this.kpiTileView.updateData();
+            } else if(determineFileType(this.kpiConfiguration.FileType) === FILE_TYPE_KPI && this.kpiTileView && this.kpiTileView.getModel()){
+            	for(var i = 0; i < this.kpiConfiguration.Config.dimensions.length; i++){
+            		if(this.kpiConfiguration.Config.dimensions[i].inputParam!=null || this.kpiConfiguration.Config.dimensions[i].inputParam!=""){
+            			if(window[this.kpiConfiguration.Config.dimensions[i].inputParam]!= this.kpiConfiguration.Config.dimensions[i].filterSelected)
+            				this.kpiConfiguration.Config.dimensions[i].filterSelected = window[this.kpiConfiguration.Config.dimensions[i].inputParam];
+            		}
+            	}
+				
+				this.kpiTileView.updateData();
+            }
+        }
+    },
+
+    /**
+     * 
+     * @returns {Boolean}
+     */
+    isTimeAware: function() {
+        return true;
+    },
+
+    /**
+     * 
+     * @param show
+     */
+    setShowConfigureVisualization: function(show) {
+        this.showConfigureVisualization = show;
+    },
+
+    /**
+     * 
+     */
+    destroy: function() {
+        if (isObjectNotNull(this.kpiChart))
+            this.kpiChart.destroy();
+        if (isObjectNotNull(this.kpiTileView)) {
+            this.kpiTileView.destroy();
+        }
+        var cellID = this.kpiChart.chartPosId;
+        var drillDownToolBar = sap.ui.getCore().byId(cellID + "-drillDownToolBar");
+        if (isObjectNotNull(drillDownToolBar)) {
+            sap.ui.getCore().byId(cellID + "-drillDownToolBar").destroy();
+        }
+    }
+};
+
+com.sap.xmii.ssce.KPIView.prototype.constructor = com.sap.xmii.ssce.KPIView;

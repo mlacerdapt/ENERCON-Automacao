@@ -1,0 +1,20 @@
+(function() {
+  var sTimeStamp = '~202303221103~';
+  var sScriptPath = 'sap\x2dui\x2dcore.js';
+  var aScriptTags = document.getElementsByTagName('script');
+  for (var i = 0; i < aScriptTags.length; i++) {
+    var src;
+    if (src = aScriptTags[i].src) {
+      var iIdxCb = src.indexOf('/sap-ui-cachebuster/');
+      var iIdxCbEnd = iIdxCb + '/sap-ui-cachebuster/'.length;
+      if (iIdxCb >= 0 && src.slice(iIdxCbEnd, iIdxCbEnd + sScriptPath.length) == sScriptPath) {
+        var sBasePath = src.substring(0, iIdxCb) + '/' + sTimeStamp + '/';
+        window["sap-ui-config"] = window["sap-ui-config"] || {};
+        window["sap-ui-config"].resourceRoots = window["sap-ui-config"].resourceRoots || {};
+        window["sap-ui-config"].resourceRoots[''] = sBasePath;
+        document.write('<script id="sap-ui-bootstrap-cachebusted" src="' + sBasePath + sScriptPath + src.slice(iIdxCbEnd + sScriptPath.length) + '"></script>');
+        break;
+      }
+    }
+  }
+})();

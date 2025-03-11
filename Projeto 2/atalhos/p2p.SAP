@@ -1,0 +1,10 @@
+[System]
+Name=ENP
+Client=009
+[User]
+Name=00082300
+Language=E
+[Function]
+Command=/ENERCON/MM_P2PMD
+Title=P2P Report: Material Master Data
+Type=Transaction

@@ -1,0 +1,82 @@
+function getJSDoc() {
+	var x = '';
+
+	function getAddMethods() {
+		var addMethodStr = '';
+		var propNames = [ 'SourceName', 'SourceTemplate', 'MappedParamTarget',
+				'MappedParamSource', 'IsCached', 'AllowFuture' ];
+
+		for (prop in propNames) {
+			var getStr = 'String:' + 'get' + propNames[prop] + ';';
+			var setStr = 'void:' + 'set' + propNames[prop] + '(val)' + ';';
+			addMethodStr = addMethodStr + getStr + setStr;
+		}
+
+		return addMethodStr;
+	}
+	;
+	x = x + getAddMethods();
+	return x;
+};
+
+/**
+ * @Namespace
+ */
+com.sap.xmii.querytemplate.query = com.sap.xmii.querytemplate.query || {};
+
+// FOR INHERITANCE
+var parentQueryObj = new com.sap.xmii.querytemplate.query.Query();
+
+/***
+ * AGGREGATEQUERY CLASS
+ * 
+ * @constructor
+ * 
+ */
+com.sap.xmii.querytemplate.query.AggregateQuery = function AggregateQuery(
+		queryTemplateName, queryMetaData) {
+
+	this.setQueryMetaData(queryMetaData);
+	this.setQueryTemplateName(queryTemplateName);
+	this.addGettersAndSetters(com.sap.xmii.common.util.AggregateQueryPropNames);
+
+	this.START_DATE_INDICATOR = com.sap.xmii.common.util.DateTimeConstants.START_DATE;
+	this.END_DATE_INDICATOR = com.sap.xmii.common.util.DateTimeConstants.END_DATE;
+	this.DURATION_INDICATOR = com.sap.xmii.common.util.DateTimeConstants.DURATION;
+	this.TIME_INDICATOR = com.sap.xmii.common.util.DateTimeConstants.TIME;
+	this.TIMEPERIOD_INDICATOR = com.sap.xmii.common.util.DateTimeConstants.TIME_PERIOD;
+	this.SCHEDULE_INDICATOR = com.sap.xmii.common.util.DateTimeConstants.SCHEDULE;
+	this.DURATION_UNITS = com.sap.xmii.common.util.DateTimeConstants.DURATION_UNITS;
+	this.MAX_MAPPED_PARAMS = 32;
+	this.queryData = queryMetaData;
+
+	this.isTimeProperty = function(name) {
+		return this.START_DATE_INDICATOR.toUpperCase() == name.toUpperCase()
+				|| this.END_DATE_INDICATOR.toUpperCase() == name.toUpperCase()
+				|| this.DURATION_INDICATOR.equalsIgnoreCase(name)
+				|| this.TIME_INDICATOR.toUpperCase() == name.toUpperCase()
+				|| this.TIMEPERIOD_INDICATOR.toUpperCase() == name
+						.toUpperCase()
+				|| this.SCHEDULE_INDICATOR.toUpperCase() == name.toUpperCase()
+				|| this.DURATION_UNITS.toUpperCase() == name.toUpperCase();
+	}
+}
+
+// Inheritance
+com.sap.xmii.querytemplate.query.AggregateQuery.prototype = parentQueryObj;
+com.sap.xmii.querytemplate.query.AggregateQuery.prototype.constructor = com.sap.xmii.querytemplate.query.AggregateQuery;
+
+
+com.sap.xmii.querytemplate.query.AggregateQuery.prototype.isTimeBasedQuery = function() {
+	var i = 0;
+	for ( var myKey in this.queryData) {
+		var n = myKey.indexOf("MappedParamSource.");
+		if (n != -1) {
+			var param = this.queryData[myKey];
+			if (this.isTimeProperty(param)) {
+				return true;
+			}
+		}
+		return false;
+	}
+}

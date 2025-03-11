@@ -1,0 +1,39 @@
+/* (c) Copyright 2008 SAP AG. All rights reserved. */
+
+/* "$Revision: 1$" */
+
+/*
+    MissingParameterException.js
+
+    This exception object represents a missing parameter error condition.  If a function
+    or method expects a parameter to be passed in, this exception should be thrown if the
+    parameter does not exist.
+
+*/
+
+/*
+$Log: MissingParameterException.js $
+Revision 1.1  2001/09/06 04:34:40Z  rasmussene
+Initial revision
+*/
+
+//
+// MissingParameterException Constructor
+// -------------------------------------
+// Constructs a new MissingParameterException object and initializes missing parameter
+// error message.
+//
+// Implementation:
+//   1. If paramName was passed in, initialize the message member with a meaningful string
+//   2. Initialize base members with subclass Exception object
+//
+function MissingParameterException( paramName )
+{
+    if ( ( paramName != null ) && ( typeof( paramName ) == "string" ) ) {
+        this.baseException = new Exception( "Missing required parameter '" + paramName + "'" );
+    }
+    this.message = this.baseException.getMessage();
+    this.stackTrace = this.baseException.getStackTrace();
+}
+MissingParameterException.prototype = new Exception();
+

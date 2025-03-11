@@ -1,0 +1,1169 @@
+/**
+ * @Namespace com.sap.xmii.chart
+ */
+com.sap.xmii.chart.hchart = com.sap.xmii.chart.hchart || {};
+
+
+/***
+ * CLASS i5Command represents the UI5 representation of ICommand
+ * 
+ * @constructor
+ */
+
+com.sap.xmii.chart.hchart.i5Command = function() {
+
+	this.queryTemplateName = queryTemplateName;
+	this.dispTemplateName = dispTemplateName;
+	this.queryTemplate = '';
+	this.queryResult = '';
+	this.displayTemplate = '';
+	this.displayTemplateConfig = '';
+	this.commandComponent = '';
+	this.queryObject = '';
+	this.commandUserID1 = '';
+	this.commandUserName1 = '';
+	this.commandUserID2 = '';
+	this.commandUserName2 = '';
+	this.isCommandUser1Authenticated = false;
+	this.isCommandUser1Authorized = false;
+	this.isCommandUser2Authenticated = false;
+	this.isCommandUser2Authorized = false;
+	this.isCommandUser1FullNameConfirmed = false;
+	this.isCommandUser2FullNameConfirmed = false;
+	this.isUser1FullNameConfirmed = false;
+	this.confirmFullNameForRole1 = false;
+	this.confirmFullNameForRole2 = false;
+	this.focusOnInputField = true;
+	this.confirmRole1 = '';
+	this.confirmRole2 = '';
+	this.auditMap = {};
+	this.queryExecutionYesOrNo=false;
+	this.thenCall = undefined;
+	this.fnOnCreateEvent = '';
+	this.errString = '';
+	this.isCmd2AuditWritten = false;
+	this.isCmd1AuditWritten = false;
+
+	var chartArgs = arguments;
+	//Private Class Level Attributes
+	var that = this;
+
+	/*
+	 * Setup for arguments The function is needed to set the arguments that the
+	 * user passes for i5Chart constructors to the appropriate variables that
+	 * will be used to create,render the chart
+	 */
+	var queryTemplateName, dispTemplateName;
+	
+	/**
+	 * 
+	 */
+	var setUpChartArguments = function() {
+
+		if (chartArgs.length >= 2) {
+			//first arg is DT and the second one is set to QT
+			queryTemplateName = chartArgs[0];
+			dispTemplateName = chartArgs[1];
+		} else {
+			//if just one arg is passed, 
+			if(chartArgs.length === 1) {
+				dispTemplateName = "Defaults/iCommand";
+				queryTemplateName = chartArgs[0];
+			}else{
+				// Insufficient number of arguments
+				var msg = com.sap.xmii.common.util.MessageBundle.getText("XMSG_INSUFFICIENT_NUMBER_OF_PARAMETERS");
+				jQuery.sap.log.error(msg);
+				throw new com.sap.xmii.common.exception.MIIi5Exception(msg);
+			}
+		}
+		that.queryTemplateName = queryTemplateName;
+		that.dispTemplateName = dispTemplateName;
+	};
+
+	setUpChartArguments();
+	//Check if QueryTemplate is not null,then create a QueryTemplateObject
+	//if((queryTemplateName!=null)&&!(queryTemplateName==='')){
+	if(!com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(queryTemplateName)){
+		this.queryTemplate = new com.sap.xmii.querytemplate.QueryTemplate(queryTemplateName);
+		this.queryObject = this.queryTemplate.getQueryObject();
+	}
+
+	//Check if the DisplayTemplate is not null,then create a DisplayTemplate Object
+	if(!com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(dispTemplateName)){
+		this.displayTemplate = new com.sap.xmii.charttemplate.ChartTemplate(dispTemplateName);
+		//resetting the ChartConfig here.Currently i5Charts are handling in a different way
+		var chartMetaDataURL = com.sap.xmii.common.util.GenericConstants.CATALOG_URL_PREFIX+dispTemplateName+com.sap.xmii.common.util.GenericConstants.CONTENT_TYPE_URL_SUFFIX;
+		var chartMetaDataJSONStr = com.sap.xmii.common.util.MIIi5Util.getOData(chartMetaDataURL);
+		var chartConfig =  com.sap.xmii.common.util.MIIi5Util.evalJSONStr(chartMetaDataJSONStr);
+		//Call the ChartConfig setting again
+		this.displayTemplate.chartPropertyConfig = new com.sap.xmii.charttemplate.ChartPropertyConfig(chartConfig.Display);
+		var jsonDisplayObj = JSON.stringify(chartConfig.Display);
+		this.displayTemplate.chartPropertyConfig.setAdditionalProps(jsonDisplayObj);
+		//Create the i5CommandComponent here and pass the ChartPropertyConfig as part of the constructor
+		var chartConfig = that.displayTemplate.chartPropertyConfig.chartConfig;
+		this.displayTemplateConfig = chartConfig;
+		this.commandComponent = new com.sap.xmii.chart.hchart.i5CommandComponent(chartConfig);
+	}
+
+	/**
+	 * SetQueryTemplate 
+	 * @param queryTemplateName
+	 * @return
+	 */
+	this.setQueryTemplate = function(queryTemplateName){
+		this.queryTemplateName = queryTemplateName;
+		if(com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(queryTemplateName))
+			this.queryTemplate = new com.sap.xmii.querytemplate.QueryTemplate(queryTemplateName);
+	};
+
+	/**
+	 * Set DisplayTemplate
+	 * @param dispTemplate
+	 * @return
+	 */
+	this.setDisplayTemplate = function(dispTemplate){
+		this.displayTemplateName = dispTemplate;
+	};
+
+	/**
+	 * Fire creation event
+	 */
+	var fireCreationEvent = function(thisObj) {
+		//invoke the call back function for creation event handler
+		if (typeof thisObj.fnOnCreateEvent != com.sap.xmii.common.util.GenericConstants.UNDEFINED && thisObj.fnOnCreateEvent != "") {
+			thisObj.fnOnCreateEvent();
+		};
+	};
+	
+	/**
+	 * generation of the illuminator query url 
+	 */
+	var generateQueryUrl = function(templateName,cmdAttributesMap){
+		var userNameField = sap.ui.getCore().byId(com.sap.xmii.common.util.i5Command.USERNAMEFIELD);
+		//var pwdField = sap.ui.getCore().byId(com.sap.xmii.common.util.i5Command.INPUTPASSWORD);
+
+		if(userNameField != undefined){
+			userNameField = userNameField.getValue();
+		}
+		//if(pwdField != undefined){
+			//pwdField = pwdField.getValue();
+		//}
+		var queryExecUsingIlluminator = com.sap.xmii.common.util.i5Command.ILLUM_URL +templateName + '&';
+		queryExecUsingIlluminator = queryExecUsingIlluminator+ com.sap.xmii.common.util.i5Command.ILLUM_LOGIN_NAME +userNameField;
+		//queryExecUsingIlluminator = queryExecUsingIlluminator+ com.sap.xmii.common.util.i5Command.ILLUM_LOGIN_PWD +pwdField;
+
+		//cmdAttributesMap holds some of the metadata to write to logs
+		if(cmdAttributesMap != undefined){
+			if(cmdAttributesMap.CommandCategory != undefined) 
+				queryExecUsingIlluminator = queryExecUsingIlluminator+ com.sap.xmii.common.util.i5Command.URL_CMD_CATEGORY +cmdAttributesMap.CommandCategory;
+			if(cmdAttributesMap.CommandMode != undefined) 
+				queryExecUsingIlluminator = queryExecUsingIlluminator+ com.sap.xmii.common.util.i5Command.URL_CMD_MODE +cmdAttributesMap.CommandMode;
+			if(cmdAttributesMap.CommandMode != com.sap.xmii.common.util.MessageBundle.getText("XMSG_CMD_QUERY_EXEC")){
+				if(cmdAttributesMap.UserID != undefined) 
+					queryExecUsingIlluminator = queryExecUsingIlluminator+ com.sap.xmii.common.util.i5Command.URL_USERID +cmdAttributesMap.UserID;
+				if(cmdAttributesMap.FullName != undefined) 
+					queryExecUsingIlluminator = queryExecUsingIlluminator+ com.sap.xmii.common.util.i5Command.URL_FULLNAME +cmdAttributesMap.FullName;
+				if(cmdAttributesMap.Role != undefined)  
+					queryExecUsingIlluminator = queryExecUsingIlluminator+ com.sap.xmii.common.util.i5Command.URL_ROLE +cmdAttributesMap.Role;
+			}else{
+				if(cmdAttributesMap.Action != undefined) 
+					queryExecUsingIlluminator = queryExecUsingIlluminator+ com.sap.xmii.common.util.i5Command.URL_ACTION +cmdAttributesMap.Action;
+			}
+			if(cmdAttributesMap.CommandText != undefined) 
+				queryExecUsingIlluminator = queryExecUsingIlluminator+ com.sap.xmii.common.util.i5Command.URL_CMD_TXT +cmdAttributesMap.CommandText;
+			if(cmdAttributesMap.QueryTemplate != undefined) 
+				queryExecUsingIlluminator = queryExecUsingIlluminator+ com.sap.xmii.common.util.i5Command.URL_QRY_TMP +cmdAttributesMap.QueryTemplate;
+			if(cmdAttributesMap.guid != undefined) 
+				queryExecUsingIlluminator = queryExecUsingIlluminator+ com.sap.xmii.common.util.i5Command.URL_GUID +cmdAttributesMap.guid;
+			if(cmdAttributesMap.CommandGUID != undefined) 
+				queryExecUsingIlluminator = queryExecUsingIlluminator+ com.sap.xmii.common.util.i5Command.URL_CMD_GUID +cmdAttributesMap.CommandGUID;
+			if(cmdAttributesMap.CommandMachine != undefined) 
+				queryExecUsingIlluminator = queryExecUsingIlluminator+ com.sap.xmii.common.util.i5Command.URL_CMDMACHINE +cmdAttributesMap.CommandMachine;
+
+		}
+		queryExecUsingIlluminator = queryExecUsingIlluminator+ com.sap.xmii.common.util.i5Command.URL_JSON_TYPE;
+		return queryExecUsingIlluminator;
+
+
+	};
+	
+	/**
+	 * @Private
+	 * ExecuteQuery
+	 * @return
+	 */
+	var executeQuery = function(){
+		try{
+			var isError = false;
+			var isSuccessful = false;
+			this.queryObject = that.queryTemplate.getQueryObject();
+			//Check if QueryTemplate is not null&empty
+			var queryUrl = that.queryObject.buildPostData(com.sap.xmii.common.util.Modes.QT_JSON_MODE).url;
+
+			//Execute the Query and get the result set
+			var jsonText = com.sap.xmii.common.util.MIIi5Util.getOData(queryUrl,null,null,null,this.queryObject.overrides);
+			jQuery.sap.log.info(jsonText);
+			that.queryResult = com.sap.xmii.common.util.MIIi5Util.evalJSONStr(jsonText);
+			if(that.queryResult!=undefined){
+				var qryFatalError = that.queryResult.Rowsets.FatalError;
+				// Check for Query Execution Fatal Errors if any
+				isError = qryFatalError != undefined;
+				if (isError) {
+					writeAuditFailure(qryFatalError);
+					isSuccessful = false;
+					errString = qryFatalError;
+				}else{
+					//write logs
+					//if audit log for command user 2 is written or if only user 1 is specified and audit log for it is written,
+					//then write the query execution audit log
+					if(that.isCmd2AuditWritten || (that.isCmd1AuditWritten &&  that.displayTemplateConfig.CommandRole2 === "")){
+						writeAuditSuccess(com.sap.xmii.common.util.MessageBundle.getText("XMSG_CMD_QUERY_EXEC"));
+						//if user 2 is authenticated  but audit log is not written then write user 2 log and query exec log
+					}else if(that.isCommandUser2Authenticated && !that.isCmd2AuditWritten){
+						writeAuditSuccess(com.sap.xmii.common.util.MessageBundle.getText("XMSG_CMD_AUDIT2"));
+						that.isCmd2AuditWritten = true;
+						writeAuditSuccess(com.sap.xmii.common.util.MessageBundle.getText("XMSG_CMD_QUERY_EXEC"));
+						//if user 1 is authenticated  but audit log is not written then write user 1 log and query exec log
+					}else if(that.isCommandUser1Authenticated && !that.isCmd1AuditWritten){
+						writeAuditSuccess(com.sap.xmii.common.util.MessageBundle.getText("XMSG_CMD_AUDIT1"));
+						that.isCmd1AuditWritten = true;
+						writeAuditSuccess(com.sap.xmii.common.util.MessageBundle.getText("XMSG_CMD_QUERY_EXEC"));
+					}
+					isSuccessful = true;
+				}
+			}else{
+				//Not a Select Query
+				writeAuditSuccess(com.sap.xmii.common.util.MessageBundle.getText("XMSG_CMD_QUERY_EXEC"));
+			}
+		}catch(error){
+			errString = error.message;
+			jQuery.sap.log.info(errString);
+			writeAuditFailure(errString);
+			throw new com.sap.xmii.common.exception.MIIi5Exception(errString);
+			isSuccessful = false;
+		}
+		return isSuccessful;
+	};
+
+	/**
+	 * Execute Query should be called only from here 
+	 * This CallBack Method gets executed after the Authorization 
+	 */
+	var callBackForExecuteQuery = function(){
+		var isSuccessful =  false;
+		if(that.queryExecutionYesOrNo){
+			// executeQuery();
+			if(!com.sap.xmii.common.util.SameUserError){
+				isSuccessful = executeQuery();
+				//Evaluate the Then call,which is the method registered for
+				//command completion
+				if(that.thenCall != undefined){
+					that.thenCall(isSuccessful);
+				}
+			}else{
+				isSuccessful = false;
+			}
+		}
+		return isSuccessful;
+	};
+
+	/**
+	 * @Private
+	 * Calls the AuditWriteService
+	 * @param paramMap
+	 * @return
+	 */
+	var auditWriteService = function(paramMap,mode){
+		var auditQryTemplateName = com.sap.xmii.common.util.i5Command.AUDIT_SERVICE_WRITER;
+		var paramKeys = Object.keys(paramMap);
+		//map which holds the configuration attribute values
+		var cmdAttributesMap = {};
+		//Set additional parameters ,which was updated in the Map
+		for(key in paramKeys){
+			var pKey = paramKeys[key];
+			var pValue = paramMap[pKey];
+			cmdAttributesMap[pKey] = pValue;
+		}
+		var uid = 0;
+		if(paramMap.guid === undefined) 
+			uid = paramMap.CommandGUID;
+		else
+			uid = paramMap.guid;
+		cmdAttributesMap[com.sap.xmii.common.util.i5Command.COMMANDGUID] = uid;
+		cmdAttributesMap[com.sap.xmii.common.util.i5Command.COMMANDMACHINE] = com.sap.xmii.common.util.MIIi5Util.getPropertyFromSession("Machine");
+		cmdAttributesMap[com.sap.xmii.common.util.i5Command.COMMANDCATEGORY] = that.displayTemplateConfig.CommandCategory;
+		cmdAttributesMap[com.sap.xmii.common.util.i5Command.COMMANDTEXT] = that.displayTemplateConfig.CommandText;
+		if(mode === com.sap.xmii.common.util.MessageBundle.getText("XMSG_CMD_QUERY_EXEC")){
+			cmdAttributesMap[com.sap.xmii.common.util.i5Command.QUERYTEMPLATE] = that.queryTemplateName;
+			cmdAttributesMap[com.sap.xmii.common.util.i5Command.ACTION] = com.sap.xmii.common.util.MessageBundle.getText("XMSG_QUERY_SUCCEEDED");;
+		}else if(mode === com.sap.xmii.common.util.MessageBundle.getText("XMSG_CMD_AUDIT1")){
+			cmdAttributesMap[com.sap.xmii.common.util.i5Command.QUERYTEMPLATE] = auditQryTemplateName;
+			cmdAttributesMap[com.sap.xmii.common.util.i5Command.ROLE] = that.displayTemplateConfig.CommandRole1;
+		}else{
+			cmdAttributesMap[com.sap.xmii.common.util.i5Command.QUERYTEMPLATE] = auditQryTemplateName;
+			cmdAttributesMap[com.sap.xmii.common.util.i5Command.ROLE] = that.displayTemplateConfig.CommandRole2;
+		}
+		cmdAttributesMap[com.sap.xmii.common.util.i5Command.COMMANDMODE] = mode;
+
+		var aQryUrl = generateQueryUrl(auditQryTemplateName,cmdAttributesMap);
+		var jsonText = com.sap.xmii.common.util.MIIi5Util.getOData(aQryUrl);
+		jQuery.sap.log.info('AuditLog');
+		jQuery.sap.log.info(jsonText);
+	};
+
+	/**
+	 * 
+	 */
+	var writeFailure = function(paramMap){
+		var auditQryTemplateName = com.sap.xmii.common.util.i5Command.AUDIT_SERVICE_WRITER;
+		//map which holds the configuration attribute values
+		var cmdAttributesMap = {};
+		var paramKeys = Object.keys(paramMap);
+
+		//Set additional parameters ,which was updated in the Map
+		for(key in paramKeys){
+			var pKey = paramKeys[key];
+			var pValue = paramMap[pKey];
+			cmdAttributesMap[pKey] = pValue;
+		}
+		var aQryUrl = generateQueryUrl(auditQryTemplateName,cmdAttributesMap);
+		var jsonText = com.sap.xmii.common.util.MIIi5Util.getOData(aQryUrl);
+		jQuery.sap.log.info('AuditLog');
+		jQuery.sap.log.info(jsonText);
+	};
+
+	//@PrivateMethod
+	var writeAuditSuccess = function(mode){
+		auditWriteService(that.auditMap, mode);
+	};
+
+	//@Private Method
+	var writeAuditFailure = function(error,roleNumber,usr){
+		that.auditMap = {};
+		if(usr!=undefined)
+			that.auditMap[com.sap.xmii.common.util.i5Command.USERID]=usr;
+		if(roleNumber != undefined){
+			if(roleNumber ==1){
+				that.auditMap[com.sap.xmii.common.util.i5Command.ROLE]= that.displayTemplateConfig.CommandRole1;
+				that.auditMap[com.sap.xmii.common.util.i5Command.COMMANDMODE]="Command Mode 1";
+			}else{
+				that.auditMap[com.sap.xmii.common.util.i5Command.ROLE]= that.displayTemplateConfig.CommandRole2;
+				that.auditMap[com.sap.xmii.common.util.i5Command.COMMANDMODE]="Command Mode 2";
+			}
+		}
+		that.auditMap[com.sap.xmii.common.util.i5Command.COMMANDMACHINE]=com.sap.xmii.common.util.MIIi5Util.getPropertyFromSession("Machine");
+		that.auditMap[com.sap.xmii.common.util.i5Command.COMMANDCATEGORY]=that.displayTemplateConfig.CommandCategory;
+		that.auditMap[com.sap.xmii.common.util.i5Command.COMMANDTEXT]=that.displayTemplateConfig.CommandText;
+		that.auditMap[com.sap.xmii.common.util.i5Command.ACTION]="";
+		that.auditMap[com.sap.xmii.common.util.i5Command.QUERYTEMPLATE]=that.queryTemplateName;
+		that.auditMap[com.sap.xmii.common.util.i5Command.FAILUREMESSAGE]=error;
+		writeFailure(that.auditMap);
+	};
+
+	/**
+	 * This method has to be moved to Util
+	 * @param message
+	 * @param icon
+	 * @param title
+	 * @return
+	 */
+	var createMessageBox = function(message, icon, title){
+		//jQuery.sap.require("sap.m.MessageBox");
+		if(message instanceof Object){
+			message = message.message;
+		}else{
+			message = message;
+		}
+		var msgBox = sap.m.MessageBox.show(message, icon, title);
+
+		return msgBox;
+	};
+
+	/**
+	 * @Private
+	 * ExecuteAuditServiceHelper
+	 * @param usr
+	 * @param pwd
+	 * @param roleNo
+	 * @return
+	 */
+	var executeAuditServiceHelper = function(usr,pwd,roleNo){
+		//Create a QueryTemplate with the "Predefined\AuditServiceVerify"
+		var auditQryTemplateName = com.sap.xmii.common.util.i5Command.AUDIT_SERVICE_VERIFY;
+		var auditService = new com.sap.xmii.querytemplate.QueryTemplate(auditQryTemplateName);
+		var auditQuery = auditService.getQueryObject();
+		//set additional parameters
+		auditQuery.setParameter(com.sap.xmii.common.util.IllumLoginName,usr);
+		//auditQuery.setParameter(com.sap.xmii.common.util.IllumLoginPassword,pwd);
+		auditQuery.setParameter('guid',true);
+
+		var aQryUrl = generateQueryUrl(auditQryTemplateName,auditQuery);
+
+		var jsonText = com.sap.xmii.common.util.MIIi5Util.getOData(aQryUrl);
+		var userMap = com.sap.xmii.common.util.MIIi5Util.evalJSONStr(jsonText);
+
+		var error = userMap.Rowsets.FatalError;
+		if(!(error===undefined)){
+			var authenticationErrorText = com.sap.xmii.common.util.MessageBundle.getText("XMSG_ROLE_AUTHENTICATION_ERROR");
+			authenticationErrorText = authenticationErrorText.replace("{0}",roleNo);
+			jQuery.sap.require("sap.m.MessageBox");
+			createMessageBox(authenticationErrorText, sap.m.MessageBox.Icon.ERROR,'ERROR');
+			return userMap;
+		}else{
+			//Check of there are any fatal errors in the ResultSet
+			jQuery.sap.log.info('Audit Verify Executed');
+			if(roleNo===1){
+				//store the login details for loginCommand1
+				that.commandUserID1 = usr;
+				that.isCommandUser1Authenticated = true;
+				//Check for Confirm FullName
+
+			}else if(roleNo===2){
+				//store the login details for loginCommand2
+				that.commandUserID2 = usr;
+				that.isCommandUser2Authenticated = true;
+				//Check if CommandUserID1 and 2 are the same
+				if(that.commandUserID1===that.commandUserID2){
+					jQuery.sap.require("sap.m.MessageBox");
+					createMessageBox(com.sap.xmii.common.util.MessageBundle.getText("XMSG_AUTH_2_FAILED_SAME_USER"),sap.m.MessageBox.Icon.ERROR,'ERROR');
+					writeAuditFailure(com.sap.xmii.common.util.MessageBundle.getText("XMSG_AUTH_2_FAILED_SAME_USER"),roleNo,usr);
+					com.sap.xmii.common.util.SameUserError = true;
+				}
+			}
+			return userMap;
+		}
+
+	};
+
+	/**
+	 * @Private
+	 * Populate 
+	 * @return
+	 */
+	var populateUserPropsToMap = function(result){
+		var userPropMap = {};
+		try{
+			if(result != undefined && com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(result.Rowsets.FatalError)){
+				var rows = result.Rowsets.Rowset[0].Row;
+				for(var i=0;i<rows.length;i++){
+					var row = rows[i];
+					var propName = row.PropertyName;
+					var propValue = row.PropertyValue;
+					userPropMap[propName] = propValue;
+				}
+			}
+			that.auditMap = userPropMap;
+		}catch(error){
+			jQuery.sap.log.info(error.message);
+			throw new com.sap.xmii.common.exception.MIIi5Exception(error.message); 
+		}
+		return userPropMap;
+	};
+
+	/**
+	 * 
+	 */
+	var okOnConfirm = function(roleNumber){
+		if(roleNumber == 1){
+			that.isUser1FullNameConfirmed = true;
+			if(checkForRole2InAudit() && !that.isCommandUser2Authenticated){
+				showRole2AuthenticationPopUp();
+			}
+			//if(that.displayTemplateConfig.CommandRole2 === null || that.displayTemplateConfig.CommandRole2 === "")
+			if(com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(that.displayTemplateConfig.CommandRole2))
+				callBackForExecuteQuery();
+		}else{
+			that.isUser2FullNameConfirmed = true;
+			callBackForExecuteQuery();
+		}
+	};
+
+	/**
+	 * 
+	 */
+	var confirmFullName = function(commandAuditRole,roleNo,result){
+		//Confirm Full Name for the role configured and the user supplied for the same
+		var userPropMap = populateUserPropsToMap(result);
+		//Confirm if the role supplied to the method is matching from the result
+		var fullName = userPropMap[com.sap.xmii.common.util.i5Command.FULLNAME];
+		//Get the User Name from the result
+		if(roleNo == 1)
+			that.commandUserName1 = fullName;
+		else
+			that.commandUserName2 = fullName;
+		var roles = userPropMap["Roles"];
+		var confirmName = false;
+		//Show a popup 
+		var roleArr = roles.split(',');
+		for(var r in roleArr){
+			if(roleArr[r]===commandAuditRole){
+				confirmName = true;
+				//Role Name is not matching throw an error and break
+				break;
+			}
+		}
+
+		var confirmRole1Name = that.displayTemplateConfig.ConfirmRole1Name;
+		var confirmRole2Name = that.displayTemplateConfig.ConfirmRole2Name;
+
+		//Confirm FullName only when the Role Name matches in the User Configuration and Configuration is set
+		if((confirmName&&confirmRole1Name)
+				|| (confirmName&&confirmRole2Name)){
+			var checkText = com.sap.xmii.common.util.MessageBundle.getText("XMSG_CONFIRM_FULL_NAME");
+			checkText = checkText.replace("{0}",fullName);
+			//Show the dialog with a checkbox
+			var textInDialog = new sap.m.Text({text : checkText});
+			var confirmDialog = new sap.m.Dialog({id:'',
+				title: com.sap.xmii.common.util.MessageBundle.getText("XFLD_CONFIRM_FULL_NAME"),
+				contentWidth: "80%",
+				type:sap.m.DialogType.Message
+			});
+
+			//Query Execution is made synhronous with Dialog close by registering the Events
+			confirmDialog.attachAfterClose('',callBackForExecuteQuery,'');
+
+			//Add text to the confirmation dialog
+			confirmDialog.addContent(textInDialog);
+			var okButton = new sap.m.Button({text: com.sap.xmii.common.util.MessageBundle.getText("XBUT_YES"),press:function(){
+
+				okOnConfirm(roleNo);
+				//Set the flag 
+				that.queryExecutionYesOrNo=true;
+				//Destroy the buttons and the Dialog
+				confirmDialog.close();
+				confirmDialog.destroyContent();
+				confirmDialog.destroy();
+			}});
+			confirmDialog.addButton(okButton);
+			var cancelButton = new sap.m.Button({text: com.sap.xmii.common.util.MessageBundle.getText("XBUT_NO"),press:function(){
+				confirmDialog.close();
+				confirmDialog.destroyContent();
+				confirmDialog.destroy();
+			}});
+			confirmDialog.addButton(cancelButton);
+			confirmDialog.open();
+		}
+
+	};
+
+	/**
+	 * Function to show authentication dialog for Role 2
+	 */
+	var showRole2AuthenticationPopUp = function(){
+		//Check if Role 2 is defined
+
+		var commandAuditRole2 = that.displayTemplateConfig.CommandRole2;
+		jQuery.sap.log.info("iCommand is running an audit command with auditing and audit role 2 is defined.");
+
+		jQuery.sap.log.info("iCommand showing login popup for Role2 authentication");
+		var role1Dialog = sap.ui.getCore().byId(com.sap.xmii.common.util.i5Command.CREATEDIALOGID);
+		if(role1Dialog!= undefined){
+			role1Dialog.close();
+			role1Dialog.destroyContent();
+			role1Dialog.destroy();
+		}
+		if(!that.isCommandUser2Authenticated){
+			showLoginPopup(commandAuditRole2,2);
+		}
+		that.isCommandUser2Authenticated = true;
+	};
+
+	/**
+	 * 
+	 */
+	var roleCheckOnOk = function(roleNumber){
+		if(roleNumber === 1){
+			//if role 2 is not authenticated, authenticate role 2
+			if(checkForRole2InAudit() && !that.isCommandUser2Authenticated){
+				showRole2AuthenticationPopUp();
+			}
+			//if role 2 is not specified, execute query
+			if(that.queryExecutionYesOrNo && (com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(that.displayTemplateConfig.CommandRole2))){
+				callBackForExecuteQuery(); //remove
+			}
+		}else{
+			//authenticate role 2
+			showRole2AuthenticationPopUp();
+			if(that.queryExecutionYesOrNo){
+				callBackForExecuteQuery();//remove
+			}
+		}
+	};
+
+	/**
+	 * 
+	 */
+	var showLoginPopUpLayout = function(commandAuditRole,roleNo){
+
+		var userName = com.sap.xmii.common.util.i5Command.USERNAMEFIELD;
+		var pwd = com.sap.xmii.common.util.i5Command.INPUTPASSWORD;
+
+		var createDialogTitle = com.sap.xmii.common.util.MessageBundle.getText("XFLD_CREATE_DIALOG_TITLE");
+
+		if(roleNo == 2){
+			//title has to be reframed based on the ui standard
+			var createDialogTitle = com.sap.xmii.common.util.MessageBundle.getText("XFLD_CREATE_DIALOG_TITLE");
+		}
+		var createDialog = new sap.m.Dialog({id:com.sap.xmii.common.util.i5Command.CREATEDIALOGID,
+			title: createDialogTitle,
+			contentWidth: "80%",
+			type:sap.m.DialogType.Message,
+			afterOpen : function(){
+			if(that.displayTemplateConfig.FocusOnInputField === false){
+				$('#cancelButton').focus();
+			}else{
+				var userNameField = sap.ui.getCore().byId(com.sap.xmii.common.util.i5Command.USERNAMEFIELD);
+				$('#'+userNameField).focus();
+				if(that.displayTemplateConfig.CommandUser1LoginRequired === false){
+					var pwdField = sap.ui.getCore().byId(com.sap.xmii.common.util.i5Command.INPUTPASSWORD);
+					$('#'+pwdField).focus();
+				}
+			}
+			if((that.displayTemplateConfig.CommandUser1LoginRequired === false) && (roleNo != 2)){
+				var loggedInUser = com.sap.xmii.common.util.loggedInUser;
+				var userNameField = '';
+
+				userNameField = sap.ui.getCore().byId(userName);
+				userNameField.setValue(loggedInUser);
+				userNameField.setEnabled(false);
+			}
+		}
+		});
+
+		createDialog.attachAfterClose('',callBackForExecuteQuery,'');
+
+		//Create a TextView element UserName
+		var textForRole = " Role is required to Authenticate";
+		textForRole = commandAuditRole +textForRole ; //Pass using params and messageBundle
+		var textElmnt = new sap.m.Text({text: textForRole});
+		createDialog.addContent(textElmnt);
+
+		var oCreateForm =  new sap.ui.layout.form.SimpleForm({
+			labelSpanL : 2,
+			editable: true
+			//layout:rpco.util.ResponsiveGridLyt
+		});
+		var userNameLabel = new sap.m.Label({text: com.sap.xmii.common.util.MessageBundle.getText("XFLD_USERNAME"),
+			tooltip :com.sap.xmii.common.util.MessageBundle.getText("XFLD_USERNAME") });
+
+		var userNameField = new sap.m.Input({id: userName,enabled: true});
+		oCreateForm.addContent(userNameLabel);
+		oCreateForm.addContent(userNameField);
+		//Create a Password field
+		var pwdLabel = new sap.m.Label({text: com.sap.xmii.common.util.MessageBundle.getText("XFLD_PASSWORD"),
+			tooltip :com.sap.xmii.common.util.MessageBundle.getText("XFLD_PASSWORD") });
+		var enterPwdText = com.sap.xmii.common.util.MessageBundle.getText("XFLD_ENTER_PASSWORD");
+		var pwdField = new sap.m.Input(pwd, 
+				{ type: sap.m.InputType.Password, placeholder: enterPwdText }) ; 
+		oCreateForm.addContent(pwdLabel);
+		oCreateForm.addContent(pwdField);
+
+		createDialog.addContent(oCreateForm);
+	};
+
+	/**
+	 * Call the Service to the Audit Service Helper
+	 */
+	var showLoginPopUpOnOkButtonPress = function(commandAuditRole,roleNumber, createDialog){
+
+		//Call the Service to the Audit Service Helper
+
+		var userNameField = sap.ui.getCore().byId(com.sap.xmii.common.util.i5Command.USERNAMEFIELD);
+		var pwdField = sap.ui.getCore().byId(com.sap.xmii.common.util.i5Command.INPUTPASSWORD);
+		//Check if User and Pwd field values are not empty
+		//if(userNameField.getValue()!=null&&!(userNameField.getValue()==="")){
+		if(!com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(userNameField.getValue())){
+			userNameField.setValueState(sap.ui.core.ValueState.None);
+			//Check if pwd is empty or not
+			//if(pwdField.getValue()!=null&&!(pwdField.getValue()==="")){
+			if(!com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(pwdField.getValue())){
+				pwdField.setValueState(sap.ui.core.ValueState.None);
+				var result = executeAuditServiceHelper(userNameField.getValue(),pwdField.getValue(),roleNumber);
+				//if user authenticated and confirm full name is not required,execute the query here
+				if(roleNumber == 1)	{
+					if(that.isCommandUser1Authenticated && (that.displayTemplateConfig.ConfirmRole1Name != true)){ 
+						//execute the query
+						that.queryExecutionYesOrNo = true;
+						var userPropMap = populateUserPropsToMap(result);
+						//check for role authorization
+						that.commandUserName1 = userPropMap[com.sap.xmii.common.util.i5Command.FULLNAME];
+						var roles = userPropMap["Roles"];
+						var roleArr = roles.split(',');
+						for(var r in roleArr){
+							if(roleArr[r]===commandAuditRole){
+								that.isCommandUser1Authorized = true;
+								break;
+							}
+						}
+						if(that.isCommandUser1Authorized){
+							that.auditMap = {};
+							that.auditMap[com.sap.xmii.common.util.i5Command.USERID]=userNameField.getValue();
+							that.auditMap[com.sap.xmii.common.util.i5Command.FULLNAME]=userPropMap[com.sap.xmii.common.util.i5Command.FULLNAME];;
+							that.auditMap[com.sap.xmii.common.util.i5Command.ROLE]=commandAuditRole;
+							that.auditMap[com.sap.xmii.common.util.i5Command.COMMANDMODE]=com.sap.xmii.common.util.MessageBundle.getText("XMSG_CMD_AUDIT1");
+							that.auditMap[com.sap.xmii.common.util.i5Command.COMMANDGUID]=userPropMap[com.sap.xmii.common.util.i5Command.GUID];
+							that.auditMap[com.sap.xmii.common.util.i5Command.ACTION]=com.sap.xmii.common.util.MessageBundle.getText("XMSG_QUERY_SUCCEEDED");
+							roleCheckOnOk(1);
+						}
+					}else if(that.isCommandUser1Authenticated&&(that.displayTemplateConfig.ConfirmRole1Name === true)){
+						confirmFullName(commandAuditRole,roleNumber,result);
+					}
+					//check if the result has an error, if not write audit success log for user 1
+					if(result.Rowsets.FatalError === undefined){
+						//if not already written, write user 1 log
+						if(!that.isCmd1AuditWritten){
+							writeAuditSuccess(com.sap.xmii.common.util.MessageBundle.getText("XMSG_CMD_AUDIT1"));
+							//set the flag to true
+							that.isCmd1AuditWritten = true;
+						}
+					}
+				}else{
+					if(that.isCommandUser2Authenticated && (that.displayTemplateConfig.ConfirmRole2Name != true)){ 
+						//execute the query
+						that.queryExecutionYesOrNo = true;
+						var userPropMap = populateUserPropsToMap(result);
+						//check for role authorization
+						that.commandUserName2 = userPropMap[com.sap.xmii.common.util.i5Command.FULLNAME];
+						var roles = userPropMap["Roles"];
+						var roleArr = roles.split(',');
+						for(var r in roleArr){
+							if(roleArr[r]===commandAuditRole){
+								that.isCommandUser2Authorized = true;
+								break;
+							}
+						}
+						if(that.isCommandUser2Authorized){
+							that.auditMap = {};
+							that.auditMap[com.sap.xmii.common.util.i5Command.USERID]=userNameField.getValue();
+							that.auditMap[com.sap.xmii.common.util.i5Command.FULLNAME]=userPropMap[com.sap.xmii.common.util.i5Command.FULLNAME];
+							that.auditMap[com.sap.xmii.common.util.i5Command.ROLE]=commandAuditRole;
+							that.auditMap[com.sap.xmii.common.util.i5Command.COMMANDMODE]=com.sap.xmii.common.util.MessageBundle.getText("XMSG_CMD_AUDIT2");
+							that.auditMap[com.sap.xmii.common.util.i5Command.COMMANDGUID]=userPropMap[com.sap.xmii.common.util.i5Command.GUID];
+							that.auditMap[com.sap.xmii.common.util.i5Command.ACTION]=com.sap.xmii.common.util.MessageBundle.getText("XMSG_QUERY_SUCCEEDED");
+							roleCheckOnOk(2);
+						}
+
+					}else if(that.isCommandUser2Authenticated&&(that.displayTemplateConfig.ConfirmRole2Name === true)){
+						confirmFullName(commandAuditRole,roleNumber,result);
+					}
+					//check if the result has an error, if not write audit success log for user 2
+					if(result.Rowsets.FatalError === undefined){
+						//if not already written, write user 2 log
+						if(!that.isCmd2AuditWritten){
+							writeAuditSuccess(com.sap.xmii.common.util.MessageBundle.getText("XMSG_CMD_AUDIT2"));
+							//set the flag to true
+							that.isCmd2AuditWritten = true;
+						}
+					}else{
+						return false;
+					}
+				}
+				createDialog.close();
+				createDialog.destroyContent();
+				createDialog.destroy();
+
+			}else{
+				jQuery.sap.log.info("Password cannot be empty");
+				pwdField.setValueState(sap.ui.core.ValueState.Error);
+				pwdField.setValueStateText(com.sap.xmii.common.util.MessageBundle.getText("XMSG_PWD_EMPTY"));
+			}
+		}else{
+			jQuery.sap.log.info("UserName cannot be empty");
+			userNameField.setValueState(sap.ui.core.ValueState.Error);
+			userNameField.setValueStateText(com.sap.xmii.common.util.MessageBundle.getText("XMSG_USER_EMPTY"));
+		}
+		return true;
+	};
+
+	/**
+	 * @Private
+	 * Shows the Login Popup for Role2
+	 * This should be a private function
+	 * @return
+	 */
+	var showLoginPopup = function(commandAuditRole,roleNo){
+		var isSuccessful = true;
+		showLoginPopUpLayout(commandAuditRole,roleNo);
+
+		var createDialog = sap.ui.getCore().byId('createDialogId');
+
+		var okButton = new sap.m.Button({text: com.sap.xmii.common.util.MessageBundle.getText("XBUT_OK"),press:function(){
+			isSuccessful = showLoginPopUpOnOkButtonPress(commandAuditRole,roleNo,createDialog);
+		}});
+		var cancelButton = new sap.m.Button(com.sap.xmii.common.util.i5Command.CANCELBUTTON,{text: com.sap.xmii.common.util.MessageBundle.getText("XBUT_CANCEL"),press:function(){
+			createDialog.close();
+			createDialog.destroyContent();
+			createDialog.destroy();
+		}});
+		createDialog.addButton(okButton);
+		createDialog.addButton(cancelButton);
+		createDialog.open();
+		
+		return isSuccessful;
+	};
+
+	/**
+	 * Checks if the 
+	 * @return
+	 */
+	var checkForRole1InAudit = function(){
+		var chartConfig = that.displayTemplateConfig;
+		//Get the Following Properties
+		var commandAuditRole1 = chartConfig.CommandRole1;
+		var isLogonRequiredForCommandAudit1 = chartConfig.CommandUser1LoginRequired;
+
+		//Check if Role1 is defined
+		if(!com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(commandAuditRole1)){
+			jQuery.sap.log.info("iCommand is running an audit command with auditing and audit role 1 is defined.");
+
+			//check if logonRequired for Audit1
+			if(isLogonRequiredForCommandAudit1){
+				jQuery.sap.log.info("iCommand showing login popup for Role1 authentication");
+				return true;
+			}else{
+				showLoginPopup(commandAuditRole1,1);
+			}
+		}else{
+			//Execute Query
+			that.queryExecutionYesOrNo=true;
+			return false;
+		}
+	};
+
+	/**
+	 * Checks if the 
+	 * @return
+	 */
+	var checkForRole2InAudit = function(){
+		var chartConfig = that.displayTemplateConfig;
+		//Get the Following Properties
+		var commandAuditRole2 = chartConfig.CommandRole2;
+		//Check if Role1 is defined
+		if(!com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(commandAuditRole2)){
+			jQuery.sap.log.info("iCommand is running an audit command with auditing and audit role 2 is defined.");
+
+			jQuery.sap.log.info("iCommand showing login popup for Role 2 authentication");
+			return true;
+
+		}else{
+			//Execute Query
+			that.queryExecutionYesOrNo=true;
+			return false;
+		}
+	};
+	/**
+	 * @Private
+	 * Check for Audit in DispTemplate
+	 * @return
+	 */
+	var checkForAuditInDisplayTemplate = function(){
+		var chartConfig = '';
+		//Check if the DisplayTemplate Object is not null and read the iCommand artifacts
+		if(!com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(that.displayTemplate)){
+			jQuery.sap.log.info("iCommand is running an audit command.");
+		}
+		var commandAudit = that.displayTemplateConfig.CommandAudit;
+		if(commandAudit){
+			jQuery.sap.log.info("iCommand is running an audit command with auditing");
+			return true;
+		}else{
+			//If Display Template is added and Audit is not enabled
+			that.queryExecutionYesOrNo = true;
+			//callBackForExecuteQuery();
+			return false;
+		}
+	};
+
+	/**
+	 * Execute the iCommand
+	 * @return
+	 */
+	this.executeCommand = function(){
+		//invoke creation event
+		fireCreationEvent(this);
+		var isSuccessful = false;
+
+		this.queryExecutionYesOrNo = false;
+		//Query Template defined and DT not defined 
+		if((this.queryTemplate!=null)&&(this.displayTemplate==null)){
+			//Set for QueryExecution.based on the boolean ,callBackQueryExecution
+			this.queryExecutionYesOrNo=true;
+			//callBackForExecuteQuery();
+			isSuccessful = executeQuery();
+		}
+
+		//QT and DT defined
+		if((this.queryTemplate!=null)&&(this.displayTemplate!=null)){
+			if(checkForAuditInDisplayTemplate()){
+				//check
+				if(checkForRole1InAudit()){
+					//this.thenCall=call;
+					isSuccessful = showLoginPopup(this.displayTemplateConfig.CommandRole1,1);
+				}else{
+					//This Scenario would not happen,since the Validation for
+					//Non empty role name is taken care in the workbench 
+					//that.createMessageBox(com.sap.xmii.common.util.MessageBundle.getText("XMII_ROLE1_MISSING"),sap.m.MessageBox.Icon.ERROR,'ERROR');
+				}
+			//}else if (this.queryTemplate!=null){
+			}else {
+				//If Audit not Present,Just execute the Query
+				this.queryExecutionYesOrNo=true;
+				//callBackForExecuteQuery();
+				isSuccessful = callBackForExecuteQuery();
+			}
+		}
+		return isSuccessful;
+	};
+
+	/**
+	 * Register the handler for CommandCompletion 
+	 * @return void
+	 */
+	this.registerCommandCompletionEventHandler=function(method){
+		this.thenCall = method;
+	};
+
+	/**
+	 * Register the handler for CreattionEvent on i5Command
+	 * @return void
+	 */
+	this.registerCreationEventHandler = function(myhandler) {
+		jQuery.sap.log.info("Registering CreattionEvent");
+		this.fnOnCreateEvent = myhandler;
+	};
+
+	/**
+	 * Deregister the handler for CreattionEvent
+	 * @return void
+	 */
+	this.deregisterCreationEventHandler = function() {
+		jQuery.sap.log.info("Deregistering CreattionEvent");
+		this.fnOnCreateEvent = undefined;
+	};
+	
+	/**
+	 * Deregister the handler for CommandCompletion
+	 * @return void
+	 */
+	this.deregisterCommandCompletionEventHandler = function() {
+		jQuery.sap.log.info("Deregistering CommandCompletionEventHandler");
+		this.thenCall = undefined;
+	};
+
+	/**
+	 * Gets the QueryTemplate
+	 * @return
+	 */
+	this.getQueryTemplate = function(){
+		return this.queryTemplateName;
+	};
+
+	/**
+	 * Gets the QueryObject associated with the QueryTemplate
+	 * @return
+	 */
+	this.getQueryObject = function(){
+		return this.queryObject;
+	};
+
+	/**
+	 * Gets the Command Object
+	 * @return
+	 */
+	this.getCommandObject = function(){
+		return this.commandComponent;
+	};
+
+	/**
+	 * Gets the Number of Columns
+	 * @return
+	 */
+	this.getColumnCount = function(){
+		if(that.queryResult != undefined){
+			return that.queryResult.Rowsets.Rowset[0].Columns.Column.length;
+		}
+	};
+
+	/**
+	 * Gets the Description for the Column Index
+	 */
+	this.getColumnDescription = function(colIndex){
+		if(that.queryResult != undefined){
+			if(colIndex >= that.queryResult.Rowsets.Rowset[0].Columns.Column.length){
+			return "Invalid Column Index"; 
+			}else{
+			return that.queryResult.Rowsets.Rowset[0].Columns.Column[colIndex].Description;
+			}
+		}
+	};
+
+	/**
+	 * Gets the Column Index,taking the column Name
+	 * @param colName
+	 * @return
+	 */
+	this.getColumnIndex = function(colName){
+		if(that.queryResult != undefined){
+			var columnArray = that.queryResult.Rowsets.Rowset[0].Columns.Column;
+			for(var i=0;i<columnArray.length;i++){
+				if(columnArray[i].Name === colName){
+					return i;
+				}
+			}
+		}
+	};
+
+	/**
+	 * Get the Column Name for the Index specified
+	 * @param colIndex
+	 * @return
+	 */
+	this.getColumnName = function(colIndex){
+		if(that.queryResult != undefined){
+			if(colIndex >= that.queryResult.Rowsets.Rowset[0].Columns.Column.length){
+				return "Invalid Column Index";
+			}else{
+				return that.queryResult.Rowsets.Rowset[0].Columns.Column[colIndex].Name;
+			}
+		}
+	};
+
+	/**
+	 * Get RowCount for a Column
+	 * @return
+	 */
+	this.getColumnRowCount = function(colNum){
+		if(that.queryResult != undefined){
+			var columnName = that.queryResult.Rowsets.Rowset[0].Columns.Column[colNum].Name;
+			var rowArray = that.queryResult.Rowsets.Rowset[0].Row;
+			var counter = 0;
+			for(var i=0; i<rowArray.length; i++){
+				if(rowArray[i][columnName] != ""){
+					counter++;
+				}
+			}
+			return counter;
+		}
+	};
+
+	/**
+	 * Get RowCount for a Column specified by Name
+	 * @param name
+	 * @return
+	 */
+	this.getColumnRowCountByName = function(colName){
+		if(that.queryResult != undefined){
+			var rowArray = that.queryResult.Rowsets.Rowset[0].Row;
+			var counter = 0;
+			for(var i=0; i<rowArray.length; i++){
+				if(rowArray[i][colName] != ""){
+					counter++;
+				}
+			}
+			return counter;
+		}
+	};
+
+	/**
+	 * Gets the Column Type for the specified Columns
+	 */
+	this.getColumnType = function(colIndex){
+		if(that.queryResult != undefined){
+			if(colIndex >= that.queryResult.Rowsets.Rowset[0].Columns.Column.length){
+			//invalid index
+			return 0;
+			}else{
+			return that.queryResult.Rowsets.Rowset[0].Columns.Column[colIndex].SQLDataType;
+			}
+		}
+	};
+
+	/**
+	 * Get command message return
+	 * @return
+	 */
+	this.getCommandMessageReturn = function(){
+		return that.displayTemplateConfig.CommandMessageReturn;
+	};
+	
+	/**
+	 * Get command audit
+	 * @return
+	 */
+	this.getCommandAudit = function(){
+		return that.displayTemplateConfig.CommandAudit;
+	};
+	
+	/**
+	 * Set command audit
+	 * @return
+	 */
+	this.setCommandAudit = function(isAudit){
+		that.displayTemplateConfig.CommandAudit = isAudit;
+	};
+	
+	/**
+	 * Get FirstValue Method
+	 */
+	this.getFirstValue = function(colName){
+		if(that.queryResult != undefined){
+			return that.queryResult.Rowsets.Rowset[0].Row[0][colName];
+		}
+	};
+
+	/**
+	 * Get LastError Method
+	 */
+	this.getLastError = function(){
+		return errString;
+	};
+
+	/**
+	 * GetRowCount from the Result Set
+	 */
+	this.getRowCount = function(){
+		if(that.queryResult != undefined && that.queryResult.Rowsets != undefined && that.queryResult.Rowsets.Rowset != undefined
+				&& that.queryResult.Rowsets.Rowset[0] != undefined && that.queryResult.Rowsets.Rowset[0].Row != undefined){
+			return that.queryResult.Rowsets.Rowset[0].Row.length;
+		} else {
+			return 0;
+		}
+	};
+
+	/**
+	 * GetValue for the specified
+	 */
+	this.getValue = function(colNum,RowNum){
+		if(that.queryResult != undefined){
+			var columnName = that.queryResult.Rowsets.Rowset[0].Columns.Column[colNum].Name;
+			return that.queryResult.Rowsets.Rowset[0].Row[RowNum][columnName];
+		}
+	};
+
+	/**
+	 * GetValue for the specified by Name
+	 */
+	this.getValueByName = function(colName, rowNum){
+		if(that.queryResult != undefined){
+			return that.queryResult.Rowsets.Rowset[0].Row[rowNum][colName];
+		}
+	};
+
+	/**
+	 * 
+	 * @param returnMsg
+	 */
+	this.setCommandMessageReturn = function(returnMsg){
+		that.displayTemplateConfig.CommandMessageReturn = returnMsg;
+	};
+
+	/**
+	 * 
+	 */
+	this.refresh = function(){
+		//Execute the i5Command again.When the user sets the values using the
+		//setAPI's and refresh
+		this.executeCommand();
+	};
+};
+

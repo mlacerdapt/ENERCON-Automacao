@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<!-- saved from url=(0090)https://srv-sapmep.enercon.de/manufacturing/com/sap/me/activity/client/ActivityManager.jsp -->
+<html class="sap-desktop sapUiTheme-sap_fiori_3 sapUiMedia-Std-Desktop sapUiMedia-StdExt-LargeDesktop" dir="ltr" data-sap-ui-browser="cr131" data-sap-ui-os="win10" lang="pt-PT" data-sap-ui-animation="on" data-sap-ui-animation-mode="full"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta http-equiv="X-UA-Compatible" content="IE=Edge">
+
+<meta http-equiv="Content-Style-Type" content="text/css">
+
+<link rel="stylesheet" type="text/css" href="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/standard.css">
+
+<script type="text/javascript" language="JavaScript">var contextPath='/manufacturing';</script>
+<script type="text/javascript" language="JavaScript" src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/lib.js.download"></script>
+<script type="text/javascript" language="JavaScript">
+PageHelper.checkBrowserVersion();
+function CommandComplete(){};
+function DefineListeners(){};
+function processBrowseRowItem(){};
+function browseComplete(canceled){};
+
+
+function InitComponents()
+{ 
+
+
+}
+</script>
+
+    <link rel="icon" type="image/x-icon" href="https://srv-sapmep.enercon.de/manufacturing/themes/sap_me/icons/logo.png">
+    <link rel="stylesheet" type="text/css" href="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/activityManager.css">
+
+    <script id="sap-ui-bootstrap" type="text/javascript" data-sap-ui-theme="sap_fiori_3" data-sap-ui-async="true" data-sap-ui-compatversion="edge" src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/sap-ui-core.js.download">
+    </script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/library-preload.js.download" data-sap-ui-module="sap/ui/core/library-preload.js"></script>
+
+
+
+
+
+
+
+
+
+<script language="JavaScript" src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/Exception.js.download">
+</script>
+<script language="JavaScript" src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/InvalidStateException.js.download">
+</script>
+<script language="JavaScript" src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/MalformedURLException.js.download">
+</script>
+<script language="JavaScript" src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/MissingParameterException.js.download">
+</script>
+
+
+
+<script type="text/javascript">
+
+    function checkForNoSite () {
+        
+    }
+
+    function displayActivity (sUri, bShowInNewWindow) {
+        if (!bShowInNewWindow) {
+            var oDomIFrame = jQuery.sap.domById("mainFrame");
+            if (oDomIFrame) {
+                oDomIFrame.src = sUri;
+            }
+            return;
+        }
+
+        var newWindow = window.open(sUri, "", "height=720,width=1280,scrollbars=yes,top=5,left=200,status=yes,toolbar=yes,menubar=yes,location=yes,resizable=yes,dependent=no" );
+    }
+
+    function splitClick () {
+        if (document.getElementById("activity_mgr_leftcolumn").style.display==="none") {
+            document.getElementById("activity_mgr_content").style.left="285px";
+            document.getElementById("activity_mgr_leftcolumn").style.display="block";
+            document.getElementsByClassName("activityTree_placeholder")[0].style.display="block";
+        } else {
+            document.getElementById("activity_mgr_content").style.left="0px";
+            document.getElementById("activity_mgr_leftcolumn").style.display="none";
+            document.getElementsByClassName("activityTree_placeholder")[0].style.display="none";
+        }
+    }
+
+</script>
+
+    <title>
+        Gerente de atividades - SAP Manufacturing Execution - SAP SE
+    </title>
+
+    <style>
+        .sapTntToolHeader .sapMText.sapMfgBrandSubtitle {
+        
+        
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+        }
+    </style>
+
+<script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/Title.js.download" data-sap-ui-module="sap/m/Title.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/Text.js.download" data-sap-ui-module="sap/m/Text.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/Button.js.download" data-sap-ui-module="sap/m/Button.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/OverflowToolbarButton.js.download" data-sap-ui-module="sap/m/OverflowToolbarButton.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/MenuButton.js.download" data-sap-ui-module="sap/m/MenuButton.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/Menu.js.download" data-sap-ui-module="sap/m/Menu.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/MenuItem.js.download" data-sap-ui-module="sap/m/MenuItem.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/Image.js.download" data-sap-ui-module="sap/m/Image.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/ToolbarSpacer.js.download" data-sap-ui-module="sap/m/ToolbarSpacer.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/OverflowToolbarLayoutData.js.download" data-sap-ui-module="sap/m/OverflowToolbarLayoutData.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/ToolHeader.js.download" data-sap-ui-module="sap/tnt/ToolHeader.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/ButtonRenderer.js.download" data-sap-ui-module="sap/m/ButtonRenderer.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/library.js.download" data-sap-ui-module="sap/m/library.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/ToolbarSpacerRenderer.js.download" data-sap-ui-module="sap/m/ToolbarSpacerRenderer.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/library(1).js.download" data-sap-ui-module="sap/ui/core/library.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/TitleRenderer.js.download" data-sap-ui-module="sap/m/TitleRenderer.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/HyphenationSupport.js.download" data-sap-ui-module="sap/m/HyphenationSupport.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/TextRenderer.js.download" data-sap-ui-module="sap/m/TextRenderer.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/EnabledPropagator.js.download" data-sap-ui-module="sap/ui/core/EnabledPropagator.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/IconPool.js.download" data-sap-ui-module="sap/ui/core/IconPool.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/ContextMenuSupport.js.download" data-sap-ui-module="sap/ui/core/ContextMenuSupport.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/SplitButton.js.download" data-sap-ui-module="sap/m/SplitButton.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/Popup.js.download" data-sap-ui-module="sap/ui/core/Popup.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/MenuButtonRenderer.js.download" data-sap-ui-module="sap/m/MenuButtonRenderer.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/Dialog.js.download" data-sap-ui-module="sap/m/Dialog.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/NavContainer.js.download" data-sap-ui-module="sap/m/NavContainer.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/List.js.download" data-sap-ui-module="sap/m/List.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/Page.js.download" data-sap-ui-module="sap/m/Page.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/MenuListItem.js.download" data-sap-ui-module="sap/m/MenuListItem.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/Menu(1).js.download" data-sap-ui-module="sap/ui/unified/Menu.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/MenuItem(1).js.download" data-sap-ui-module="sap/ui/unified/MenuItem.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/Item.js.download" data-sap-ui-module="sap/ui/core/Item.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/ManagedObjectObserver.js.download" data-sap-ui-module="sap/ui/base/ManagedObjectObserver.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/ImageRenderer.js.download" data-sap-ui-module="sap/m/ImageRenderer.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/ToolbarLayoutData.js.download" data-sap-ui-module="sap/m/ToolbarLayoutData.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/library(2).js.download" data-sap-ui-module="sap/tnt/library.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/OverflowToolbar.js.download" data-sap-ui-module="sap/m/OverflowToolbar.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/OverflowToolbarAssociativePopover.js.download" data-sap-ui-module="sap/m/OverflowToolbarAssociativePopover.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/ToolHeaderRenderer.js.download" data-sap-ui-module="sap/tnt/ToolHeaderRenderer.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/InvisibleText.js.download" data-sap-ui-module="sap/ui/core/InvisibleText.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/Hyphenation.js.download" data-sap-ui-module="sap/ui/core/hyphenation/Hyphenation.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/capitalize.js.download" data-sap-ui-module="sap/base/strings/capitalize.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/openWindow.js.download" data-sap-ui-module="sap/ui/util/openWindow.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/Support.js.download" data-sap-ui-module="sap/m/Support.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/CalendarWeekNumbering.js.download" data-sap-ui-module="sap/ui/core/date/CalendarWeekNumbering.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/SplitButtonRenderer.js.download" data-sap-ui-module="sap/m/SplitButtonRenderer.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/isMouseEventDelayed.js.download" data-sap-ui-module="sap/ui/events/isMouseEventDelayed.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/Focusable.js.download" data-sap-ui-module="sap/ui/dom/jquery/Focusable.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/rect.js.download" data-sap-ui-module="sap/ui/dom/jquery/rect.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/Bar.js.download" data-sap-ui-module="sap/m/Bar.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/InstanceManager.js.download" data-sap-ui-module="sap/m/InstanceManager.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/AssociativeOverflowToolbar.js.download" data-sap-ui-module="sap/m/AssociativeOverflowToolbar.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/ScrollEnablement.js.download" data-sap-ui-module="sap/ui/core/delegate/ScrollEnablement.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/Parameters.js.download" data-sap-ui-module="sap/ui/core/theming/Parameters.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/TitlePropagationSupport.js.download" data-sap-ui-module="sap/m/TitlePropagationSupport.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/DialogRenderer.js.download" data-sap-ui-module="sap/m/DialogRenderer.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/PageRenderer.js.download" data-sap-ui-module="sap/m/PageRenderer.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/NavContainerRenderer.js.download" data-sap-ui-module="sap/m/NavContainerRenderer.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/ListBase.js.download" data-sap-ui-module="sap/m/ListBase.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/ListRenderer.js.download" data-sap-ui-module="sap/m/ListRenderer.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/ListItemBase.js.download" data-sap-ui-module="sap/m/ListItemBase.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/MenuListItemRenderer.js.download" data-sap-ui-module="sap/m/MenuListItemRenderer.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/MenuItemBase.js.download" data-sap-ui-module="sap/ui/unified/MenuItemBase.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/library(3).js.download" data-sap-ui-module="sap/ui/unified/library.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/MenuRenderer.js.download" data-sap-ui-module="sap/ui/unified/MenuRenderer.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/LayoutData.js.download" data-sap-ui-module="sap/ui/core/LayoutData.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/ToggleButton.js.download" data-sap-ui-module="sap/m/ToggleButton.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/Toolbar.js.download" data-sap-ui-module="sap/m/Toolbar.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/OverflowToolbarAssociativePopoverControls.js.download" data-sap-ui-module="sap/m/OverflowToolbarAssociativePopoverControls.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/Rem.js.download" data-sap-ui-module="sap/ui/dom/units/Rem.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/OverflowToolbarRenderer.js.download" data-sap-ui-module="sap/m/OverflowToolbarRenderer.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/Popover.js.download" data-sap-ui-module="sap/m/Popover.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/PopoverRenderer.js.download" data-sap-ui-module="sap/m/PopoverRenderer.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/BarInPageEnabler.js.download" data-sap-ui-module="sap/m/BarInPageEnabler.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/LocaleData.js.download" data-sap-ui-module="sap/ui/core/LocaleData.js"></script><link rel="stylesheet" href="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/library.css" id="sap-ui-theme-sap.ui.core" data-sap-ui-ready="true"><link rel="stylesheet" href="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/library(1).css" id="sap-ui-theme-sap.m" data-sap-ui-ready="true"><link rel="stylesheet" href="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/library(2).css" id="sap-ui-theme-sap.tnt" data-sap-ui-ready="true"><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/hasTabIndex.js.download" data-sap-ui-module="sap/ui/dom/jquery/hasTabIndex.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/getOwnerWindow.js.download" data-sap-ui-module="sap/ui/dom/getOwnerWindow.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/ListBaseRenderer.js.download" data-sap-ui-module="sap/m/ListBaseRenderer.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/BarRenderer.js.download" data-sap-ui-module="sap/m/BarRenderer.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/ToolbarRenderer.js.download" data-sap-ui-module="sap/m/ToolbarRenderer.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/GrowingEnablement.js.download" data-sap-ui-module="sap/m/GrowingEnablement.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/GroupHeaderListItem.js.download" data-sap-ui-module="sap/m/GroupHeaderListItem.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/ListItemBaseRenderer.js.download" data-sap-ui-module="sap/m/ListItemBaseRenderer.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/CheckBox.js.download" data-sap-ui-module="sap/m/CheckBox.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/RadioButton.js.download" data-sap-ui-module="sap/m/RadioButton.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/ColorPickerDisplayMode.js.download" data-sap-ui-module="sap/ui/unified/ColorPickerDisplayMode.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/ToggleButtonRenderer.js.download" data-sap-ui-module="sap/m/ToggleButtonRenderer.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/OverflowToolbarToggleButton.js.download" data-sap-ui-module="sap/m/OverflowToolbarToggleButton.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/HBox.js.download" data-sap-ui-module="sap/m/HBox.js"></script><link rel="stylesheet" href="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/library(3).css" id="sap-ui-theme-sap.ui.unified" data-sap-ui-ready="true"><style type="text/css">@font-face {font-family: 'SAP-icons';src: url('/sapui5-1.71/resources/sap/ui/core/themes/base/fonts/SAP-icons.woff2') format('woff2'),url('/sapui5-1.71/resources/sap/ui/core/themes/base/fonts/SAP-icons.woff') format('woff'),url('/sapui5-1.71/resources/sap/ui/core/themes/base/fonts/SAP-icons.ttf') format('truetype'),local('SAP-icons');font-weight: normal;font-style: normal;}</style><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/CustomListItem.js.download" data-sap-ui-module="sap/m/CustomListItem.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/GroupHeaderListItemRenderer.js.download" data-sap-ui-module="sap/m/GroupHeaderListItemRenderer.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/Label.js.download" data-sap-ui-module="sap/m/Label.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/CheckBoxRenderer.js.download" data-sap-ui-module="sap/m/CheckBoxRenderer.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/RadioButtonRenderer.js.download" data-sap-ui-module="sap/m/RadioButtonRenderer.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/FlexBox.js.download" data-sap-ui-module="sap/m/FlexBox.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/HBoxRenderer.js.download" data-sap-ui-module="sap/m/HBoxRenderer.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/LabelRenderer.js.download" data-sap-ui-module="sap/m/LabelRenderer.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/CustomListItemRenderer.js.download" data-sap-ui-module="sap/m/CustomListItemRenderer.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/FlexBoxStylingHelper.js.download" data-sap-ui-module="sap/m/FlexBoxStylingHelper.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/FlexItemData.js.download" data-sap-ui-module="sap/m/FlexItemData.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/FlexBoxRenderer.js.download" data-sap-ui-module="sap/m/FlexBoxRenderer.js"></script><script src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/FlexBoxCssPropertyMap.js.download" data-sap-ui-module="sap/m/FlexBoxCssPropertyMap.js"></script></head>
+
+
+
+        <body class="sapUiBody sapUiSizeCompact sapContrastPlus mesUi" onload="checkForNoSite()" role="application"><div id="sap-ui-static" data-sap-ui-area="sap-ui-static" style="height: 0px; width: 0px; overflow: hidden; float: left;"><span id="sap-ui-static-firstfe" tabindex="-1" style="font-size: 0px;"></span><span id="__text0" data-sap-ui="__text0" class="sapUiInvisibleText" aria-hidden="true">Mais</span></div>
+
+            <div id="activity_mgr_wrapper">
+                <div id="topNavigation" class="topNavigationContainer">
+                    <script type="text/javascript">var contextPath='/manufacturing';</script>
+                    <script type="text/javascript" src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/lib.js.download"></script>
+                    <script type="text/javascript">
+                        function createAboutWindow (event) {
+                            if (keyPressed(event)) {
+                                window.open( "/manufacturing/about", "sapme_about", "height=444,width=410,scrollbars=0,top=100,left=100,status=0,toolbar=0,menubar=0,location=0,resizable=0" );
+                            }
+                        }
+
+                        function doLogout (event) {
+                            if (keyPressed(event)) {
+                                var el = top.document.createElement("input");
+                                el.type = "hidden";
+                                el.value = "true";
+                                el.id = "session_logout";
+                                top.document.body.appendChild(el);
+                                top.location = "/manufacturing/logout";
+                            }
+                        }
+
+                        function siteChange (event) {
+                            if (keyPressed(event)) {
+                                top.location = "/manufacturing/application/setup/ChangeSite";
+                            }
+                        }
+
+                        function goHome (event) {
+                            if (keyPressed(event)) {
+                                var oMainFrame = top.document.getElementById("mainFrame");
+                                if (oMainFrame) {
+                                    oMainFrame.src = "/manufacturing/com/sap/me/system/client/UI5Welcome.jsp";
+                                }
+                            }
+                        }
+
+                        function keyPressed (event) {
+                            return event.type === "click" || event.keyCode === 13 || event.sId === "press";
+                        }
+
+                        function doHelp () {
+                            PageHelper.doHelpWindow('https://help.sap.com/viewer/e1adc70af32241619335c8768a892edb/15.5/en-US/04510820335F4E129DF327DE58689A22.html ');
+                        }
+                    </script>
+
+                    <script>
+                        sap.ui.require([
+                            "sap/m/Title",
+                            "sap/m/Text",
+                            "sap/m/Button",
+                            "sap/m/OverflowToolbarButton",
+                            "sap/m/MenuButton",
+                            "sap/m/Menu",
+                            "sap/m/MenuItem",
+                            "sap/m/Image",
+                            "sap/m/ToolbarSpacer",
+                            "sap/m/OverflowToolbarLayoutData",
+                            "sap/tnt/ToolHeader"
+                        ], function (Title, Text, Button, OverflowToolbarButton, MenuButton, Menu, MenuItem, Image, ToolbarSpacer, OverflowToolbarLayoutData, ToolHeader) {
+                            var oToolHeader = new ToolHeader({
+                                content: [
+                                    new Button({
+                                        type: "Transparent",
+                                        tooltip: "Gerente de atividades",
+                                        icon: "sap-icon://menu2",
+                                        press: splitClick,
+                                        layoutData: [
+                                            new OverflowToolbarLayoutData({ priority: "NeverOverflow"})
+                                        ]
+                                    }),
+                                    new Image({ src: "/manufacturing/com/sap/me/system/common/client/images/SAP_scrn_R.png", height: "2rem" }),
+                                    new Title({
+                                        text: "Manufacturing Execution",
+                                        titleStyle: "H6"
+                                    }).addStyleClass("sapMfgMainTitle"),
+                                    
+                                    new ToolbarSpacer(),
+                                    new Button({
+                                        type: "Transparent",
+                                        text: "PTA0",
+                                        tooltip: "Centro de produção: PTA0",
+                                        icon: "sap-icon://factory",
+                                        press: siteChange
+                                    }).addStyleClass("sapMfgSiteButton"),
+                                    new OverflowToolbarButton({
+                                        type: "Transparent",
+                                        text: "Página inicial",
+                                        tooltip: "Página inicial",
+                                        icon: "sap-icon://home",
+                                        press: goHome
+                                    }),
+                                    new OverflowToolbarButton({
+                                        type: "Transparent",
+                                        text: "Logoff",
+                                        tooltip: "Logoff",
+                                        icon: "sap-icon://log",
+                                        press: doLogout
+                                    }),
+                                    new MenuButton({
+                                        type: "Transparent",
+                                        icon: "sap-icon://hint",
+                                        tooltip: "Ajuda",
+                                        menu: new Menu({
+                                            items: [
+                                                new MenuItem({
+                                                    text: "Sobre",
+                                                    press: createAboutWindow
+                                                }),
+                                                new MenuItem({
+                                                    text: "Ajuda",
+                                                    press: doHelp
+                                                })
+
+                                            ]
+                                        })
+                                    })
+                                ]
+                            }).addStyleClass("sapMfgMainHeader");
+                            oToolHeader.placeAt("toolHeader");
+                        });
+                    </script>
+
+                    <div id="toolHeader" data-sap-ui-area="toolHeader"><div id="__header0" data-sap-ui="__header0" data-sap-ui-fastnavgroup="true" role="toolbar" aria-labelledby="__title0" class="sapMIBar sapMTB sapMTBNewFlex sapMTBInactive sapMTBStandard sapMTB-Auto-CTX sapTntToolHeader sapContrast sapContrastPlus sapMfgMainHeader"><button id="__button0" data-sap-ui="__button0" aria-describedby="__button0-tooltip" aria-labelledby="__button0-tooltip" title="Gerente de atividades" class="sapMBtnBase sapMBtn sapMBarChild"><span id="__button0-inner" class="sapMBtnInner sapMBtnHoverable sapMFocusable sapMBtnIconFirst sapMBtnTransparent"><span id="__button0-img" data-sap-ui="__button0-img" role="presentation" aria-hidden="true" data-sap-ui-icon-content="" class="sapUiIcon sapUiIconMirrorInRTL sapMBtnCustomIcon sapMBtnIcon sapMBtnIconLeft" style="font-family: &#39;SAP\2dicons&#39;;"></span></span><span id="__button0-tooltip" class="sapUiInvisibleText">Gerente de atividades</span></button><img id="__image0" data-sap-ui="__image0" src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/SAP_scrn_R.png" role="presentation" aria-hidden="true" alt="" class="sapMImg sapMBarChild" style="height: 2rem;"><div id="__title0" data-sap-ui="__title0" role="heading" aria-level="6" class="sapMTitle sapMTitleStyleH6 sapMTitleNoWrap sapUiSelectable sapMTitleMaxWidth sapMTitleTB sapMfgMainTitle sapMBarChild"><span id="__title0-inner">Manufacturing Execution</span></div><div id="__spacer0" data-sap-ui="__spacer0" class="sapMTBSpacer sapMTBSpacerFlex sapMBarChild"></div><button id="__button1" data-sap-ui="__button1" aria-describedby="__button1-tooltip" title="Centro de produção: PTA0" class="sapMBtnBase sapMBtn sapMfgSiteButton sapMBarChild"><span id="__button1-inner" class="sapMBtnInner sapMBtnHoverable sapMFocusable sapMBtnText sapMBtnIconFirst sapMBtnTransparent"><span id="__button1-img" data-sap-ui="__button1-img" role="presentation" aria-hidden="true" data-sap-ui-icon-content="" class="sapUiIcon sapUiIconMirrorInRTL sapMBtnCustomIcon sapMBtnIcon sapMBtnIconLeft" style="font-family: &#39;SAP\2dicons&#39;;"></span><span id="__button1-content" class="sapMBtnContent"><bdi id="__button1-BDI-content">PTA0</bdi></span></span><span id="__button1-tooltip" class="sapUiInvisibleText">Centro de produção: PTA0</span></button><button id="__button2" data-sap-ui="__button2" aria-describedby="__button2-tooltip" title="Página inicial" class="sapMBtnBase sapMBtn sapMBarChild"><span id="__button2-inner" class="sapMBtnInner sapMBtnHoverable sapMFocusable sapMBtnIconFirst sapMBtnTransparent"><span id="__button2-img" data-sap-ui="__button2-img" role="presentation" aria-hidden="true" data-sap-ui-icon-content="" class="sapUiIcon sapUiIconMirrorInRTL sapMBtnCustomIcon sapMBtnIcon sapMBtnIconLeft" style="font-family: &#39;SAP\2dicons&#39;;"></span></span><span id="__button2-tooltip" class="sapUiInvisibleText">Página inicial</span></button><button id="__button3" data-sap-ui="__button3" aria-describedby="__button3-tooltip" title="Logoff" class="sapMBtnBase sapMBtn sapMBarChild"><span id="__button3-inner" class="sapMBtnInner sapMBtnHoverable sapMFocusable sapMBtnIconFirst sapMBtnTransparent"><span id="__button3-img" data-sap-ui="__button3-img" role="presentation" aria-hidden="true" data-sap-ui-icon-content="" class="sapUiIcon sapUiIconMirrorInRTL sapMBtnCustomIcon sapMBtnIcon sapMBtnIconLeft" style="font-family: &#39;SAP\2dicons&#39;;"></span></span><span id="__button3-tooltip" class="sapUiInvisibleText">Logoff</span></button><div id="__button4" data-sap-ui="__button4" class="sapMMenuBtn sapMMenuBtnRegular sapMBarChild"><button id="__button4-internalBtn" data-sap-ui="__button4-internalBtn" aria-describedby="__button4-internalBtn-tooltip" aria-labelledby="__button4-internalBtn-tooltip" title="Ajuda" class="sapMBtnBase sapMBtn" style="width: 100%;" aria-haspopup="true"><span id="__button4-internalBtn-inner" class="sapMBtnInner sapMBtnHoverable sapMFocusable sapMBtnIconFirst sapMBtnTransparent"><span id="__button4-internalBtn-img" data-sap-ui="__button4-internalBtn-img" role="presentation" aria-hidden="true" data-sap-ui-icon-content="" class="sapUiIcon sapMBtnCustomIcon sapMBtnIcon sapMBtnIconLeft" style="font-family: &#39;SAP\2dicons&#39;;"></span></span><span id="__button4-internalBtn-tooltip" class="sapUiInvisibleText">Ajuda</span></button></div></div></div>
+                </div>
+
+                <div class="activityTree_placeholder" style="display: none;">
+                    <div class="search"></div>
+                    <div class="group group1"></div>
+                    <div class="group group2"></div>
+                    <div class="node node1"></div>
+                    <div class="node node2"></div>
+                    <div class="node node3"></div>
+                </div>
+
+                <div id="activity_mgr_container">
+                    <div id="activity_mgr_leftcolumn" style="display: none;">
+                        <iframe id="appFrame" name="appFrame" title="Gerente de atividades" style="visibility: visible; width: 100%; height: 100%;" onload="this.style.visibility = &#39;visible&#39;;" src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/UI5AppFrame.html"></iframe>
+                    </div>
+
+                    <div id="activity_mgr_content" style="left: 0px;">
+                        <iframe id="mainFrame" name="mainFrame" title="Principal" style="display: block;width:100%;height:100%;" src="./Gerente de atividades - SAP Manufacturing Execution - SAP SE_files/UI5Welcome.html"></iframe>
+                    </div>
+                </div>
+            </div>
+
+        
+
+
+
+<div aria-hidden="true" id="sap-ui-preserve" class="sapUiHidden sapUiForcedHidden" style="width: 0px; height: 0px; overflow: hidden;"></div></body></html>

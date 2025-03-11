@@ -1,0 +1,79 @@
+com.sap.xmii.chart.ui5 = com.sap.xmii.chart.ui5 || {};
+
+var parentChartComponent = new com.sap.xmii.chart.ui5.ChartComponent();
+
+/**
+ * PieChart CONSTRUCTOR
+ * 
+ * @param chartConfig
+ * @param qryResultData
+ */
+com.sap.xmii.chart.ui5.PieChart = function(chartConfig, model) {
+	this.chartPropertyConfig = chartConfig;
+
+	this.chartModel = model;
+
+	this.chartCompnModel = new com.sap.xmii.chart.model.ChartComponentModel(
+			this.chartModel, this.chartPropertyConfig);
+	this.parent.init.call(this, chartConfig, model, this);
+
+	this.addGettersAndSetters();
+
+}
+
+com.sap.xmii.chart.ui5.PieChart.prototype = parentChartComponent;
+com.sap.xmii.chart.ui5.PieChart.prototype.constructor = com.sap.xmii.chart.ui5.PieChart;
+com.sap.xmii.chart.ui5.PieChart.prototype.parent = com.sap.xmii.chart.ui5.ChartComponent.prototype;
+
+/**
+ * PieChart Create Method
+ * 
+ * @return
+ */
+com.sap.xmii.chart.ui5.PieChart.prototype.create = function() {
+
+	this.ui5ChartElement = new sap.viz.ui5.Pie( {
+		width : this.width,//this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.WIDTH),
+		height : this.height,//height : this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.HEIGHT),
+
+		plotArea : {
+			drawingEffect : this.chartPropertyConfig.getChartLook(this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.GLOSSY))
+		},
+		legend : {
+			visible : JSON.parse(this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.SHOW_LEGEND)),
+			ishierarchical : true,
+			isScrollable : true,
+			title : {
+				visible : true,
+				text : this.chartPropertyConfig
+						.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.LEG_DESC_LABEL)
+			}
+		},
+		dataLabel: {
+			visible: JSON.parse(this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.SHOW_VAL_MARKER))
+		},
+		title : {
+			visible : false
+		},
+		interaction : {
+			selectability : {
+				mode : this.chartPropertyConfig.getSelectionType(this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.ENABLE_ITEM_SEL))
+			}
+		},
+		
+		dataset : this.chartCompnModel.dataset
+	});
+	
+	//setting color for pie components
+	var colorPalette = this.ui5ChartElement.getPlotArea().getColorPalette();
+	var maxPenCount = 32;
+	for(var i=0; i<maxPenCount; i++) {
+		colorPalette[i] = this.chartPropertyConfig.getProperty("PenColor." + (i+1));
+	}
+	this.ui5ChartElement.getPlotArea().setColorPalette(colorPalette);
+	
+	this.ui5ChartElement.getToolTip().setVisible(this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.SHOW_TOOLTIP) == true);
+	this.ui5ChartElement.setModel(this.chartCompnModel.oModel);
+	return this.ui5ChartElement;
+
+}

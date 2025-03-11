@@ -1,0 +1,12 @@
+
+/**
+ * Namespace com.sap.xmii.chart Declaration
+ */
+com.sap.xmii.common.exception = com.sap.xmii.common.exception||{}; 
+
+com.sap.xmii.common.exception.MIIi5Exception = function(message){
+		this.message = message;
+
+}
+
+com.sap.xmii.common.exception.MIIi5Exception.prototype = new Error();;

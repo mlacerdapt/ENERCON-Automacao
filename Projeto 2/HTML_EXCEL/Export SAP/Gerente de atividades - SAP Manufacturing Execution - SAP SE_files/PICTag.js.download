@@ -1,0 +1,446 @@
+/*
+ * @author I064174
+ * This Javascript class is responsible for executing the PIC tag in the run time. It fetches the Tag value from
+ * the PCo Server configured in the PIC through Web Sockets so that as and when the value changes from the PCo side
+ * the changes are pushed to the Composition Environment UI.
+ */
+
+com.sap.xmii = com.sap.xmii ||{};
+
+/**
+ * @Namespace com.sap.xmii.ssce
+ */
+com.sap.xmii.ssce = com.sap.xmii.ssce ||{};
+
+com.sap.xmii.ssce.PICTag = function(tagData) {
+
+	//initialising the instance variables
+	if(tagData == undefined || tagData == {})
+		return;
+	this.tagNamespace = tagData.tagNamespace;
+	this.tagName = tagData.tagName;
+	this.dataType = tagData.dataType;
+	this.serverNamespace = "";
+	this.tagAlias = tagData.tagAlias;
+	this.percentX = tagData.percentX;
+	this.percentY = tagData.percentY;
+	this.changedPercentY = tagData.changedPercentY;
+	this.cellId = tagData.cellId;
+	this.pCoServer = "";
+	this.webSocketPort = "";
+	this.display = tagData.display;
+	this.callbackMethod = tagData.callbackMethod;
+	this.showTagTrend = tagData.ShowTagTrend;
+	this.onClickFunctionName = tagData.OnClickFunctionName;
+	this.useSSL = "";
+	this.showTagName = tagData.showTagName;
+	this.tagNameDisplay = tagData.tagNameDisplay;
+	this.showUnit = tagData.showUnit;
+	this.isUnitProperty = tagData.isUnitValueHelp;
+	this.unit = tagData.unit;
+	this.unitPropertySet = tagData.unitPropertySet;
+	this.altUnit = tagData.altUnit;
+	this.decimalPlaces = tagData.decimalPlaces;
+	this.size = tagData.size;
+	this.areaName = tagData.areaName;
+	this.conditions = [];
+	this.Parameters = [];		// Used for GaugeView
+	this.QueryParameters = [];
+	this.areaEvent = tagData.AreaEvent;
+	
+	this.showAs = tagData.ShowAs;
+	this.showAsTagTable = tagData.ShowAsTagTable;
+	this.showAsTagTrend = tagData.ShowAsTagTrend;
+	this.virtualTag = tagData.virtualTag;
+	this.DisplayColumn = tagData.DisplayColumn;
+	this.DisplayColumnDataType = tagData.DisplayColumnDataType;
+	this.ValueColumns = tagData.valueColumns;
+	this.ValueColumn = tagData.ValueColumn;
+	this.ValueColumnDataType = tagData.ValueColumnDataType;
+	//code for vds 
+	this.tagGUID = tagData.tagGUID;
+	this.tagValue = "";
+
+	var generateGuid = function() {
+		var result, i=0, j;
+		result = 'A';
+		for (j = 0; j < 32; j++) {
+			i = Math.floor(Math.random() * 16).toString(16).toUpperCase();
+			result = result + i;
+		}
+		return result;
+	};
+
+	var exactlyPositionTag = function(tagDetails) {
+		//getting the width and height of the parent (cell) i.e. type c0c0
+		if(!jQuery.sap.byId(tagDetails.Name) || !jQuery.sap.byId(tagDetails.Name).parent()[0])
+			return;
+		var parent = jQuery.sap.byId(tagDetails.Name).parent();
+		if(parent && parent[0].id.match(/^tags/gi) != null){
+			while(parent[0].id.match(/c[0-9]c[0-9]/gi) == null){
+				parent = parent.parent();
+			}
+		}
+		var parentCellWidth = parent.width();
+		var parentCellHeight = parent.height();
+
+		//calculating actual x n Y positions for Label
+		var positionX = parentCellWidth * tagDetails.percentX;
+		var toolBarHeight = 32;
+		if(tagDetails.changedPercentY != undefined && tagDetails.changedPercentY) {
+			toolBarHeight = 0;
+			//Considering the title height
+			var cellID = parent[0].id.substring(parent[0].id.lastIndexOf(":")+1);
+			var title = $("#cellTitle_"+cellID);
+			if(cellID != undefined && title != undefined && title.length > 0)
+				toolBarHeight = toolBarHeight + $("#cellTitle_"+cellID).height()
+		}
+		var positionY = (parentCellHeight * tagDetails.percentY) - toolBarHeight; //appending 32 px to take care of the toolbar position
+
+		if (parent.css("position") != "relative") {
+			positionX = positionX + parent.position().left;
+			positionY = positionY + parent.position().top;
+		}
+
+
+		jQuery.sap.byId(tagDetails.Name).css("top", positionY);
+		jQuery.sap.byId(tagDetails.Name).css("left", positionX);
+		jQuery.sap.byId(tagDetails.Name).css("position", "absolute");
+		jQuery.sap.byId(tagDetails.Name).css("z-index", "5");
+
+		jQuery(window).resize(function() {
+			var shell = sap.ui.getCore().byId("main-shell");
+			var isShellAndPreviewSelected = false;
+			if (shell !== undefined && shell != null && shell.getSelectedWorksetItem() == "nav-Design-Preview") {
+				isShellAndPreviewSelected = true;
+			}
+			if(isShellAndPreviewSelected){
+				var parentCellWidth = jQuery.sap.byId(tagDetails.Name).parent().width();
+				var parentCellHeight = jQuery.sap.byId(tagDetails.Name).parent().height();
+				if (jQuery.sap.byId(tagDetails.Name) !== undefined && jQuery.sap.byId(tagDetails.Name) != null && jQuery.sap.byId(tagDetails.Name).parent().length > 0) {
+					var positionX = parentCellWidth * tagDetails.percentX; //+ jQuery.sap.byId(tagDetails.Name).parent().position().left;
+					var positionY = parentCellHeight * tagDetails.percentY; //+ jQuery.sap.byId(tagDetails.Name).parent().position().top;
+					jQuery.sap.byId(tagDetails.Name).css("top", positionY);
+					jQuery.sap.byId(tagDetails.Name).css("left", positionX);
+				}
+			}
+		});
+	};
+
+	/**
+	 * 
+	 */
+	this.draw = function(){
+		//checking the display type and if type is gauge, the if condition executed
+		if(this.display == "Gauge"){
+			//Creation of the gaugeObject Data to call gauge view
+			var gaugeObjectData = {};
+			gaugeObjectData.isTag = true;
+			gaugeObjectData.Namespace = tagData.tagNamespace; 			
+			gaugeObjectData.Name = tagData.tagName;						
+			gaugeObjectData.DataType = tagData.dataType;				
+			gaugeObjectData.Alias = tagData.tagAlias;					
+			gaugeObjectData.xPos = tagData.percentX; 					
+			gaugeObjectData.yPos = tagData.percentY;		
+			gaugeObjectData.NewCalculatedPos = tagData.changedPercentY;
+			gaugeObjectData.Height = tagData.height;					//deprecated
+			gaugeObjectData.Width = tagData.width;						//deprecated
+			gaugeObjectData.HeightPercentage = tagData.heightPercentage; 
+			gaugeObjectData.WidthPercentage = tagData.widthPercentage;	
+			gaugeObjectData.TagDisplay = "Gauge";						
+			gaugeObjectData.divCellId = tagData.cellId;					
+			gaugeObjectData.parentCellId = tagData.parentCellId;
+			gaugeObjectData.DesignTimeCellHeight = tagData.designTimeCellHeight;
+			gaugeObjectData.DesignTimeCellWidth= tagData.designTimeCellWidth;
+			gaugeObjectData.EventsData = {"CallBack" : this.callbackMethod == "null" ? false : true , "MethodName" :  this.callbackMethod == "null" ? "" : this.callbackMethod, "OnClickFunction" : this.onClickFunctionName == "null" ? false : true, "OnClickFunctionName" : this.onClickFunctionName == "null" ? "" : this.onClickFunctionName, "ShowTagTrend" : this.showTagTrend , "ShowAs": this.showAs, "ShowAsTagTable" :this.showAsTagTable, "ShowAsTagTrend": this.showAsTagTrend};
+			gaugeObjectData.DisplayData = {"AltTagName": this.tagNameDisplay,"AltUnit": this.altUnit,"Decimals": this.decimalPlaces ,"IsUnitValueHelp": this.isUnitProperty,"ShowTagName": this.showTagName ,"ShowUnit": this.showUnit,"UnitPropertySet": this.unitPropertySet, "Value" : this.display == "Value" || this.display == "Gauge" ? true : false};
+			
+			gaugeObjectData.ValueColumn = tagData.ValueColumn;
+			gaugeObjectData.ValueColumnDataType = tagData.ValueColumnDataType;
+			gaugeObjectData.IsVirtualMeter = tagData.virtualTag;
+			gaugeObjectData.ValueColumns = tagData.valueColumns;
+			//Initialization
+			var gaugeObj  =  new com.sap.xmii.ssce.GaugeView(gaugeObjectData);
+			//Setting parameter
+			gaugeObj.setParameter(this.Parameters);	
+			//Draws gauge chart
+			gaugeObj.drawGauge();
+			
+		} else{
+
+			//generating the label id with replacing all '/' to ':' and appending a unique id
+			var labelId = "";
+			var textString = this.tagNamespace ;
+			labelId = "tag_" + generateGuid();
+			var displayColumn = this.DisplayColumn;
+			if(this.virtualTag != undefined && this.virtualTag == "true")
+				textString = displayColumn;
+
+			//preparing the tag details for the onAfterRendering event handler
+			var tagDetails = {};
+			tagDetails.Name = labelId;
+			tagDetails.percentX = this.percentX;
+			tagDetails.percentY = this.percentY;
+			tagDetails.changedPercentY = this.changedPercentY;
+			tagDetails.cellId = this.cellId;
+			tagDetails.display = this.display;
+			//creating tag value label
+			jQuery.sap.registerModulePath('CECustomControls', '/XMII/CompositionEnvironment/js/customControls');
+			jQuery.sap.require("CECustomControls.ExtendedButton");
+			var showTagTrend = true;
+			var showAs = false;
+			var showTrend = false;
+			var showTable = false;
+			if(this.virtualTag != undefined && this.virtualTag == "true"){
+				showTagTrend = false;
+				if(this.showAs != undefined && this.showAs == "true"){
+					showAs = true;
+					if(this.showAsTagTable != undefined && this.showAsTagTable == "true")
+						showTable = true;
+					else
+						showTrend = true;
+				}
+			}else if (this.showTagTrend != undefined && this.showTagTrend == "false") {
+				showTagTrend = false;
+			}
+			//setting the onclick event handler for tagtrend
+			var tagControl = new com.sap.mii.ui.ExtendedButton(labelId, {
+				value: textString,
+				showTagTrend: showTagTrend,
+				showAs : showAs,
+				showAsTagTable : showTable,
+				showAsTagTrend : showTrend
+			});
+			//adding the namesapce
+			tagControl.data("namespace" , this.tagNamespace);
+			//adding display and conditions according to the configurations in data object so it is available while fetching the values
+			tagControl.data("conditions", this.expressionConditions);
+			tagControl.data("display",this.display);
+			tagControl.data("callbackMethod","true");
+			tagControl.data("area",this.areaName);
+			tagControl.data("dataType",this.dataType);
+			tagControl.data("decimalPlaces",this.decimalPlaces);
+			tagControl.data("cellId",this.cellId.split(":")[1]);
+			tagControl.data("areaEvent", this.areaEvent);
+			tagControl.data("size" , this.size);
+			tagControl.setProperty("size", this.size);
+			
+			tagControl.data("virtualTag", this.virtualTag);
+			tagControl.data("valueColumns", this.ValueColumns);
+			tagControl.data("TagAlias", this.tagAlias);
+			tagControl.data("QueryParams", this.QueryParameters);
+			tagControl.data("DisplayColumnDataType", this.DisplayColumnDataType);
+			tagControl.data("DisplayColumn",this.DisplayColumn);
+			tagControl.data("ValueColumnDataType", this.ValueColumnDataType);
+			tagControl.data("ValueColumn",this.ValueColumn);
+
+			//setting the onclick event handler for a javascript function
+			if (this.onClickFunctionName !== undefined && this.onClickFunctionName !== null && this.onClickFunctionName != "null" && this.onClickFunctionName != "") {
+				tagControl.setOnClickFunctionName(this.onClickFunctionName);
+			}
+
+			if(this.display == "Value"){
+				tagControl.setShowValue(true);
+			}
+			else{
+				tagControl.setShowValue(false);
+			}
+			if(this.showTagName){
+				tagControl.setShowName(true);
+				if(this.tagNameDisplay && this.tagNameDisplay.length > 0){
+					tagControl.setName(this.tagNameDisplay);
+				}else{
+					tagControl.setName(this.tagName);
+				}
+			}
+			if(this.showUnit){
+				tagControl.setShowUnit(true);
+				if(this.altUnit && this.altUnit.length > 0){
+					tagControl.setUnit(this.altUnit);
+				}else{
+					tagControl.setUnit(this.unit);
+				}
+			}
+			var that = this;
+			tagControl.callbackMethod = function(tagData){
+				if(that.callbackMethod != undefined && that.callbackMethod != null && that.callbackMethod != "null")
+					window[that.callbackMethod](tagData);
+			};
+
+			//adding event listener for onAfterRendering so that display properties of the object can be changed 
+			tagControl.addDelegate({
+				onAfterRendering : function () {
+
+				exactlyPositionTag(tagDetails);
+
+			}	
+			}, tagDetails);
+			//adding the label in the parent div element
+			tagControl.placeAt(this.cellId);
+			tagControl.setTooltip( new sap.ui.commons.RichTooltip({
+				text : this.tagNamespace
+			}
+			));
+			this.tagControl = tagControl;
+
+			//Add the tag to the subscriber list
+			pCoSubscriber.addTag(this);
+		};
+	};
+
+
+};
+
+/**
+ * add
+ */
+com.sap.xmii.ssce.PICTag.getColumnConditions = function(tagNamespace,conditions){
+	var results = [];
+	for (var i = 0; i < conditions.length; i++) {
+
+		var columnCondition = {};
+		columnCondition.Columns = [];
+		columnCondition.Columns[0] = {};
+		columnCondition.Columns[0].ColumnName = tagNamespace.replace(/\//g, ":");
+		columnCondition.Color = conditions[i].Color;
+		columnCondition.DisplayTagValue = conditions[i].DisplayValue;
+
+		if (conditions[i].Operator == "Equals") {
+			columnCondition.Columns[0].ColumnExpression = "String:EXACT_MATCH:" + conditions[i].Value;
+		} else if (conditions[i].Operator == "Contains") {
+			columnCondition.Columns[0].ColumnExpression = "String:SUBSTRING_MATCH:" + conditions[i].Value;
+		} else if (conditions[i].Operator == "Regex") {
+			columnCondition.Columns[0].ColumnExpression = "Regex:" + conditions[i].Value;
+		} else if (conditions[i].Value == "True") {
+			columnCondition.Columns[0].ColumnExpression = "Boolean:" + "true";
+		} else if (conditions[i].Value == "False") {
+			columnCondition.Columns[0].ColumnExpression = "Boolean:" + "false";
+		} else if (conditions[i].Operator == "Between") {
+			columnCondition.Columns[0].ColumnExpression = "Between:" + conditions[i].Value;
+		} else {
+			columnCondition.Columns[0].ColumnExpression = "Numeric:" + conditions[i].Operator + ":" + conditions[i].Value;
+		}
+		columnCondition.Columns[0].ColumnValue = "";
+		results[results.length] = columnCondition;
+	}
+	return results;
+};
+/**
+ * Method to convert the Rules conditions to Expression Evaluation Engine specific conditions
+ */
+com.sap.xmii.ssce.PICTag.getConditionsforVirtualTag = function(valueColumnName, conditions){
+	var results = [];
+	for (var i = 0; i < conditions.length; i++) {
+
+		var columnCondition = {};
+		columnCondition.Columns = [];
+		columnCondition.Columns[0] = {};
+		columnCondition.Columns[0].ColumnName = valueColumnName;
+		columnCondition.Color = conditions[i].Color;
+
+		if (conditions[i].Operator == "Equals") {
+			columnCondition.Columns[0].ColumnExpression = "String:EXACT_MATCH:" + conditions[i].Value;
+		} else if (conditions[i].Operator == "Contains") {
+			columnCondition.Columns[0].ColumnExpression = "String:SUBSTRING_MATCH:" + conditions[i].Value;
+		} else if (conditions[i].Operator == "Regex") {
+			columnCondition.Columns[0].ColumnExpression = "Regex:" + conditions[i].Value;
+		} else if (conditions[i].Value == "True") {
+			columnCondition.Columns[0].ColumnExpression = "Boolean:" + "true";
+		} else if (conditions[i].Value == "False") {
+			columnCondition.Columns[0].ColumnExpression = "Boolean:" + "false";
+		} else if (conditions[i].Operator == "Between") {
+			columnCondition.Columns[0].ColumnExpression = "Between:" + conditions[i].Value;
+		} else {
+			columnCondition.Columns[0].ColumnExpression = "Numeric:" + conditions[i].Operator + ":" + conditions[i].Value;
+		}
+		columnCondition.Columns[0].ColumnValue = "";
+		results[results.length] = columnCondition;
+	}
+	return results;
+};
+
+//declaring visible functions for this object
+com.sap.xmii.ssce.PICTag.prototype = {
+
+		/**
+		 * this function will add the conditions for display for tag
+		 * @param operator
+		 * @param value
+		 * @param color
+		 * @param graphicsType
+		 * @param iconPath
+		 * @param runtimeValue
+		 * @param PropertyName
+		 * @param PropertySetName
+		 * @param size
+		 */
+		addCondition : function(operator, value, color, graphicsType, iconPath, runtimeValue ,PropertyName ,PropertySetName , size) {
+			var length = this.conditions.length;
+			this.conditions[length] = {};
+			this.conditions[length].Operator = operator;
+			this.conditions[length].Value = value;
+			this.conditions[length].Color = color;
+			this.conditions[length].GraphicsType = graphicsType;
+			this.conditions[length].IconPath = iconPath;
+			this.conditions[length].RuntimeValue = runtimeValue;
+			this.conditions[length].Size = size;
+			this.conditions[length].PropertyName = PropertyName;
+			this.conditions[length].PropertySetName = PropertySetName;
+			this.tagControl.data("conditions", this.conditions);
+		},
+		/**
+		 * This function will add the conditions for display for tag
+		 * @param operator
+		 * @param value
+		 * @param color
+		 * @param graphicsType
+		 * @param iconPath
+		 * @param runtimeValue
+		 * @param conditionColumnName
+		 * @param size
+		 * @param toValueConditionColumnName
+		 */
+		addConditionforVirtualTag : function(operator, value, color, graphicsType, iconPath, runtimeValue, size, conditionColumnName, toValueConditionColumnName) {
+			var length = this.conditions.length;
+			this.conditions[length] = {};
+			this.conditions[length].Operator = operator;
+			this.conditions[length].Value = value;
+			this.conditions[length].Color = color;
+			this.conditions[length].GraphicsType = graphicsType;
+			this.conditions[length].IconPath = iconPath;
+			this.conditions[length].RuntimeValue = runtimeValue;
+			this.conditions[length].Size = size;
+			this.conditions[length].ConditionColumnName = conditionColumnName;
+			this.conditions[length].ToValueConditionColumnName = toValueConditionColumnName;
+			this.tagControl.data("conditions", this.conditions);
+		},
+		
+		/**
+		 * Setting the parameter to the Gauge Chart
+		 */ 
+		setParameter : function(parameterName , parameterValue){
+			var length = this.Parameters.length;	
+			this.Parameters[length] = {};
+			this.Parameters[length].Name = parameterName;
+			this.Parameters[length].Value = parameterValue;
+		},
+		/**
+		 * this function is responsible for adding the Custom Query Parameters
+		 * @param parameterName
+		 * @param parameterValue
+		 */
+		addQueryParameter : function (parameterName, parameterValue) {
+			var length = this.QueryParameters.length;
+			this.QueryParameters[length] = {};
+			this.QueryParameters[length].Name = parameterName;
+			this.QueryParameters[length].Value = parameterValue;
+		}
+
+};
+
+//defining the constructor for the Javascript class
+com.sap.xmii.ssce.PICTag.prototype.constructor = com.sap.xmii.ssce.PICTag; 
+
+
+
+

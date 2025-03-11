@@ -1,0 +1,283 @@
+//BOOTSTRAP FILE
+
+(function(){
+	var moduleArray = ['MIIUI5Visualization','MIIi5Util','MIIi5Constants','MIIi5Global','MIIi5Exception','DataModel','ModelMetaData','ModelData',
+	                   'QueryTemplate','Query','TAGQuery','XMLQuery','SQLQuery','KPIQuery','AlarmQuery','AggregateQuery','CatalogQuery','MDOQuery','OLAPQuery','PCoQuery','XacuteQuery',
+	                   'ChartTemplate','ChartPropertyConfig','AppToolBar','ExtendedMenuItem','ExtendedLabel','ToolBar','TitleBar','MessageArea','TimeBar','BindEvents','MIIi5EventConstants'];
+	
+	var isRTL = false;
+	var isDebug = false;
+	
+	var url = window.location.href;
+	
+	try {
+		isDebug = isDebug || (new URL(url)).searchParams.get("sap-ui-debug") == "true";
+	} catch (e) {
+		// IE 11 does not have the URL class https://caniuse.com/?search=url
+		var result = /sap-ui-debug=([^&]+)/.exec(url);
+		
+		isDebug = isDebug || (result && result[1] == "true");
+	}
+	
+	if (isDebug) {
+		console.debug("com.sap.xmii.bootstrap: sap-ui-debug is enabled");
+	}
+	
+	// Creates the RootNameSpace
+	function createRootNameSpace() {
+	    com = {
+			sap : {
+				xmii : {}
+			}
+	    };
+	}
+	
+	//Get the Script Param
+	function getScriptParam(attr){
+		var attrVal = '';
+		var attrName = 'data-'+attr;
+	    var scripts = document.getElementsByTagName('script');
+	    
+	    for(i in scripts){
+	    	currentScript = scripts[i];
+	    	if((currentScript.attributes) && (typeof currentScript.attributes[attrName] != "undefined"))
+	    		attrVal = currentScript.getAttribute(attrName);
+	    }
+	    
+	    return attrVal; 
+	};
+	
+	function getModeAndVersionFromServer() {
+		var url = "/XMII/PropertyAccessServlet?mode=retrieve&PropName=Locale&content-type=text/json";
+		xmlHttp = new XMLHttpRequest();
+		xmlHttp.onreadystatechange = ProcessRequest;
+		// Synchronous XMLHttpRequest are deprecated https://xhr.spec.whatwg.org/#the-open()-method
+		xmlHttp.open("GET", url, async = false);
+		xmlHttp.setRequestHeader("Accept", "application/json;charset=utf-8");
+		xmlHttp.send(body = null);
+		
+		mainLoad();
+	};
+	
+	function ProcessRequest() {
+		if (xmlHttp.readyState == 4 && (xmlHttp.status == 200 || xmlHttp.status == 201)) {
+			var results = JSON.parse(xmlHttp.responseText);
+			
+			if (results !== undefined && results != null && results.Rowsets !== undefined && results.Rowsets != null) {
+				if (results.Rowsets.FatalError !== undefined && results.Rowsets.FatalError != null) {
+					// do nothing as unable to load the version and rtl details
+					if (isDebug) {
+						console.debug("com.sap.xmii.bootstrap: Unable to get mode and version");
+					}
+				} else if (results.Rowsets.Rowset !== undefined && results.Rowsets.Rowset !== null && results.Rowsets.Rowset.length > 0
+						&& results.Rowsets.Rowset[0].Row !== undefined && results.Rowsets.Rowset[0].Row != null && results.Rowsets.Rowset[0].Row.length > 0) {
+					var RTLvalue = false;
+					var rows = results.Rowsets.Rowset[0].Row;
+					for (var i = 0; i < rows.length && RTLvalue == false; i++) {
+						if (rows[i].Name.toLowerCase() == "locale") {
+							RTLvalue = ( rows[i].Value.toLowerCase() == "iw" || rows[i].Value.toLowerCase() == "he");
+						}
+					}	
+					isRTL = RTLvalue;
+					
+					if (isDebug) {
+						console.debug("com.sap.xmii.bootstrap: RTL value is " + RTLvalue);
+					}
+				}
+			}
+		}
+	};
+	
+	// Function loads Ui5Core along with other libs
+	function loadUI5Core(){
+		// need to check the locale and the version
+		if(document.getElementById("sap-ui-bootstrap") == null || document.getElementById("sap-ui-bootstrap") == 'undefined') {
+			var ui5Script = '<scr'+'ipt id="sap-ui-bootstrap" type="text/javascript" src="/sapui5-1.71/resources/sap-ui-cachebuster/sap-ui-core.js" data-sap-ui-libs="sap.ui.commons,sap.ui.ux3,sap.ui.vbm,sap.ui.table,sap.viz,sap.m,sap.ui.vk" ' + 
+			'data-sap-ui-frameOptions="trusted" data-sap-ui-whitelistService="/sap.com~tc~lm~itsam~servlet~clickjacking/check" data-sap-ui-theme="sap_bluecrystal" ';
+			
+			if (isRTL) {
+				ui5Script = ui5Script + "data-sap-ui-rtl=" + isRTL;
+				
+				if (isDebug) {
+					console.debug("com.sap.xmii.bootstrap: data-sap-ui-rtl set to " + isRTL);
+				}
+			}
+			
+			ui5Script = ui5Script + '></scr'+'ipt>';
+			document.write(ui5Script);
+		}
+	};
+	
+	//Load Module 
+	function loadModuleFromFlat(moduleName){
+		if(!isDebug)
+			var moduleDetails = '<scr' + 'ipt type="text/javascript" src="/XMII/JavaScript/minified/';
+		else
+			var moduleDetails = '<scr' + 'ipt type="text/javascript" src="/XMII/JavaScript/original/';
+	    moduleDetails = moduleDetails+moduleName+'.js"></scr' + 'ipt>';
+	    document.write(moduleDetails);
+	};
+	
+	//load module for SSCE runtime
+	function loadModuleForSSCE(libToBeLoaded){
+		var moduleDetails = '<scr' + 'ipt type="text/javascript" src="/XMII/CompositionEnvironment/js/';
+		if (libToBeLoaded == "RuntimeUtilities") {
+			var module = moduleDetails + 'MIIWorker.js"></scr' + 'ipt>';
+			document.write(module);
+			var module = moduleDetails + 'messagesUtils.js"></scr' + 'ipt>';
+			document.write(module);
+			module = moduleDetails + 'application.js"></scr' + 'ipt>';
+			document.write(module);
+			module = moduleDetails + 'runtimeParam.js"></scr' + 'ipt>';
+			document.write(module);
+			module = moduleDetails + 'TreeUtils.js"></scr' + 'ipt>';
+			document.write(module);
+			module = moduleDetails + 'htmlUtils.js"></scr' + 'ipt>';
+			document.write(module);
+			module = moduleDetails + 'ceController.js"></scr' + 'ipt>';
+			document.write(module);
+			module = moduleDetails + 'busyIndicator.js"></scr' + 'ipt>';
+			document.write(module);
+			
+			module = moduleDetails + 'dvl.js"></scr' + 'ipt>';
+	        document.write(module);
+	        
+	        module = moduleDetails + 'VEUtils.js"></scr' + 'ipt>';
+	        document.write(module);
+	        
+	        module = moduleDetails + 'TagExpressionUtil.js"></scr' + 'ipt>';
+	        document.write(module);
+	        module = moduleDetails + 'Loco.js"></scr' + 'ipt>';
+	        document.write(module);
+	        module = moduleDetails + 'com/sap/xmii/ssce/PICTag.js"></scr' + 'ipt>';
+			document.write(module);
+			module = moduleDetails + 'com/sap/xmii/ssce/WebsocketSubscriber.js"></scr' + 'ipt>';
+			document.write(module);
+			module = moduleDetails + 'com/sap/xmii/ssce/PICNode.js"></scr' + 'ipt>';
+			document.write(module);
+			module = moduleDetails + 'com/sap/xmii/ssce/KPIView.js"></scr' + 'ipt>';
+			document.write(module);
+			module = moduleDetails + 'KPIUtils.js"></scr' + 'ipt>';
+			document.write(module);
+			//For support of i5Command in SSCE
+			if(!isDebug)
+				var moduleDetailsChart = '<scr' + 'ipt type="text/javascript" src="/XMII/JavaScript/minified/';
+			else
+				var moduleDetailsChart = '<scr' + 'ipt type="text/javascript" src="/XMII/JavaScript/original/';
+			
+			var moduleName = "ChartComponentModel";
+			module = moduleDetailsChart+moduleName+'.js"></scr' + 'ipt>';
+			document.write(module);
+			var moduleName = "i5Chart";
+			module = moduleDetailsChart+moduleName+'.js"></scr' + 'ipt>';
+			document.write(module);
+			var moduleName = "i5Command";
+			module = moduleDetailsChart+moduleName+'.js"></scr' + 'ipt>';
+			document.write(module);
+			var moduleName = "i5CommandComponent";
+			module = moduleDetailsChart+moduleName+'.js"></scr' + 'ipt>';
+			document.write(module);
+	
+		} else	if (libToBeLoaded == "PlantView") {
+			var module = moduleDetails + 'com/sap/xmii/ssce/PICTag.js"></scr' + 'ipt>';
+			document.write(module);
+			module = moduleDetails + 'com/sap/xmii/ssce/WebsocketSubscriber.js"></scr' + 'ipt>';
+			document.write(module);
+			module = moduleDetails + 'com/sap/xmii/ssce/PlantView.js"></scr' + 'ipt>';
+			document.write(module);
+			module = moduleDetails + 'com/sap/xmii/ssce/SVGView.js"></scr' + 'ipt>';
+			document.write(module);
+			module = moduleDetails + 'com/sap/xmii/ssce/GaugeView.js"></scr' + 'ipt>';
+			document.write(module);
+			module = moduleDetails + 'jquery.imagemapster.js"></scr' + 'ipt>';
+			document.write(module);
+			
+		} else if (libToBeLoaded == "QueryObject") {
+			var module = moduleDetails + 'com/sap/xmii/ssce/QueryObject.js"></scr' + 'ipt>';
+			document.write(module);
+			module = moduleDetails + 'com/sap/xmii/ssce/QueryDataSubscriber.js"></scr' + 'ipt>';
+			document.write(module);
+		} else if (libToBeLoaded == "KPI" || libToBeLoaded == "QueryTable" ) {
+			
+			var module = moduleDetails + 'jit-yc.js"></scr' + 'ipt>';
+			document.write(module);
+			if (libToBeLoaded == "QueryTable") {
+				module = moduleDetails + 'QueryTable.js"></scr' + 'ipt>';
+				document.write(module);
+			}
+			module = moduleDetails + 'com/sap/xmii/ssce/KPIView.js"></scr' + 'ipt>';
+			document.write(module);
+			module = moduleDetails + 'KPIUtils.js"></scr' + 'ipt>';
+			document.write(module);
+			module = moduleDetails + 'com/sap/xmii/ssce/TileRenderer.js"></scr' + 'ipt>';
+			document.write(module);
+			module = moduleDetails + 'com/sap/xmii/ssce/KPIState.js"></scr' + 'ipt>';
+			document.write(module);
+			module = moduleDetails + 'com/sap/xmii/ssce/KPITrend.js"></scr' + 'ipt>';
+			document.write(module);
+			document.write('<link rel="stylesheet" type="text/css" href="/XMII/CompositionEnvironment/StyleSheets/kpi.css">');
+		} else if (libToBeLoaded == "UIElements") {
+			var module = moduleDetails + 'com/sap/xmii/ssce/Form.js"></scr' + 'ipt>';
+			document.write(module);
+		} else if (libToBeLoaded == "PICTree") {
+			var module = moduleDetails + 'com/sap/xmii/ssce/PICNode.js"></scr' + 'ipt>';
+			document.write(module);
+			module = moduleDetails + 'com/sap/xmii/ssce/PICTree.js"></scr' + 'ipt>';
+			document.write(module);
+		} else if(libToBeLoaded == "i5Command"){
+			var module = moduleDetails + 'com/sap/xmii/chart/hchart/i5Command.js"></scr' + 'ipt>';
+			document.write(module);
+		}else {
+			var module = moduleDetails + libToBeLoaded + '.js"></scr' + 'ipt>';
+			document.write(module);
+		}
+	};
+	
+	//Load Specific Lib
+	function loadSpecificLib(libToBeLoaded) {
+	    if(libToBeLoaded != "" && libToBeLoaded != undefined) {
+			var libsArray = libToBeLoaded.split(',');
+			for(var i=0; i<libsArray.length; i++) {
+				if(libsArray[i]==='i5Chart') {
+					loadModuleFromFlat('ChartComponentModel');
+			    	loadModuleFromFlat(libsArray[i]);
+				} else if (libsArray[i]==='i5SPCChart') {
+					loadModuleFromFlat('i5SPCChartComponentModel');
+			    	loadModuleFromFlat(libsArray[i]);
+				} else if(libsArray[i]==='i5Grid'){
+				    loadModuleFromFlat(libsArray[i]);
+				} else if(libsArray[i]==='i5Command'){
+					loadModuleFromFlat(libsArray[i]);
+					loadModuleFromFlat('i5CommandComponent');
+				}else {
+					loadModuleForSSCE(libsArray[i]);
+				}
+			}
+		}
+	}
+	
+	function loadCSSFile() {
+		document.write('<link rel="stylesheet" type="text/css" href="/XMII/JavaScript/resources/default.css">');
+	}
+	
+	function mainLoad() {
+		loadUI5Core();
+		
+		var libToBeLoaded = getScriptParam("libs");
+		
+		for(var j=0;j<moduleArray.length;j++){
+		    var moduleName = moduleArray[j];
+		    loadModuleFromFlat(moduleName);
+		}
+		
+		loadSpecificLib(libToBeLoaded);
+		
+		//load css file
+		loadCSSFile();
+	};
+	
+	//removed isDebug, use miiModePath to cache the folder path
+	window.miiModePath = isDebug ? "original" : "minified";
+	
+	getModeAndVersionFromServer();
+})();

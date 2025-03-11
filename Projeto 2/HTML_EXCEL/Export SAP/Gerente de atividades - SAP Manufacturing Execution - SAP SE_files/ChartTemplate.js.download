@@ -1,0 +1,128 @@
+//document.write('<scr'+'ipt type="text/javascript" src="/XMII/JavaScript/com/sap/xmii/charttemplate/ChartPropertyConfig.js"></scr'+'ipt>');
+com.sap.xmii = com.sap.xmii ||{}; 
+
+com.sap.xmii.charttemplate = {
+	ChartTemplate : function(chartTemplateName){
+		//PRIVATE METHOD
+		var getChartConfigMetaData = function(chartTemplateName){
+			//var chartMetaDataURL = "/XMII/Catalog?mode=Load&class=Template&ObjectName="+chartTemplateName+"&content-type=text/json";
+			var chartMetaDataURL = com.sap.xmii.common.util.GenericConstants.CATALOG_URL_PREFIX+chartTemplateName+com.sap.xmii.common.util.GenericConstants.CONTENT_TYPE_URL_SUFFIX;
+			var chartMetaDataJSONStr = com.sap.xmii.common.util.MIIi5Util.getOData(chartMetaDataURL);
+			return chartMetaDataJSONStr;
+		} ;
+		
+		this.chartTemplateName = chartTemplateName;
+		//re-initialise overrides to new Object
+		this.overrides = {};
+		//var chartMetaDataJSONStr = getChartConfigMetaData(chartTemplateName);
+		//var chartConfig =  com.sap.xmii.common.util.MIIi5Util.evalJSONStr(chartMetaDataJSONStr);
+		var chartConfig = com.sap.xmii.common.util.chartConfig;
+	
+		if(chartConfig!=null && chartConfig.Display != undefined){
+			// Reset ERRORMESSAGE variable
+			if(!com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(com.sap.xmii.common.util.ERRORMESSAGE)){
+				com.sap.xmii.common.util.ERRORMESSAGE = "";
+			}
+			// Reset FCCHART variable
+			if(com.sap.xmii.common.util.FCCHART == true){
+				com.sap.xmii.common.util.FCCHART = false;
+			}
+			
+			//this.chartPropertyConfig = new com.sap.xmii.charttemplate.ChartPropertyConfig(chartConfig.Display,chartMetaDataJSONStr);
+			this.chartPropertyConfig = new com.sap.xmii.charttemplate.ChartPropertyConfig(chartConfig.Display);
+			var jsonDisplayObj = JSON.stringify(chartConfig.Display);
+			this.chartPropertyConfig.setAdditionalProps(jsonDisplayObj);
+		}else{
+			
+			//Commenting this for now.Since this is not the right way
+			var chartMetaDataJSONStr = getChartConfigMetaData(chartTemplateName);
+			var chartConfig =  com.sap.xmii.common.util.MIIi5Util.evalJSONStr(chartMetaDataJSONStr);
+			
+			this.chartPropertyConfig = new com.sap.xmii.charttemplate.ChartPropertyConfig(chartConfig.Display);
+			var jsonDisplayObj = JSON.stringify(chartConfig.Display);
+			this.chartPropertyConfig.setAdditionalProps(jsonDisplayObj);
+			
+			var message;
+			// For wrong Display template, assign  error message to this.fatalError and set this.FCChart
+			if(chartConfig.Display == undefined) {
+				message = com.sap.xmii.common.util.MessageBundle.getText("XMSG_DISPLAY") + " " + chartConfig.Rowsets.FatalError;
+				//alert(message);
+				//throw new com.sap.xmii.common.exception.MIIi5Exception(message);
+				com.sap.xmii.common.util.FCCHART = true;
+				com.sap.xmii.common.util.ERRORMESSAGE = message;
+			}
+			/*else {
+				message = com.sap.xmii.common.util.MessageBundle.getText("XMSG_DISPTEMP_NOT_LOADED");
+				throw new com.sap.xmii.common.exception.MIIi5Exception(message);
+			}*/
+			
+		}
+		if(com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(com.sap.xmii.common.util.ERRORMESSAGE)){
+			if(chartConfig.Display.Type == com.sap.xmii.common.util.GridPropertyConstants.I5GRID ||
+					chartConfig.Display.Type == com.sap.xmii.common.util.GridPropertyConstants.IGRID)
+				this.addGettersAndSetters(com.sap.xmii.common.util.GridPropertyConstants.I5GRID);
+			//TO BE FIXED --- some properties fail while getter/setters are created for e.g LowerControlLimitParam.1 --- removed all parameters with "." from SPCChartPropNames
+			else if(chartConfig.Display.Type == com.sap.xmii.common.util.SPCChartConstants.I5SPCCHART ||
+					chartConfig.Display.Type == com.sap.xmii.common.util.SPCChartConstants.ISPCCHART)
+				this.addGettersAndSetters(com.sap.xmii.common.util.SPCChartConstants.I5SPCCHART);
+			else
+				this.addGettersAndSetters(com.sap.xmii.common.util.ChartPropertyConstants.I5CHART);
+		}
+	}
+};
+
+com.sap.xmii.charttemplate.ChartTemplate.prototype = {
+		chartTemplateName:'',
+		chartPropertyConfig:'',
+		chartMetaDataJSONStr:'',
+		overrides : {},
+		getChartTemplateName:function(){
+			return this.chartTemplateName;
+		},
+		
+		getChartTemplateObject:function(){
+			return this.chartPropertyConfig;
+		},
+		getOverridesMap : function() {
+	    	return this.overrides;
+	    },
+		addGettersAndSetters:function(displayTemplateType){
+			var propertyList = '';
+			if(displayTemplateType == com.sap.xmii.common.util.GridPropertyConstants.I5GRID)
+				propertyList = com.sap.xmii.common.util.GridPropNames;
+			else if(displayTemplateType == com.sap.xmii.common.util.SPCChartConstants.I5SPCCHART)
+				propertyList = com.sap.xmii.common.util.SPCChartPropNames;
+			else
+				propertyList = com.sap.xmii.common.util.DisplayTempPropNames;
+			
+		    for (prop in propertyList) {
+			    var propName = propertyList[prop];
+			    var propValue = this.chartPropertyConfig.getProperty(propName);
+			    com.sap.xmii.common.util.MIIi5Util.defineProperty(this, propName,propValue);
+			  
+			    var getFnName = 'this.get' + propName;
+			    var funcnSynt = 'function(){ ';
+			    var returnSynt = 'return ';
+			    var getterFnToAssign = 'this.' + propName;
+			    var closingSyntax = '}';
+			    //Replacing eval code
+			  //eval(getFnName + '=' + funcnSynt +returnSynt + getterFnToAssign + closingSyntax);
+			    const actionToCall =  new Function("return "+ funcnSynt +returnSynt + getterFnToAssign + closingSyntax);
+			   this["get"+propName]  = actionToCall();
+			    //end of code
+			    // Create the Setter Function and assign with this.setTitle
+			    var setFnName = 'this.set' + propName;
+			    var setFuncnSynt = 'function(val){ ';
+			    var overrideProps = 'this.overrides["' + propName + '"] = val;';
+			    var setProp = 'this.chartPropertyConfig.setProperty(' + '\'' + propName + '\',val);';
+			    var setterFnToAssign = 'this.' + propName + '=' + 'val';
+			    //Replacing eval code
+			    //eval(setFnName + '=' + setFuncnSynt + overrideProps + setProp + setterFnToAssign + closingSyntax);
+			      const actionToCall2 =  new Function("return "+ setFuncnSynt + overrideProps + setProp + setterFnToAssign + closingSyntax);
+			   this["set"+propName]  = actionToCall2();
+			    //end of code
+			}
+		}
+}
+
+

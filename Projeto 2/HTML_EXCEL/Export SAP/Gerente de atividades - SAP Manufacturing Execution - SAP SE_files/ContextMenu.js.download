@@ -1,0 +1,245 @@
+document.write('<link rel="stylesheet" type="text/css" href="/XMII/JavaScript/resources/default.css">');
+com.sap.xmii.common.tools = com.sap.xmii.common.tools||{};
+
+var parentToolComponent = new com.sap.xmii.common.tools.AppToolBar();
+
+/*
+ * Context menu constructor
+ */
+com.sap.xmii.common.tools.ContextMenu = function() {};
+
+com.sap.xmii.common.tools.ContextMenu.target = '';
+com.sap.xmii.common.tools.ContextMenu.itemsMap = {};
+com.sap.xmii.common.tools.ContextMenu.childContainerMap = {};
+com.sap.xmii.common.tools.ContextMenu.parentContainerIds = '';
+com.sap.xmii.common.tools.ContextMenu.currentContainerId = '';
+com.sap.xmii.common.tools.ContextMenu.childContainerId = '';
+
+com.sap.xmii.common.tools.ContextMenu.createContextMenu = function(triggerId, menuItemsDetails, chartCompObj){
+	
+	var jQueryTriggerElement = null;
+	if(arguments.length > 3){
+		jQueryTriggerElement = $(arguments[3]);
+	}else{
+		jQueryTriggerElement = $("#"+triggerId);
+	}
+	jQueryTriggerElement.bind("contextmenu", function(e){
+		//pass event to chart
+		chartCompObj.originalEvent = e;
+		if(jQuery._data(document, "events") == undefined || jQuery._data(document, "events").mouseup == undefined) {
+			$(document).bind("mouseup", handleClick);
+			com.sap.xmii.common.tools.ContextMenu.itemsMap = {};
+			com.sap.xmii.common.tools.ContextMenu.childContainerMap = {};
+			$(".menu").remove(); 
+		}
+	    var newMenu = com.sap.xmii.common.tools.ContextMenu.buildMenu(menuItemsDetails, chartCompObj);
+			
+	    var winWidth;
+	    var winHeight;
+
+	    if ($(document).height() > $(window).height()) {
+	        // scroll bar
+		    winWidth = $(document).width();
+		    winHeight = $(document).height();
+	    } else {
+		    winWidth = $(window).width();
+		    winHeight = $(window).height();
+	
+	    }
+			
+	    // Menu not off screen to right
+	    if ((e.pageX + newMenu.outerWidth()) > winWidth)
+	        newMenu.css("left", winWidth - newMenu.outerWidth());
+	    else 
+	        newMenu.css("left", e.pageX);
+			
+	    // Menu not off screen at bottom
+	    if ((e.pageY + newMenu.outerHeight()) > winHeight) 
+	        newMenu.css("top", winHeight - newMenu.outerHeight());
+	    else
+	        newMenu.css("top", e.pageY);
+	    newMenu.css("zIndex", 100);
+			
+	    newMenu.show();
+	    
+	    var evt = document.createEvent(com.sap.xmii.common.util.Events.MOUSE_EVENTS);
+		evt.initMouseEvent(com.sap.xmii.common.util.Events.CLICK, true, true, window, 1, evt.screenX, evt.screenY,
+				evt.clientX, evt.clientY, evt.ctrlKey, evt.altKey, evt.shiftKey, evt.metaKey,
+				null, evt.relatedTarget); // Simulate mouse up event
+		evt.simulatedClick = true;
+		e.currentTarget.dispatchEvent(evt);
+		
+		return false; 
+	}); 
+}
+
+/*$(document).bind("mousedown", function(e) {
+	if (e.which == 1) { 
+		$(".menu").hide(); 
+	} else if(e.which == 3) {
+		com.sap.xmii.common.tools.ContextMenu.itemsMap = {};
+		com.sap.xmii.common.tools.ContextMenu.childContainerMap = {};
+		$(".menu").remove(); 
+	}
+});*/
+$(document).bind("mouseup", handleClick);
+//Clears all menus when click the document (as an example)
+function handleClick(e) {
+	if (e.which == 1) { 
+		$(".menu").hide(); 
+	} else if(e.which == 3) {
+		com.sap.xmii.common.tools.ContextMenu.itemsMap = {};
+		com.sap.xmii.common.tools.ContextMenu.childContainerMap = {};
+		$(".menu").remove(); 
+	}
+}
+
+//find all the parent containers in the hierarchy
+com.sap.xmii.common.tools.ContextMenu.findAllParentContainerIds = function (currenuContainerId) {
+	for(var compId in com.sap.xmii.common.tools.ContextMenu.childContainerMap) {
+		if(com.sap.xmii.common.tools.ContextMenu.childContainerMap[compId] == currenuContainerId) {
+			if($('#' + compId)[0].parentNode != undefined) {
+				var parentContainerId = $('#' + compId)[0].parentNode.id;
+				if(com.sap.xmii.common.tools.ContextMenu.parentContainerIds == '')
+					com.sap.xmii.common.tools.ContextMenu.parentContainerIds = parentContainerId;
+				else
+					com.sap.xmii.common.tools.ContextMenu.parentContainerIds = com.sap.xmii.common.tools.ContextMenu.parentContainerIds + 
+						',' + parentContainerId;
+				
+				com.sap.xmii.common.tools.ContextMenu.findAllParentContainerIds(parentContainerId);
+			}
+		}
+	}
+};
+
+//Takes a menu variable and the target element, builds the HTML and returns a reference to the menu.
+com.sap.xmii.common.tools.ContextMenu.buildMenu = function (menuItemsDetails, target) {
+    if ($("#" + menuItemsDetails.name).length) {
+        var m = $("#" + menuItemsDetails.name);
+        m.hide();
+        return m;
+    }
+    
+    var contextMenu = com.sap.xmii.common.tools.ContextMenu.createMenuItems(menuItemsDetails.name, menuItemsDetails.items, target);
+    $("body").append(contextMenu);  
+    
+    return $(contextMenu);
+};
+
+com.sap.xmii.common.tools.ContextMenu.createMenuItems = function(menuName, items, target) {
+	
+	com.sap.xmii.common.tools.ContextMenu.itemsMap[menuName] = items;
+	// Build overall menu
+	var contextMenu = document.createElement("div");
+	contextMenu.className = "menu";
+	contextMenu.target = target;
+	contextMenu.id = menuName;
+	var childrenIds = '', isActive = false;
+	// Build options for menu based on menu variable
+	for (var i = 0; i < items.length; i++) {
+		var item = document.createElement("div");
+		
+		if(items[i].active == true) {
+			item.className = "menuOption active";
+			isActive = true;
+		} else if(items[i].active == false) {
+			item.className = "menuOption inactive";
+			isActive = false;
+		} 
+		//Replacing eval code
+		//else if(eval("target." + items[i].active)) 
+		else if(target[items[i].active])
+		{
+			item.className = "menuOption active";
+			isActive = true;
+		} else {
+			item.className = "menuOption inactive";
+			isActive = false;
+		}
+		
+		item.id = menuName + '_' + (i+1);
+		if(childrenIds == '')
+			childrenIds = item.id;
+		else
+			childrenIds = ',' + item.id;
+		
+		com.sap.xmii.common.tools.ContextMenu.itemsMap[item.id] = items[i].items;
+		if(items[i].items != undefined && items[i].items.length > 0) {
+			//with sub menu
+			item.innerHTML = jQuery.sap.encodeHTML(items[i].text + ' >>');
+		} else {
+			item.innerHTML = jQuery.sap.encodeHTML(items[i].text);
+		}
+		
+		com.sap.xmii.common.tools.ContextMenu.target = target;
+		item.onmouseover = com.sap.xmii.common.tools.ContextMenu.createSubMenu;
+		if(items[i].command != undefined && isActive == true) {
+			//Replacing eval code
+			//item.onclick = eval("target." + items[i].command);
+			item.onclick = target[items[i].command];
+			///end of code
+		}
+		//item.onclick = items[i].command;
+		contextMenu.appendChild(item);
+	}
+	return contextMenu;
+};
+
+com.sap.xmii.common.tools.ContextMenu.createSubMenu = function(event) {
+	var sourceElementId = event.srcElement.id;
+	var menuId = sourceElementId + '_' + 1;
+	com.sap.xmii.common.tools.ContextMenu.childContainerId = menuId;
+	if(com.sap.xmii.common.tools.ContextMenu.itemsMap[sourceElementId] != undefined) {
+		if(!(menuId in com.sap.xmii.common.tools.ContextMenu.itemsMap) && document.getElementById(sourceElementId).className != "menuOption inactive") {
+			var contextMenu = com.sap.xmii.common.tools.ContextMenu.createMenuItems(
+					menuId, com.sap.xmii.common.tools.ContextMenu.itemsMap[sourceElementId], 
+					com.sap.xmii.common.tools.ContextMenu.target);
+			$("body").append(contextMenu);  
+			
+			var newMenu = $(contextMenu);
+			com.sap.xmii.common.tools.ContextMenu.childContainerMap[sourceElementId] = newMenu[0].id;
+			
+			var leftCoordinate;
+			var topCoordinate = event.srcElement.offsetParent.offsetTop + event.srcElement.offsetTop;
+			var docWidth = event.srcElement.offsetParent.offsetLeft + event.srcElement.clientWidth + newMenu.outerWidth();
+			if (docWidth > $(window).width()){
+				//scroll bar
+				leftCoordinate = event.srcElement.offsetParent.offsetLeft - newMenu.outerWidth();		
+			} else {
+				leftCoordinate = event.srcElement.offsetParent.offsetLeft + event.srcElement.clientWidth;
+			}
+			newMenu.css("left", leftCoordinate);
+			newMenu.css("top", topCoordinate);
+			newMenu.css("zIndex", 100);
+			
+			//show child container
+			newMenu.show();
+		} 
+	} else {
+		com.sap.xmii.common.tools.ContextMenu.childContainerMap[sourceElementId] = undefined;
+	}
+	//get current container's id
+	com.sap.xmii.common.tools.ContextMenu.currentContainerId = $('#' + sourceElementId)[0].parentNode.id;
+	
+	//load parents
+	com.sap.xmii.common.tools.ContextMenu.parentContainerIds = '';
+	com.sap.xmii.common.tools.ContextMenu.findAllParentContainerIds(com.sap.xmii.common.tools.ContextMenu.currentContainerId);
+	
+	//all containers to be shown
+	var allIdsToShow = com.sap.xmii.common.tools.ContextMenu.currentContainerId + ',' +
+					   com.sap.xmii.common.tools.ContextMenu.childContainerId + ',' +
+					   com.sap.xmii.common.tools.ContextMenu.parentContainerIds;
+				
+	var allIdsToShowArray = allIdsToShow.split(',');
+	
+	var allContainers = $(".menu");
+	
+	for(var i=0; i<allContainers.length; i++) {
+		if(allIdsToShowArray.indexOf(allContainers[i].id) > -1 ) {
+			$('#' + allContainers[i].id).show();
+		} else {
+			$('#' + allContainers[i].id).hide();
+		}
+	}
+	return false; 
+};

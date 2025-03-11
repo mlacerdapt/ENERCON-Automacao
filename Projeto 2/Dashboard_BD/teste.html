@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fluxo de Construção</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 20px;
+        }
+        .stage {
+            display: inline-block;
+            width: 150px;
+            padding: 10px;
+            margin: 10px;
+            border-radius: 10px;
+            font-weight: bold;
+            color: white;
+        }
+        .done {
+            background-color: green;
+        }
+        .pending {
+            background-color: red;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>Fluxo de Construção</h2>
+    
+    <input type="file" id="fileInput" />
+    <div id="stagesContainer"></div>
+
+    <script>
+        document.getElementById('fileInput').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            const reader = new FileReader();
+
+            reader.onload = function(e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const sheetName = workbook.SheetNames[0]; // Pega a primeira aba
+                const sheet = workbook.Sheets[sheetName];
+                const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+                // Limpa o conteúdo antes de exibir os novos dados
+                document.getElementById('stagesContainer').innerHTML = "";
+
+                jsonData.forEach((row, index) => {
+                    if (index > 0) { // Ignora o cabeçalho
+                        const stageName = row[0]; // Nome da etapa
+                        const status = row[1]; // Status (0 ou 1)
+
+                        const stageDiv = document.createElement('div');
+                        stageDiv.className = `stage ${status == 1 ? "done" : "pending"}`;
+                        stageDiv.textContent = stageName;
+                        document.getElementById('stagesContainer').appendChild(stageDiv);
+                    }
+                });
+            };
+
+            reader.readAsArrayBuffer(file);
+        });
+    </script>
+
+</body>
+</html>

@@ -1,0 +1,198 @@
+com.sap.xmii.chart.ui5 = com.sap.xmii.chart.ui5 || {};
+
+var parentChartComponent = new com.sap.xmii.chart.ui5.ChartComponent();
+
+/**
+ * GaugeChart Constructor
+ * 
+ * @param chartConfig
+ * @param qryResultData
+ */
+com.sap.xmii.chart.ui5.GaugeChart = function(chartConfig, model) {
+	this.chartPropertyConfig = chartConfig;
+	this.chartModel = model;
+	this.chartCompnModel = new com.sap.xmii.chart.model.ChartComponentModel(this.chartModel, this.chartPropertyConfig);
+	this.parent.init.call(this, chartConfig, model, this);
+	this.addGettersAndSetters();
+	this.setShowTimeBar(false);
+	this.setShowLegend(false);
+	this.setShowToolTip(false);
+	//this.setCompatibilityMode(true);
+	//sap ui5 library uses this flag to the load the chart modules
+	window.__sap_v2 = undefined;
+};
+
+com.sap.xmii.chart.ui5.GaugeChart.prototype = parentChartComponent;
+com.sap.xmii.chart.ui5.GaugeChart.prototype.constructor = com.sap.xmii.chart.ui5.GaugeChart;
+com.sap.xmii.chart.ui5.GaugeChart.prototype.parent = com.sap.xmii.chart.ui5.ChartComponent.prototype;
+
+/**
+ * Creates a element of UI5 GaugeChart with Data attached to it
+ * 
+ * @return
+ */
+com.sap.xmii.chart.ui5.GaugeChart.prototype.create = function() {
+		 var cssText = '.v-gridline{  stroke: ' + this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.GRID_LINE_COLOR) + '; } .v-background-body{  fill: ' 
+						+ this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.CHART_BACKGROUND_COLOR) +'; }';
+         this.ui5ChartElement = new sap.viz.ui5.controls.VizFrame({
+             'vizType' : 'sap.viz.ext.gauge',
+             'width' : this.width,
+     		 'height' : this.height,
+     		 'css' : cssText
+         });    
+
+         this.ui5ChartElement.addFeed(new sap.viz.ui5.controls.common.feeds.FeedItem({
+             'uid' : "sap.viz.ext.module.GaugeModule.MS1",
+             'type' : "Measure",
+             'values' : []
+         }));
+         
+         this.ui5ChartElement.addFeed(new sap.viz.ui5.controls.common.feeds.FeedItem({
+             'uid' : "sap.viz.ext.module.GaugeModule.DS1",
+             'type' : "Dimension",
+             'values' : []
+         }));
+         
+         //For gauge dial to work in case of special characters in SourceColumnName i.e when SourceColumnName and Name are different --> Name should be used
+         var valColumns = this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.VALUE_COLUMNS);
+         var measures = null;
+         if(this.chartModel != undefined || this.chartModel != null) {
+        	 measures = this.getMeasures();
+         }
+         // Backwards compatibility with iChart applet
+         if (this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.GAUGE_COLUMNS) == undefined) {
+        	 var verticalGridLineCount = this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.VERTICAL_GRID_LINE_COUNT);
+        	 this.chartPropertyConfig.setProperty(com.sap.xmii.common.util.ChartPropertyConstants.GAUGE_COLUMNS, verticalGridLineCount);
+         }
+
+         // Backwards compatibility with iChart applet
+         if (this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.SHOW_GRID_LINE) == undefined) {
+        	 var showHorizontalGrid = (this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.SHOW_HORIZONTAL_GRID) == true);
+        	 var showVerticalGrid = (this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.SHOW_VERTICAL_GRID) == true);
+        	 this.chartPropertyConfig.setProperty(com.sap.xmii.common.util.ChartPropertyConstants.SHOW_GRID_LINE, (showHorizontalGrid || showVerticalGrid));
+         }
+         
+         // Backwards compatibility with iChart applet
+         if (this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.GRID_LINE_COLOR) == undefined) {
+        	 var gridLineColor = this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.HORIZONTAL_GRID_COLOR);
+        	 
+        	 if ((this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.SHOW_HORIZONTAL_GRID) != true) 
+        			 && (this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.SHOW_VERTICAL_GRID) == true)) {
+        		 gridLineColor = this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.VERTICAL_GRID_COLOR);
+        	 }
+        	 
+        	 this.chartPropertyConfig.setProperty(com.sap.xmii.common.util.ChartPropertyConstants.GRID_LINE_COLOR, gridLineColor);
+         }
+         
+         // Backwards compatibility with iChart applet
+         if (this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.MAJOR_TICKS) == undefined) {
+        	 var majorTicks = this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.XAXIS_MAJOR_TICK_COUNT);
+        	 this.chartPropertyConfig.setProperty(com.sap.xmii.common.util.ChartPropertyConstants.MAJOR_TICKS, majorTicks);
+         }
+         
+         // Backwards compatibility with iChart applet
+         if (this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.MINOR_TICKS) == undefined) {
+        	 var minorTicks = this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.XAXIS_MINOR_TICK_COUNT);
+        	 this.chartPropertyConfig.setProperty(com.sap.xmii.common.util.ChartPropertyConstants.MINOR_TICKS, minorTicks);
+         }
+         
+         var gaugeProperties = {
+                 'Gauge_Module': {
+                     'label' : this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.STATIC_LABEL) || [],
+                     'borderColor' : this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.CHART_BORDER_COLOR),
+                     'min' : parseFloat(this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.XAXIS_START)),
+                     'max' : parseFloat(this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.XAXIS_END)),
+                     'unit' : this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.UNIT_LABEL),
+                     'unitFontSize' : parseFloat(this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.XAXIS_FONT_SIZE)),
+                     'unitFont' : this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.XAXIS_FONT_FACE),
+                     'unitFontStyle' : this.chartPropertyConfig.getXAxisFontStyle(),
+                     'unitFontWeight' : this.chartPropertyConfig.getXAxisFontWeight(),
+                     'unitColor' : this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.XAXIS_LABEL_COLOR),
+                     'glossy' : this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.GLOSSY),
+                     'majorTicks' : this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.MAJOR_TICKS),
+                     'minorTicks' : this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.MINOR_TICKS),
+                     'tickOrNot' : JSON.parse(this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.SHOW_XAXIS)),
+                     'tickColor' : this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.XAXIS_TICK_COLOR),
+                     'digitOrNot' : this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.SHOW_XAXIS_LABEL),
+                     'zones':   this.formatZones(this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.COLOR_INDICATOR)),
+                     'type' : this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.CHART_SHAPE),
+                     'measureName': this.splitStringValue(measures, ","),
+                     'numberFormatter': this.XAxisNumberFormat,
+                     'gaugeRows' : parseInt(this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.GAUGE_ROWS)),
+                     'gaugeColumns' : parseInt(this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.GAUGE_COLUMNS)),
+                     'showGrid' : this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.SHOW_GRID_LINE),
+                     'gridLineColor' : this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.GRID_LINE_COLOR),
+                     'backgroundColor' : this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.CHART_BACKGROUND_COLOR),
+                     'labelStr': this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.LABEL_COLUMNS),
+                     'naLabel' : com.sap.xmii.common.util.MessageBundle.getText("XFLD_NOT_AVAILABLE"),
+                     'transparent' : JSON.parse(this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.BACKGROUND_TRANSPARENT)),
+                     'filling' : this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.FILLING),
+                     'useFillingColor' : this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.USE_FILLING_COLOR),
+                     'fillingColor' :this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.FILLING_COLOR),
+                     'opacity' :this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.OPACITY)
+             }
+         };
+         
+         this.ui5ChartElement.setVizProperties(gaugeProperties);
+  
+         
+         this.ui5ChartElement.setDataset(this.chartCompnModel.dataset);
+         this.ui5ChartElement.setModel(this.chartCompnModel.oModel);
+         
+		 return this.ui5ChartElement;
+	};
+
+com.sap.xmii.chart.ui5.GaugeChart.prototype.splitStringValue = function(stringValue, separator) {
+	
+	function normalizeMeasureName(measureName) {
+		
+	}
+	
+	if (stringValue !== undefined && stringValue !== null && stringValue !== "") {
+		return stringValue.split(separator);
+	}
+	return [];
+};
+	
+com.sap.xmii.chart.ui5.GaugeChart.prototype.formatZones = function(data) {
+		var zoneObjectA = [];
+		var zoneStrA = this.splitStringValue(data, "_");
+		for(var key in zoneStrA){
+			var zoneObject = {};
+			var valueArr = zoneStrA[key].split(",");
+			zoneObject.from = Number(valueArr[1]);
+			zoneObject.to = Number(valueArr[2]);
+			zoneObject.color = valueArr[3];
+			zoneObjectA.push(zoneObject);
+		}
+		return zoneObjectA;
+	};
+	
+com.sap.xmii.chart.ui5.GaugeChart.prototype.getMeasures = function() {
+	var valColumns = this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.VALUE_COLUMNS);
+	if (valColumns != null && valColumns != '') {
+         var valueColumnArray = valColumns.split(",");
+         var colArray = this.chartModel.getModelMetaData().getColumns().Column;
+         var bFirst = true;
+         var measures = null;//This is a comma-separated containing valuecolumn names (ColumnItem.Name)  --> Source column has the actual column name, Name is different and that is used in Rows
+         for (var currColumnName in valueColumnArray) {
+ 				var measureName = valueColumnArray[currColumnName];
+ 				//PCo delimiter fix, source column has the actual column name, Name is different and that is used in Rows
+ 				var colItem = colArray.filter(function(item) {
+ 					if(item.SourceColumn === measureName){ //checking if special characters are present in measureName
+ 						return item;
+ 					}
+ 				});
+ 				if(colItem.length != 0) {
+ 					measureName = colItem[0].Name;
+ 				}
+ 				if(bFirst) {
+ 					measures = measureName;
+ 					bFirst = false;
+ 				} else {
+ 					measures = measures + "," + measureName;
+ 				}
+         }
+     }
+	return measures;
+};

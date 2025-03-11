@@ -1,0 +1,1050 @@
+com.sap.xmii.common.tools = com.sap.xmii.common.tools||{};
+
+var parentToolComponent = new com.sap.xmii.common.tools.AppToolBar();
+
+/**
+ * TIMEBAR CONSTRUCTOR
+ * @param tWidth
+ */
+com.sap.xmii.common.tools.TimeBar = function(tWidth, thisObj){
+	jQuery.sap.require("sap.ui.ux3.ToolPopup");
+	jQuery.sap.require("sap.ui.core.IconPool");
+	var originalRows, datepickerId; 
+	
+	//time bar starts
+	var toolBarId = com.sap.xmii.common.util.GenericConstants.TOOLBAR + com.sap.xmii.common.util.MIIi5Util.generateGuid();
+	
+	/*function findIndexByKeyValue(obj, key, value)
+	{
+	    for (var i = 0; i < obj.length; i++) {
+	        if (obj[i][key] == value) {
+	            return i;
+	        }
+	    }
+	    return null;
+	}*/
+	
+	/*function zoomPress() {
+		var sIndex = thisObj.getChartObject().startDate;
+		var lIndex = thisObj.getChartObject().endDate;
+		zoomData(sIndex, lIndex);
+		thisObj.getTimeBar().toggleTimeBarOpener(false);
+		thisObj.getTimeBar().zoomResetBtn.setEnabled(true);
+	};*/
+	
+	this.zoomInToSelectedArea = function() {
+		var sIndex = thisObj.getChartObject().startDate;
+		var lIndex = thisObj.getChartObject().endDate;
+		zoomData(sIndex, lIndex);
+		thisObj.getTimeBar().toggleTimeBarOpener(false);
+		//show the reset zoom button
+		thisObj.getChartObject().showResetZoom = true;
+	};
+	
+	function placeResetZoomBtn() {
+		var width = (d3.select('#'+thisObj.chartPosId+' .v-m-plot rect')[0])[0].getAttribute('width');
+		
+		var exists = $('#'+thisObj.chartPosId+' .v-m-plot #mii-resetzoom').length;
+		var resetzoomBtn;
+		if(exists == 0) {
+			resetzoomBtn = d3.select('#'+thisObj.chartPosId+' .v-m-plot').append('g').attr("id","mii-resetzoom");
+			
+			resetzoomBtn.append('rect').attr('cursor','pointer').attr('x',width-80).attr('y',7).attr('height',24).attr('width',74).attr('fill','#f7f7f7').attr('stroke','#cccccc').attr('stroke-width',1);
+			
+			resetzoomBtn.append('text').attr("fill",'#333333').attr("font-size","12").attr("font-weight","normal").attr('cursor','pointer').attr('x',width-43).attr('y',20).attr('dominant-baseline','middle').attr('text-anchor','middle').text("Reset Zoom");
+			
+			resetzoomBtn.on('click',function() {alert("hi");});
+		}
+
+	} 
+	
+	/*var zoomBtnId = "zoom_"+thisObj.chartPosId;
+	this.zoomInBtn = new sap.ui.commons.Button(zoomBtnId, {
+		//text : 'Zoom',//com.sap.xmii.common.MessageBundle.getText("XBUT_DISPLAY_TIMEBAR"),
+		icon : sap.ui.core.IconPool.getIconURI("zoom-in"),
+		lite : true,
+		enabled : false,//!JSON.parse(thisObj.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.ChartPropertyConstants.AUTO_REFRESH)) == true,
+		press : function() {
+			zoomPress();
+	}
+	});*/
+	
+	this.resetZoom = function() {
+		var myArray = thisObj.getChartObject().chartModel.getModelData().getRows();
+		sIndex = 0;
+		lIndex = myArray.length - 1; 
+		zoomData(sIndex, lIndex);
+		thisObj.getTimeBar().toggleTimeBarOpener(true);
+		$('#'+thisObj.chartPosId+' .v-m-plot #mii-resetzoom').remove();
+		thisObj.getChartObject().showResetZoom = false;
+		//thisObj.getTimeBar().zoomResetBtn.setEnabled(false);
+		//thisObj.getTimeBar().zoomInBtn.setEnabled(false);
+	};
+	
+	function zoomReset() {
+		var myArray = thisObj.getChartObject().chartModel.getModelData().getRows();
+		sIndex = 0;
+		lIndex = myArray.length - 1; 
+		zoomData(sIndex, lIndex);
+		thisObj.getTimeBar().toggleTimeBarOpener(true);
+		thisObj.getTimeBar().zoomResetBtn.setEnabled(false);
+		//thisObj.getTimeBar().zoomInBtn.setEnabled(false);
+	};
+	
+	/*var zoomResetBtnId = "zoomReset_"+thisObj.chartPosId;
+	this.zoomResetBtn = new sap.ui.commons.Button(zoomResetBtnId, {
+		text : 'Reset Zooming',//com.sap.xmii.common.MessageBundle.getText("XBUT_DISPLAY_TIMEBAR"),
+		icon : sap.ui.core.IconPool.getIconURI("reset"),
+		lite : true,
+		enabled : false,//!JSON.parse(thisObj.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.ChartPropertyConstants.AUTO_REFRESH)) == true,
+		press : function() {
+			zoomReset();
+	}
+	});*/
+	
+	this.timeBarLayout = new sap.ui.commons.Toolbar(toolBarId, {
+		width : thisObj.chartWidth
+	}).addStyleClass("leftAlign");
+	this.timeBarLayout.setDesign(sap.ui.commons.ToolbarDesign.Standard);
+	
+	var timeBarId = com.sap.xmii.common.util.MIIi5Util.generateGuid();
+	var toolPopupId = com.sap.xmii.common.util.GenericConstants.TOOLPOPUP + com.sap.xmii.common.util.MIIi5Util.generateGuid();
+
+	var vizType = thisObj.getChartTemplateObject().chartConfig.Type;
+
+	var bApplyStartEndDateBtnClicked = false;
+
+	var timeBarOpener = new sap.ui.commons.Button(timeBarId, {
+		text : com.sap.xmii.common.util.MessageBundle.getText("XBUT_DISPLAY_TIMEBAR"),
+		icon : sap.ui.core.IconPool.getIconURI("history"),
+		lite : true,
+		enabled : !JSON.parse(thisObj.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.AUTO_REFRESH)) == true,
+		press : function() {
+		if(tp5.isOpen()) {
+			thisObj.getChartLayout().removeDependent(tp5);
+			this.setText(com.sap.xmii.common.util.MessageBundle.getText("XBUT_DISPLAY_TIMEBAR"));
+			tp5.close();
+		} else {
+			thisObj.getChartLayout().addDependent(tp5);
+			openPopupAndSetStyle();
+		}
+	}
+	});
+
+	this.toggleTimeBarOpener = function(newState) {
+		if(newState == true) {
+			timeBarOpener.setEnabled(true);
+		} else {
+			timeBarOpener.setEnabled(false);
+		}
+		timeBarOpener.setText(com.sap.xmii.common.util.MessageBundle.getText("XBUT_DISPLAY_TIMEBAR"));
+		if(tp5.isOpen()) {
+			thisObj.getChartLayout().removeDependent(tp5);
+			tp5.close();
+		}
+	};
+
+	function openPopupAndSetStyle() {
+		var popupWidth = $('#' + toolBarId)[0].offsetWidth - 20;
+		var chartPosition = $('#' + timeBarId).offset();
+		var popupTop = chartPosition.top - 83;
+		if(popupWidth < 500)
+			tp5.addStyleClass("smallPopup");
+		else if(popupWidth < 700)
+			tp5.addStyleClass("mediumPopup");
+		else
+			tp5.addStyleClass("largePopup");
+		tp5.open(sap.ui.core.Popup.Dock.BeginBottom, sap.ui.core.Popup.Dock.BeginTop);
+		
+		//in UI5 1.31, it can't handle some parent popup relationships. It may cause some serious error.
+		//So I add some code to inital the childPops mannualy.
+		if (tp5.oPopup && !tp5.oPopup.mAssociations['childPopups']) {
+			tp5.oPopup.mAssociations['childPopups'] = [];
+		}
+		
+		//$('#' + toolPopupId).css( {width:popupWidth} );
+		//$('#' + toolPopupId).removeClass('sapUiInverted-CTX');
+		
+//		changeBackGroundColor(skipPrevButton);
+//		changeBackGroundColor(previousButton);
+//		changeBackGroundColor(nextButton);
+//		changeBackGroundColor(skipNextButton);
+//		changeBackGroundColor(endButton);
+		timeBarOpener.setText(com.sap.xmii.common.util.MessageBundle.getText("XBUT_HIDE_TIMEBAR"));
+		$('#' + sliderId)[0].style.marginRight = '0px';
+		$('#' + sliderId)[0].style.paddingTop = '10px';
+	}
+
+	function changeBackGroundColor(uiComponent) {
+		//	$('#' + uiComponent.sId).css({background : '#DFDFDF'});
+	}
+
+	timeBarOpener.setIcon(sap.ui.core.IconPool.getIconURI("history"));
+	
+	var layout = new sap.ui.layout.ResponsiveFlowLayout();
+	var timefieldLayout =  new sap.ui.layout.Grid({
+		containerQuery: true,
+		vSpacing: 0,
+		hSpacing: 0.5
+			});
+
+	
+	timefieldLayout.addStyleClass("sapUiSizeCompact");
+	
+	var tp5 = new sap.ui.ux3.ToolPopup({
+		id : toolPopupId,
+		content : [ layout, timefieldLayout ],
+		opener : timeBarOpener,
+		width: "100%"
+	});
+	//width: "80%" //This is kept 100%, the change from 141PA was 80%--> clarify if intentional
+	if(sap.ui.Device.system.desktop)
+		tp5.addStyleClass("sapUiSizeCompact");
+	this.popup = tp5;
+
+	this.timeBarLayout.addItem(timeBarOpener);
+	
+	//this.timeBarLayout.addItem(this.zoomResetBtn);
+
+	//No data scenario
+	if(thisObj.model != undefined && thisObj.model.getModelData().getRows(0) != undefined && thisObj.model.getModelData().getRows(0) != null && thisObj.model.getModelData().getRows(0).length > 0){
+		var timeZoneInfo = com.sap.xmii.common.util.MIIi5Util.extractTimeZoneInfo(thisObj.model.getModelData().getStartDate()); //+0530 or -0800
+		var dateFormatter = com.sap.xmii.common.util.MIIi5Util.getDateFormatter(com.sap.xmii.common.util.dateFormats.XML_FORMAT_TIMEZONE_OFFSET);
+		
+		if(thisObj.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.AUTO_REFRESH) === false) { 	
+			this.toggleTimeBarOpener(true);
+		}
+		//Get value if the query attached is a TimeBased Query
+		var timeBarVisible = thisObj.queryTemplate.isTimeBasedQuery();
+		var allowFuture = false;
+
+		//when a URL is passed instead of a query template, then time bar should be invisible as we do not know if the query is Time Based or not
+		if(thisObj.queryTemplate.getQueryObject().getQueryType() === undefined) { 
+			timeBarVisible = false;
+		} else {
+			allowFuture = thisObj.queryTemplate.getQueryObject().getAllowFuture();
+		}
+
+		// Private functions begin here
+		
+		//This function extracts the date from XML date format and returns javascript date object
+		function extractJavascriptDate(xmlDate) {
+			var splitDate = xmlDate.split("T"); //result: ["2013-08-23", "16:46:51+0530"]
+			var splitDateAgain = splitDate[0].split("-"); //result: ["2013", "08", "23"]
+			var splitTimesZone = splitDate[1].split("+"); //result: ["16:46:51", "0530"]
+			var splitTimestamp = splitTimesZone[0].split(":"); //result: ["16", "46", "51"]
+			var month = '' + Number(splitDateAgain[1]) - 1;
+			return new Date(splitDateAgain[0], month, splitDateAgain[2], splitTimestamp[0], splitTimestamp[1], splitTimestamp[2]);
+		}
+
+		//validate changes in startdate
+		function validateStartDate() {
+			var currentSDate = validateDate(startDateTime.getDateValue());
+			//make start and end date same for endDate < startDate
+			if(endDateTime.getDateValue().getTime() < currentSDate.getTime()) {
+				endDateTime.setDateValue(startDateTime.getDateValue());//ed = sd
+			} else {
+				startDateTime.setDateValue(currentSDate);
+			}
+		}
+		
+		//validate changes in enddate
+		function validateEndDate() {
+			var currentEDate = validateDate(endDateTime.getDateValue());
+			//make start and end date same for endDate < startDate
+			if(currentEDate.getTime() < startDateTime.getDateValue().getTime()) {
+				endDateTime.setDateValue(startDateTime.getDateValue());//ed = sd
+			} else {
+				endDateTime.setDateValue(currentEDate);
+			}
+		}
+
+		//extract month,year etc from date and check if future dates are applicable
+		function validateDate(date) {
+			if(allowFuture === com.sap.xmii.common.util.GenericConstants.FALSE) {
+				var currentDate = new Date();
+				//validate : if date provided is a future date then set start/end date to current date
+				if(date.getTime() > currentDate.getTime()) {
+					jQuery.sap.log.info("Date is a future date but allow future is false");
+					date = currentDate;
+				}
+			}
+			return date;
+		}
+
+		//extract hours,minutes etc from date and check if future dates are applicable
+		function validateTime(timeAsString) {
+			var currentTime = timeAsString;
+
+			var timeArr = timeAsString.split(":");
+			var hh = timeArr[0];
+			var mm = timeArr[1];
+			var ss = timeArr[2];
+
+			if(allowFuture === com.sap.xmii.common.util.GenericConstants.FALSE) {
+				//validate : if time provided is a future time then set starttime to current time
+				var cd = new Date();
+				var cHours = cd.getHours();
+				var cMinutes = cd.getMinutes();
+				var cSeconds = cd.getSeconds();
+				if(!(hh <= cHours && mm <= cMinutes && ss <= cSeconds)) {
+					jQuery.sap.log.info("Time is a future time but allow future is false");
+					cHours = cHours <= 9 ? "0"+cHours : cHours;
+					cMinutes = cMinutes <= 9 ? "0"+cMinutes : cMinutes;
+					cSeconds = cSeconds <= 9 ? "0"+cSeconds : cSeconds;
+					currentTime = cHours+":"+cMinutes+":"+cSeconds;
+				}
+			}
+			jQuery.sap.log.info("currentTime --> "+currentTime);
+			return currentTime;
+		}
+		
+		//POSITION is string like "1.00 (1)" and not number, hence extract number from the string
+		function extractInteger(stringValue) {
+			if(typeof stringValue == "string") {
+				if(stringValue.indexOf(" ")) {
+					return Number(stringValue.substring(0, stringValue.indexOf(" ")));
+				} else {
+					return Number(stringValue);
+				}
+			} else
+				return stringValue;
+	    }
+
+		function updateSlider() {
+			var labels = new Array();
+			var rows;
+			if(vizType === 'i5SPCChart') {
+				if(thisObj.model.getModelData().getRows(1) != undefined){
+					rows = thisObj.model.getModelData().getRows(1);
+					if(rows.length > 0) {
+						oSlider.setValue(extractInteger(rows[0].POSITION));
+						oSlider.setValue2(extractInteger(rows[rows.length - 1].POSITION));
+					}
+				}
+
+			} else {
+				rows = thisObj.model.getModelData().getRows();
+				oSlider.setValue(0);
+				oSlider.setValue2(rows.length - 1);
+			}
+			if(rows != null && rows != undefined){
+				for(var i=0;i<rows.length;i++){
+					if(rows[i].DateTime != null && rows[i].DateTime != undefined)
+					labels[i] = rows[i].DateTime;
+				}
+				oSlider.setMax(rows.length-1);
+				oSlider.setTotalUnits(rows.length-1);
+				oSlider.setLabels(labels);
+			}
+		}
+
+		function updateDatePickers() {
+			if(!bApplyStartEndDateBtnClicked) {
+				var sd, ed;
+				var startDateIndex = oSlider.getValue();
+				var endDateIndex = oSlider.getValue2();
+				if(vizType === 'i5SPCChart') {
+					//When DateTime field is not mapped in Attribute Columns of DataMapping--> row.DateTime --> fails, hence the below check
+					if(thisObj.getOriginalRows()[startDateIndex - 1].DateTime === undefined)
+						return;
+					var stDate = thisObj.getOriginalRows()[startDateIndex - 1].DateTime + timeZoneInfo;
+					sd = com.sap.xmii.common.util.MIIi5Util.formatDateTime(stDate);
+					if(thisObj.getOriginalRows()[endDateIndex - 1].DateTime === undefined)
+						return;
+					var eDate = thisObj.getOriginalRows()[endDateIndex - 1].DateTime + timeZoneInfo; 
+					ed = com.sap.xmii.common.util.MIIi5Util.formatDateTime(eDate);
+				} else {
+					//on clicking navigation buttons in TimeBar End date gets set as NaN-NaN-NaN NaN:NaN:NaN
+					sd = com.sap.xmii.common.util.MIIi5Util.formatDateTime(thisObj.model.getModelData().getStartDate());
+					ed = com.sap.xmii.common.util.MIIi5Util.formatDateTime(thisObj.model.getModelData().getEndDate());
+				}
+				//Check if TimePeriod is set other than "Custom", then disable start and end date pickers and also set that TP as the selected one
+				var qTimePeriod = com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(thisObj.getQueryObject().overrides.TimePeriod) ? thisObj.getQueryObject().getTimePeriod() : thisObj.getQueryObject().overrides.TimePeriod;
+				
+				if(!com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(qTimePeriod)) {
+					//find the index of the qTimePeriod in the array of timePeriods
+					var tpIndex = -1; 
+					timePeriodsDropdownBox.getModel().getData().TimePeriods.filter(function(item, index) {
+							if(item.Name === qTimePeriod) {
+								tpIndex = index; 
+								return index;}
+							});
+					timePeriodsDropdownBox.setSelectedIndex(tpIndex);
+					startDateTime.setEnabled(false);
+					endDateTime.setEnabled(false);
+				}				
+				startDateTime.setDateValue(sd);
+
+				endDateTime.setDateValue(ed);
+				
+				bApplyStartEndDateBtnClicked = false;
+			}
+		}
+
+		//function to set apply changes to chart if date picker buttons are modified
+		function applyStartEndDates() {
+			bApplyStartEndDateBtnClicked = true;
+			var destDateFormat = com.sap.xmii.common.util.dateFormats.XML_FORMAT_TIMEZONE_OFFSET;
+			
+			var dateArray = com.sap.xmii.common.util.MIIi5Util.convertDatestoServerTimeZone([startDateTime.getDateValue().getTime(), endDateTime.getDateValue().getTime()], destDateFormat);
+			
+			startDateString = dateArray[0];
+			endDateString = dateArray[1];
+			if(com.sap.xmii.common.util.MessageBundle.getText("XLST_TIME_PERIOD_DEFAULT") === timePeriodsDropdownBox.getSelectedKey()) {
+				thisObj.queryTemplate.getQueryObject().overrides.TimePeriod = "";
+			} else {
+				thisObj.queryTemplate.getQueryObject().overrides.TimePeriod = timePeriodsDropdownBox.getSelectedKey();
+			}
+			jQuery.sap.log.info("start date string " +startDateString);
+			jQuery.sap.log.info("end date string " +endDateString);
+
+			var originalQueryResultUrl;
+			var postData = {};
+			if(vizType  === 'i5SPCChart') {
+				originalQueryResultUrl = com.sap.xmii.common.util.GenericConstants.I5SPCSERVICE_URL + '&' + com.sap.xmii.common.util.QueryConstants.QUERY_TEMPLATE + '=' 
+				+ thisObj.queryTemplateName + '&' + com.sap.xmii.common.util.GenericConstants.DISPLAY_TEMPLATE_INDICATOR + '=' +thisObj.chartTemplateName
+				+ "&" + com.sap.xmii.common.util.DateTimeConstants.START_DATE + "=" + startDateString + "&" + com.sap.xmii.common.util.DateTimeConstants.END_DATE+"="
+				+ endDateString;
+				
+				if(thisObj.queryTemplate.isTimeBasedQuery() == true)
+					originalQueryResultUrl = originalQueryResultUrl + "&" + com.sap.xmii.common.util.GenericConstants.ADDITIONAL_ATTRIBUTE_COLUMN + "=" + "DateTime";
+				//Display template parameters required by SPC engine
+				postData = $.extend(true,{},thisObj.chartTemplate.chartPropertyConfig.properties);
+				delete postData["DateFormat"];
+			} else {
+			//this is the url that was used while initial rendering of the chart
+				thisObj.queryTemplate.getQueryObject().getQueryMetaData().allowDatesAddition = true;
+				thisObj.queryTemplate.getQueryObject().overrides.StartDate = startDateString;
+				thisObj.queryTemplate.getQueryObject().overrides.EndDate = endDateString;
+				originalQueryResultUrl = thisObj.queryTemplate.getQueryObject().buildPostData(com.sap.xmii.common.util.Modes.QT_JSON_MODE).url;
+			}
+
+			//fire url for getting new data on apply changes
+			var url = originalQueryResultUrl + "&" + com.sap.xmii.common.util.DateTimeConstants.TIME_PERIOD + "=" + "&" + com.sap.xmii.common.util.DateTimeConstants.SCHEDULE + "="
+				+ "&" + com.sap.xmii.common.util.DateTimeConstants.TIME + "=" + "&" + com.sap.xmii.common.util.DateTimeConstants.DATE_FORMAT + "=" + destDateFormat;
+
+			url = url.split('+').join('%2B');
+			updateComponent(url, postData);
+			//close pop up after applying the changes and change label
+			tp5.close();
+			timeBarOpener.setText(com.sap.xmii.common.util.MessageBundle.getText("XBUT_DISPLAY_TIMEBAR"));
+		}
+		
+		//update component using the generated url
+		function updateComponent(url, postData) {
+			if(vizType === 'i5Grid') {
+				thisObj.refreshTableData(url);
+			} else {//vizType === 'i5Chart'
+				var jsonObj = JSON.parse(com.sap.xmii.common.util.MIIi5Util.getOData(url, null, null, null, postData));
+				//update model, create new data set for updated data of slider & jsonModel bound to the ui5Chart is set explicitly with the new model for the new dataSet
+				thisObj.updateUI5ModelAndDataset(jsonObj);
+			}
+		}
+		
+		//Private functions end here
+
+		//skipPrevButton button
+		var skipPrevButton = new sap.ui.commons.Button({
+			tooltip :  com.sap.xmii.common.util.MessageBundle.getText("XTOL_SKIP_PREV_TOOLTIP"), 
+			lite : true
+		});
+		skipPrevButton.setIcon(com.sap.xmii.common.util.ImageConstants.SKIP_PREVIOUS_BUTTON);
+
+		//previous button
+		var previousButton = new sap.ui.commons.Button({
+			tooltip : com.sap.xmii.common.util.MessageBundle.getText("XTOL_PREV_TOOLTIP"),
+			lite : true
+		});
+		previousButton.setIcon(com.sap.xmii.common.util.ImageConstants.PREVIOUS_BUTTON);
+
+		var df = thisObj.dateFormat;
+		
+		//jQuery.sap.log.info("query result == " +thisObj.model.getModelData().getRow(0).DateTime);
+
+		var isSliderMoved = false;
+		
+		function zoomData (startDateIndex, endDateIndex) {
+			//same structure as the initial json data
+			var newChartModelData =  { "Columns" : { 
+				"Column" : [  ] }, 
+				"Row" : [  ] };
+			//entire data
+			var chartModelData = thisObj.model.getModelData();
+
+			var nCols = thisObj.model.getModelMetaData().getColumns().Column.length;
+
+			//adding records in to column from original chart data
+			for(var i=0; i<nCols; i++) {
+				var obj = chartModelData.data.oData.Rowsets.Rowset[0].Columns.Column[i]; 
+				newChartModelData.Columns.Column.push(obj);
+			}
+
+			//adding records into row based on start and end date from slider
+			for(var x=startDateIndex; x<=endDateIndex; x++){
+				var obj = chartModelData.data.oData.Rowsets.Rowset[0].Row[x]; 
+				newChartModelData.Row.push(obj);
+
+			}
+			//newChartModelData is set on the new json model
+			var oModelNew = new sap.ui.model.json.JSONModel();
+
+			if(thisObj instanceof com.sap.xmii.chart.hchart.i5Chart) {
+				oModelNew.setData( {
+					miiData : newChartModelData
+				});
+				//new model is set to chartElement
+				thisObj.getChartObject().getUI5ChartElement().setModel(oModelNew);
+				//this method updates the dataset of the chart (addMeasure,dimensions)
+				thisObj.getChartObject().chartCompnModel.updateDataSet();
+				//get new data set
+				var dataset = thisObj.getChartObject().chartCompnModel.getDataSet();
+				//set the dataSet on the ui5chart object
+				thisObj.getChartObject().getUI5ChartElement().setDataset(dataset);
+			}
+			/*
+			//set the start date picker value on change of slider
+			var sd = thisObj.model.getModelData().getRow(startDateIndex).DateTime;
+			startDatePicker.setYyyymmdd(getYyyymmdd(sd));
+			//set the start time text box on change of slider
+			startTime.setValue(getHHmmss(sd));
+
+			//set the end date picker value on change of slider
+			var ed = thisObj.model.getModelData().getRow(endDateIndex).DateTime;
+			endDatePicker.setYyyymmdd(getYyyymmdd(ed));
+
+			//set the end time text box on change of slider
+			endTime.setValue(getHHmmss(ed));*/
+		};
+		
+		var sliderId = com.sap.xmii.common.util.GenericConstants.SLIDER + com.sap.xmii.common.util.MIIi5Util.generateGuid();
+		sliderId = sliderId.replace(".","");
+		var modelLength = thisObj.model.getModelData().getRowsets().length;
+
+		//Timebar fix for i5SPCChart
+		var maxValue, minValue;// holds number value for POSITION
+		if((vizType === 'i5SPCChart' && modelLength != 1)) {
+			maxValue = thisObj.model.getModelData().getRowset(1).Row[(thisObj.model.getModelData().getRowset(1).Row.length) - 1].POSITION;
+			maxValue = extractInteger(maxValue);
+			
+			minValue = thisObj.model.getModelData().getRowset(1).Row[0].POSITION;
+			minValue = extractInteger(minValue);
+		}
+		var maxValueslider = (vizType === 'i5SPCChart' && modelLength != 1)? maxValue : thisObj.model.getModelData().getRows().length - 1;
+		var minValueSlider = (vizType === 'i5SPCChart' && modelLength != 1)? minValue : 0;
+		
+		var oSlider = new sap.ui.commons.RangeSlider({
+			id : sliderId,
+			tooltip: com.sap.xmii.common.util.MessageBundle.getText("XTOL_SLIDER"),
+			min: parseFloat(minValueSlider),
+			max: parseFloat(maxValueslider), 
+			value: parseFloat(minValueSlider),
+			value2 : parseFloat(maxValueslider),
+			totalUnits: parseFloat(maxValueslider),
+			smallStepWidth: 1,
+			stepLabels : false
+		});
+		
+		oSlider.attachChange(function(){
+			isSliderMoved = true;
+			var startDateIndex = oSlider.getValue();
+			var endDateIndex = oSlider.getValue2();
+
+			//same structure as the initial json data
+			var newChartModelData =  { "Columns" : { 
+				"Column" : [  ] }, 
+				"Row" : [  ] };
+			//entire data
+			var chartModelData = thisObj.model.getModelData();//upperchartData as well
+			
+			if(vizType === 'i5SPCChart') {
+				startDateIndex = startDateIndex - 1;
+				endDateIndex = endDateIndex - 1;
+				var nCols = thisObj.model.getModelMetaData().getColumns(1).Column.length;
+				//adding records in to column from original chart data
+				for(var i=0; i<nCols; i++) {
+					var obj = chartModelData.data.oData.Rowsets.Rowset[1].Columns.Column[i]; 
+					newChartModelData.Columns.Column.push(obj);
+				}
+				
+				//adding records into row based on start and end date from slider
+				for(var x=startDateIndex; x<=endDateIndex; x++){
+					var obj = chartModelData.data.oData.Rowsets.Rowset[1].Row[x]; 
+					newChartModelData.Row.push(obj);
+	
+				}
+				
+				var upperChartModelNew = new sap.ui.model.json.JSONModel();
+				upperChartModelNew.setData( {
+					miiData : newChartModelData
+				});
+				
+				//new model is set to chartElement
+				thisObj.getChartObject().upperChart.setModel(upperChartModelNew);
+				//this method updates the dataset of the chart (addMeasure,dimensions)
+				thisObj.getChartObject().i5SPCChartCompnModel.updateDataSet();
+				//get new data set
+				var upperDataset = thisObj.getChartObject().i5SPCChartCompnModel.getUpperChartDataset();
+				//set the dataSet on the ui5chart object
+				thisObj.getChartObject().upperChart.setDataset(upperDataset);
+				
+				
+				//if(chartModelData.getRowsets().length === 6) {
+				if(thisObj.getChartObject().lowerChartRequired) {//Do below only if lower chart is there
+					//same structure as the initial json data
+					var lowerChartModelData =  { "Columns" : { 
+						"Column" : [  ] }, 
+						"Row" : [  ] };
+					
+					//adding records in to column from original chart data
+					for(var i=0; i<nCols; i++) {
+						var obj = chartModelData.data.oData.Rowsets.Rowset[4].Columns.Column[i]; 
+						lowerChartModelData.Columns.Column.push(obj);
+					}
+					
+					//adding records into row based on start and end date from slider
+					for(var x=startDateIndex; x<=endDateIndex; x++){
+						var obj = chartModelData.data.oData.Rowsets.Rowset[4].Row[x]; 
+						lowerChartModelData.Row.push(obj);
+		
+					}
+					
+					var lowerChartModelNew = new sap.ui.model.json.JSONModel();
+					
+					lowerChartModelNew.setData( {
+						miiData : lowerChartModelData
+					});
+					
+					//new model is set to chartElement
+					thisObj.getChartObject().lowerChart.setModel(lowerChartModelNew);
+					//this method updates the dataset of the chart (addMeasure,dimensions)
+					//thisObj.getChartObject().i5SPCChartCompnModel.updateDataSet();
+					//get new data set
+					var lowerDataset = thisObj.getChartObject().i5SPCChartCompnModel.getLowerChartDataset();
+					//set the dataSet on the ui5chart object
+					thisObj.getChartObject().lowerChart.setDataset(lowerDataset);
+				}
+				updateDatePickers();
+				
+			} else {//i5Grid or i5Chart
+				var nCols = thisObj.model.getModelMetaData().getColumns().Column.length;
+	
+				//adding records in to column from original chart data
+				for(var i=0; i<nCols; i++) {
+					var obj = chartModelData.data.oData.Rowsets.Rowset[0].Columns.Column[i]; 
+					newChartModelData.Columns.Column.push(obj);
+				}
+	
+				//adding records into row based on start and end date from slider
+				for(var x=startDateIndex; x<=endDateIndex; x++){
+					var obj = chartModelData.data.oData.Rowsets.Rowset[0].Row[x]; 
+					newChartModelData.Row.push(obj);
+	
+				}
+				//newChartModelData is set on the new json model
+				var oModelNew = new sap.ui.model.json.JSONModel();
+	
+				if(vizType === 'i5Grid') {
+					oModelNew.setData( {
+						miiData : newChartModelData.Row
+					});
+					thisObj.getGridObject().getUI5TableElement().setSelectedIndex(-1);
+					thisObj.getGridObject().getUI5TableElement().setModel(oModelNew);
+					thisObj.getGridObject().getUI5TableElement().bindRows("/miiData");
+				} else { //vizType === 'i5Chart'
+					oModelNew.setData( {
+						miiData : newChartModelData
+					});
+					//new model is set to chartElement
+					thisObj.getChartObject().getUI5ChartElement().setModel(oModelNew);
+					//this method updates the dataset of the chart (addMeasure,dimensions)
+					thisObj.getChartObject().chartCompnModel.updateDataSet();
+					//get new data set
+					var dataset = thisObj.getChartObject().chartCompnModel.getDataSet();
+					//set the dataSet on the ui5chart object
+					thisObj.getChartObject().getUI5ChartElement().setDataset(dataset);
+				}
+				//update datepickers -- for i5Grid & i5Chart -- in case i5SPCChart keep datepickers as such
+				originalRows = thisObj.getOriginalRows();
+				//set the start date picker value on change of slider
+				if(originalRows[startDateIndex].DateTime != undefined) {
+					var sd = com.sap.xmii.common.util.MIIi5Util.formatDateTime(originalRows[startDateIndex].DateTime);
+					startDateTime.setDateValue(sd);
+				}
+				//set the end date picker value on change of slider
+				if(originalRows[endDateIndex].DateTime != undefined) {
+					var ed = com.sap.xmii.common.util.MIIi5Util.formatDateTime(originalRows[endDateIndex].DateTime);
+					endDateTime.setDateValue(ed);
+				}
+			}
+			if(vizType != 'i5Grid') {
+				thisObj.applyChartPropertiesOnReady();
+			}
+
+		});
+		//$('.sapUiTfCombo').css({width:'15ex'});
+		
+		this.slider = oSlider;
+		
+		originalRows = thisObj.getOriginalRows();
+		var startDate, endDate;
+		startDate = com.sap.xmii.common.util.MIIi5Util.formatDateTime(thisObj.model.getModelData().getStartDate());//com.sap.xmii.common.util.MIIi5Util.formatDateTime(dateFormatter, originalRows[0].DateTime);
+		endDate = com.sap.xmii.common.util.MIIi5Util.formatDateTime(thisObj.model.getModelData().getEndDate());//com.sap.xmii.common.util.MIIi5Util.formatDateTime(dateFormatter, originalRows[originalRows.length - 1].DateTime);
+
+		//next button
+		var nextButton = new sap.ui.commons.Button({
+			tooltip : com.sap.xmii.common.util.MessageBundle.getText("XTOL_NEXT_TOOLTIP"),
+			lite : true
+		});
+		nextButton.setIcon(com.sap.xmii.common.util.ImageConstants.NEXT_BUTTON);
+
+		//skip next button
+		var skipNextButton = new sap.ui.commons.Button({
+			tooltip : com.sap.xmii.common.util.MessageBundle.getText("XTOL_SKIP_NEXT_TOOLTIP"),
+			lite : true
+		});
+		skipNextButton.setIcon(com.sap.xmii.common.util.ImageConstants.SKIP_NEXT_BUTTON);
+
+		//current button
+		var endButton = new sap.ui.commons.Button({
+			tooltip :  com.sap.xmii.common.util.MessageBundle.getText("XTOL_END_TOOLTIP"),
+			lite : true
+		});
+		endButton.setIcon(com.sap.xmii.common.util.ImageConstants.END_BUTTON);
+		
+
+		// *******************ALL BUTTON IMPLEMENATATIONS:START *******************
+
+		//function that performs button calculations and moves the chart plot
+
+		function calculateTimeRangeForButtonPress(scrollPercentage){
+			bApplyStartEndDateBtnClicked = false;
+			var queryTemplate = thisObj.queryTemplate;
+			var queryMetaData = queryTemplate.getQueryObject().getQueryMetaData();
+
+			var SD_fromMetaData = queryMetaData.StartDate; //exists in specified format
+			var ED_fromMetaData = queryMetaData.EndDate; //exists in specified format
+
+			var SD_fromResult = queryTemplate.getQueryObject().getQueryResult().Rowsets.StartDate; //exists in XML Date format
+			var ED_fromResult = queryTemplate.getQueryObject().getQueryResult().Rowsets.EndDate; //exists in XML Date format
+
+			var SD_fromModel,ED_fromModel;
+			
+			var defaultDateFormat,destDateFormat;
+			if(vizType === 'i5Grid') {
+				defaultDateFormat = com.sap.xmii.common.util.dateFormats.XML_FORMAT_TIMEZONE_OFFSET;
+				destDateFormat = com.sap.xmii.common.util.dateFormats.XML_FORMAT_TIMEZONE_OFFSET;
+			} else {
+				defaultDateFormat = com.sap.xmii.common.util.GenericConstants.XML_DATETIME_FORMAT;
+				destDateFormat = com.sap.xmii.common.util.dateFormats.XML_FORMAT_TIMEZONE_OFFSET;
+			}
+			
+			if(isSliderMoved){
+				if(vizType === 'i5SPCChart') {
+					SD_fromModel = thisObj.model.getModelData().getRow(oSlider.getValue() - 1, 1).DateTime;
+					ED_fromModel = thisObj.model.getModelData().getRow(oSlider.getValue2() - 1, 1).DateTime;
+				} else {
+					SD_fromModel = thisObj.model.getModelData().getRow(oSlider.getValue()).DateTime;
+					ED_fromModel = thisObj.model.getModelData().getRow(oSlider.getValue2()).DateTime;
+				}
+				
+				var formattedDateArray = com.sap.xmii.common.util.MIIi5Util.formatDates([SD_fromModel, ED_fromModel],thisObj.dateFormat, com.sap.xmii.common.util.GenericConstants.XML_DATETIME_FORMAT);
+				SD_fromModel = formattedDateArray[0];
+				ED_fromModel = formattedDateArray[1];
+				
+				var timezoneDateArray = com.sap.xmii.common.util.MIIi5Util.convertDatestoServerTimeZone([extractJavascriptDate(SD_fromModel).getTime(), extractJavascriptDate(ED_fromModel).getTime()], destDateFormat);
+				SD_fromModel = timezoneDateArray[0];
+				ED_fromModel = timezoneDateArray[1];
+				
+			} else {
+				SD_fromModel = thisObj.model.getModelData().getStartDate();
+				ED_fromModel = thisObj.model.getModelData().getEndDate();
+			}
+
+			var finalSD = "";
+			var finalED = "";
+
+			var offsetInSeconds = 0;
+
+			var duration = queryMetaData.Duration;
+			var durationUnits = queryMetaData.DurationUnits;
+			var multiplyingFactor = 0;
+
+			if(durationUnits == "S"){
+				multiplyingFactor = 1;
+			} else if(durationUnits == "M"){
+				multiplyingFactor = 60;
+			} else if(durationUnits == "H"){
+				multiplyingFactor = 3600;
+			} else if(durationUnits == "D"){
+				multiplyingFactor = 86400;
+			}
+
+			//scrollPercentage = 0 indicates the execution of 'Current' button. This if loop has logic for current button implementation
+			if(scrollPercentage == 0){
+				if(com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(SD_fromMetaData) && com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(ED_fromMetaData)){
+					//if both, SD and ED are NOT configured in the query, then ED is current time, and SD = ED - duration
+					finalED = com.sap.xmii.common.util.MIIi5Util.dateNow(destDateFormat);
+
+					var EDInSeconds = Number(com.sap.xmii.common.util.MIIi5Util.dateToSeconds(finalED, destDateFormat));
+					var SDInSeconds = EDInSeconds - (duration*multiplyingFactor);
+					finalSD = com.sap.xmii.common.util.MIIi5Util.dateFromSeconds(SDInSeconds.toString(), destDateFormat);
+
+				} else{
+					var dateArray = com.sap.xmii.common.util.MIIi5Util.convertDatestoServerTimeZone([extractJavascriptDate(SD_fromResult).getTime(), extractJavascriptDate(ED_fromResult).getTime()], destDateFormat);
+					finalSD = dateArray[0];
+					finalED = dateArray[1];
+				}
+			}else{
+				//the case when both, SD and ED values are configured in definition of query, OR if Time Period or Schedule or Time is defined in the query,
+				//then the 'offset' is the seconds difference between the configured SD and ED or as per the Time Period or Schedule calculations
+				if((!com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(SD_fromMetaData) && !com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(ED_fromMetaData))
+						|| !(com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(queryMetaData.TimePeriod)) 
+						|| !(com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(queryMetaData.Schedule))
+						|| !(com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(queryMetaData.Time))){
+
+					//Start and end dates will be in "yyyy-MM-dd'T'HH:mm:ssZZZ" format, hence below change
+					offsetInSeconds = com.sap.xmii.common.util.MIIi5Util.dateDiff(SD_fromModel, ED_fromModel, destDateFormat); //TODO: CHANGE THIS TO FORMAT FROM DEFITNIION
+
+					offsetInSeconds = Number(offsetInSeconds) * scrollPercentage;
+
+					var SDToSeconds = com.sap.xmii.common.util.MIIi5Util.dateToSeconds(SD_fromModel, destDateFormat);
+					var SD_AsNumber = Number(SDToSeconds) + offsetInSeconds;
+
+					finalSD = com.sap.xmii.common.util.MIIi5Util.dateFromSeconds(SD_AsNumber.toString(), destDateFormat);
+
+
+					var EDToSeconds = com.sap.xmii.common.util.MIIi5Util.dateToSeconds(ED_fromModel, destDateFormat);
+					var ED_AsNumber = Number(EDToSeconds) + offsetInSeconds;
+
+					finalED = com.sap.xmii.common.util.MIIi5Util.dateFromSeconds(ED_AsNumber.toString(), destDateFormat);
+
+				} else{
+					//when any one or both of the SD and ED are empty in the query configuration, calculate the offset from duration and duration units given
+					var offset = duration * multiplyingFactor;
+					offsetInSeconds = offset * scrollPercentage;
+
+					var SDToSeconds = com.sap.xmii.common.util.MIIi5Util.dateToSeconds(SD_fromModel, defaultDateFormat);//TODO: CHANGE THIS TO FORMAT FROM DEFITNIION
+					var SD_AsNumber = Number(SDToSeconds) + offsetInSeconds;
+
+					finalSD = com.sap.xmii.common.util.MIIi5Util.dateFromSeconds(SD_AsNumber.toString(), destDateFormat);
+
+					var EDToSeconds = com.sap.xmii.common.util.MIIi5Util.dateToSeconds(ED_fromModel, defaultDateFormat);
+					var ED_AsNumber = Number(EDToSeconds) + offsetInSeconds;
+
+					finalED = com.sap.xmii.common.util.MIIi5Util.dateFromSeconds(ED_AsNumber.toString(), destDateFormat);
+
+				}
+			}
+			
+			var originalQueryResultUrl;
+			if(vizType  === 'i5SPCChart') {
+				originalQueryResultUrl = com.sap.xmii.common.util.GenericConstants.I5SPCSERVICE_URL + '&' + com.sap.xmii.common.util.QueryConstants.QUERY_TEMPLATE + '=' +
+				thisObj.queryTemplateName + '&' + com.sap.xmii.common.util.GenericConstants.DISPLAY_TEMPLATE_INDICATOR + '=' +thisObj.chartTemplateName  + "&" + com.sap.xmii.common.util.DateTimeConstants.DATE_FORMAT + "=" + destDateFormat;
+				
+				if(thisObj.queryTemplate.isTimeBasedQuery() == true)
+					originalQueryResultUrl = originalQueryResultUrl + "&" + com.sap.xmii.common.util.GenericConstants.ADDITIONAL_ATTRIBUTE_COLUMN + "=" + "DateTime";
+
+			} else {
+				//this is the url that was used while initial rendering of the chart
+				originalQueryResultUrl = thisObj.queryTemplate.getQueryObject().buildPostData(com.sap.xmii.common.util.Modes.QT_JSON_MODE).url;
+			}
+
+			var url = originalQueryResultUrl + "&"+com.sap.xmii.common.util.DateTimeConstants.START_DATE+"=" +finalSD+ "&"+com.sap.xmii.common.util.DateTimeConstants.END_DATE+"="
+			+finalED+ "&"+com.sap.xmii.common.util.DateTimeConstants.TIME_PERIOD+"="+"&"+com.sap.xmii.common.util.DateTimeConstants.SCHEDULE+"="+"&"+com.sap.xmii.common.util.DateTimeConstants.TIME+"=";
+
+			url = url.split('+').join('%2B');
+			
+			//Adding com.sap.xmii.common.util.DateTimeConstants.DATE_FORMAT=com.sap.xmii.common.util.dateFormats.XML_FORMAT_TIMEZONE_OFFSET
+			//defaultDateFormat := com.sap.xmii.common.util.dateFormats.XML_FORMAT_TIMEZONE_OFFSET
+			url = url + "&" + com.sap.xmii.common.util.DateTimeConstants.DATE_FORMAT + "=" + defaultDateFormat;
+			updateComponent(url);
+		}
+		
+		//full screen forwards implementation
+		skipNextButton.attachPress(function() {
+			var scrollPercentage = 100 / 100;
+			calculateTimeRangeForButtonPress(scrollPercentage);
+		});
+
+		//full screen backwards implementation
+		skipPrevButton.attachPress(function(){
+			var scrollPercentage = -(100/100);
+			calculateTimeRangeForButtonPress(scrollPercentage);
+		});
+
+		//quarter screen forwards implementation
+		nextButton.attachPress(function(){
+			var scrollPercentage = 25/100;
+			calculateTimeRangeForButtonPress(scrollPercentage);
+		});
+
+		//quarter screen backwards implementation
+		previousButton.attachPress(function(){
+			var scrollPercentage = -(25/100);
+			calculateTimeRangeForButtonPress(scrollPercentage);
+		});
+
+		endButton.attachPress(function(){
+			isSliderMoved = false; //reset the slider flag
+			var scrollPercentage = 0;
+			calculateTimeRangeForButtonPress(scrollPercentage);
+		});
+		// *******************ALL BUTTON IMPLEMENATATIONS:END *******************
+
+		//TODO : Timebar enhancements
+		function getTimePeriodsJSONModel() {
+			var timePeriodsURL = com.sap.xmii.common.util.GenericConstants.TIME_PERIODS_URL 
+								 + com.sap.xmii.common.util.GenericConstants.CONTENT_TYPE_URL_SUFFIX;
+			
+			var json = JSON.parse(com.sap.xmii.common.util.MIIi5Util.getOData(timePeriodsURL));
+			//insert Custom at first index which will be default value for time periods 
+			var defaultObj = { 
+					Name : com.sap.xmii.common.util.MessageBundle.getText("XLST_TIME_PERIOD_DEFAULT"), 
+					Description : com.sap.xmii.common.util.MessageBundle.getText("XLST_TIME_PERIOD_DEFAULT"),
+					LocalizedName : com.sap.xmii.common.util.MessageBundle.getText("XLST_TIME_PERIOD_DEFAULT")
+			};
+			json.Rowsets.Rowset[0].Row.splice(0, 0, defaultObj);
+			
+			var jsonModel = new sap.ui.model.json.JSONModel();
+			jsonModel.setData({TimePeriods : json.Rowsets.Rowset[0].Row});
+			
+			return jsonModel;
+		}
+		
+		function onTimePeriodsChange(event) {
+			if(com.sap.xmii.common.util.MessageBundle.getText("XLST_TIME_PERIOD_DEFAULT") === timePeriodsDropdownBox.getSelectedKey()) {
+				startDateTime.setEnabled(true);
+				endDateTime.setEnabled(true);
+			} else {
+				
+				var timePeriodDetailsURL = com.sap.xmii.common.util.GenericConstants.TIME_PERIOD_DETAILS 
+				 					 + timePeriodsDropdownBox.getSelectedKey() + com.sap.xmii.common.util.GenericConstants.CONTENT_TYPE_URL_SUFFIX;
+				var timePeriodDetails = JSON.parse(com.sap.xmii.common.util.MIIi5Util.getOData(timePeriodDetailsURL));
+				
+				startDateTime.setDateValue(new Date(timePeriodDetails.Rowsets.Rowset[0].Row[0].StartDate));
+				startDateTime.setEnabled(false);
+				endDateTime.setDateValue(new Date(timePeriodDetails.Rowsets.Rowset[0].Row[0].EndDate));
+				endDateTime.setEnabled(false);
+				
+				applyStartEndDates();
+			}
+		}
+		
+		var timePeriodsModel = getTimePeriodsJSONModel();
+		
+		var timePeriodsLabel = new sap.m.Label( {
+			text : com.sap.xmii.common.util.MessageBundle.getText("XFLD_TIME_PERIOD_LABEL"),
+			tooltip : com.sap.xmii.common.util.MessageBundle.getText("XTOL_TIME_PERIOD_TOOLTIP"),
+			textAlign: "End",
+			width:"100%"
+		});
+		timePeriodsLabel.addStyleClass("smallPaddingTop");
+		var timePeriodsDropdownBox = new sap.m.Select({
+			value : timePeriodsModel.getData().TimePeriods[0].Name,
+			change : onTimePeriodsChange,
+			width:"100%"
+		});
+		timePeriodsLabel.setLabelFor(timePeriodsDropdownBox);
+		
+		timePeriodsDropdownBox.setModel(timePeriodsModel);
+		var timePeriodsTemplate = new sap.ui.core.ListItem();
+		timePeriodsTemplate.bindProperty("text", "LocalizedName");
+		timePeriodsTemplate.bindProperty("key", "Name");
+		timePeriodsDropdownBox.bindItems("/TimePeriods", timePeriodsTemplate);
+		
+		var startDateLabel = new sap.m.Label( {
+			text : com.sap.xmii.common.util.MessageBundle.getText("XFLD_START_DATE_LABEL"),
+			tooltip : com.sap.xmii.common.util.MessageBundle.getText("XTOL_START_DATE_TOOLTIP"),
+			textAlign: "End",
+			width : "100%"
+		});
+		startDateLabel.addStyleClass("smallPaddingTop");
+		
+		var startDateTime = new sap.m.DateTimeInput({
+			type : sap.m.DateTimeInputType.DateTime,
+			displayFormat : thisObj.dateFormat,
+			valueFormat : thisObj.dateFormat,
+			ariaLabelledBy: startDateLabel,
+			ariaDescribedBy: startDateLabel,
+			dateValue : startDate,
+			width:"100%"
+		});
+		startDateTime.attachChange(validateStartDate);
+		
+		startDateLabel.setLabelFor(startDateTime);
+		
+		var endDateLabel = new sap.m.Label( {
+			text : com.sap.xmii.common.util.MessageBundle.getText("XFLD_END_DATE_LABEL"),
+			tooltip : com.sap.xmii.common.util.MessageBundle.getText("XTOL_END_DATE_TOOLTIP"),
+			textAlign: "End",
+			width : "100%"
+		});
+		endDateLabel.addStyleClass("smallPaddingTop");
+		
+		var endDateTime = new sap.m.DateTimeInput({
+			type : sap.m.DateTimeInputType.DateTime,
+			displayFormat : thisObj.dateFormat,
+			ariaLabelledBy: endDateLabel,
+			ariaDescribedBy: endDateLabel,
+			valueFormat : thisObj.dateFormat,
+			dateValue : endDate,
+			width:"100%"
+		});
+		endDateTime.attachChange(validateStartDate);
+		endDateLabel.setLabelFor(endDateTime);
+		
+		var goButton = new sap.m.Button({
+			text : com.sap.xmii.common.util.MessageBundle.getText("XBUT_APPLY"),
+			tooltip : com.sap.xmii.common.util.MessageBundle.getText("XTOL_GO_TOOLTIP")
+		});
+		goButton.addStyleClass("sapUiSizeCompact");
+		goButton.attachPress(applyStartEndDates);
+		
+		previousButton.setLayoutData(new sap.ui.layout.ResponsiveFlowLayoutData({weight : 1, minWidth: 30}));
+		skipPrevButton.setLayoutData(new sap.ui.layout.ResponsiveFlowLayoutData({weight : 1, minWidth: 30}));
+		oSlider.setLayoutData(new sap.ui.layout.ResponsiveFlowLayoutData({ minWidth: 240, weight: 8}));
+		nextButton.setLayoutData(new sap.ui.layout.ResponsiveFlowLayoutData({weight : 1, minWidth: 30}));
+		skipNextButton.setLayoutData(new sap.ui.layout.ResponsiveFlowLayoutData({weight : 1,minWidth: 30}));
+		endButton.setLayoutData(new sap.ui.layout.ResponsiveFlowLayoutData({weight : 1, minWidth: 30}));
+		
+		
+		timePeriodsLabel.setLayoutData(new sap.ui.layout.GridData({span : "L2 M2 S4", linebreak : false}));
+		timePeriodsDropdownBox.setLayoutData(new sap.ui.layout.GridData({span : "L2 M3 S6", linebreak : false}));
+		startDateLabel.setLayoutData(new sap.ui.layout.GridData({span : "L1 M2 S4", linebreakM : true, linebreakS: true}));
+		startDateTime.setLayoutData(new sap.ui.layout.GridData({span : "L3 M3 S6", linebreak : false}));
+		endDateLabel.setLayoutData(new sap.ui.layout.GridData({span : "L1 M2 S4", linebreak : false, linebreakS: true}));
+		endDateTime.setLayoutData(new sap.ui.layout.GridData({span : "L3 M3 S6", linebreak : false}));
+		//goButton.setLayoutData(new sap.ui.layout.GridData({span : "L1 M2 S6",indent:"L11 S6"}));
+		
+		layout.addContent(previousButton);
+		layout.addContent(skipPrevButton);
+		layout.addContent(oSlider);
+		layout.addContent(nextButton);
+		layout.addContent(skipNextButton);
+		layout.addContent(endButton);
+		
+		timefieldLayout.addContent(timePeriodsLabel);
+		timefieldLayout.addContent(timePeriodsDropdownBox);
+		timefieldLayout.addContent(startDateLabel);
+		timefieldLayout.addContent(startDateTime);
+		timefieldLayout.addContent(endDateLabel);
+		timefieldLayout.addContent(endDateTime);
+		//timefieldLayout.addContent(goButton);
+		tp5.addButton(goButton);
+		
+		this.updateSliderAndDatePickers = function() {
+			updateSlider();
+			updateDatePickers();
+		};
+	} else {
+		//model is undefined hence disable timebar opener
+		this.toggleTimeBarOpener(false);
+	}
+};
+
+/**
+ * TIMEBAR CLASS
+ */
+com.sap.xmii.common.tools.TimeBar.prototype = parentToolComponent;
+com.sap.xmii.common.tools.TimeBar.prototype.constructor = com.sap.xmii.common.tools.TimeBar;

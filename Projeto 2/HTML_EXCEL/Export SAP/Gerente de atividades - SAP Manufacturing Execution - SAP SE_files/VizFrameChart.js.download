@@ -1,0 +1,517 @@
+com.sap.xmii.chart.ui5 = com.sap.xmii.chart.ui5 || {};
+
+var parentChartComponent = new com.sap.xmii.chart.ui5.ChartComponent();
+/**
+ * VizFrameChart Constructor
+ * 
+ * @param chartConfig
+ * @param qryResultData
+ */
+com.sap.xmii.chart.ui5.VizFrameChart = function(chartConfig, model) {
+	this.chartPropertyConfig = chartConfig;
+	this.chartModel = model;
+
+	this.chartCompnModel = new com.sap.xmii.chart.model.ChartComponentModel(
+			this.chartModel, this.chartPropertyConfig);
+
+	this.parent.init.call(this, chartConfig, model, this);
+	this.addGettersAndSetters();
+
+};
+
+com.sap.xmii.chart.ui5.VizFrameChart.prototype = parentChartComponent;
+com.sap.xmii.chart.ui5.VizFrameChart.prototype.constructor = com.sap.xmii.chart.ui5.VizFrameChart;
+com.sap.xmii.chart.ui5.VizFrameChart.prototype.parent = com.sap.xmii.chart.ui5.ChartComponent.prototype;
+
+/**
+ * Creates a element of UI5 VizFrameChart with Data attached to it
+ * 
+ * @return
+ */
+com.sap.xmii.chart.ui5.VizFrameChart.prototype.create = function() {
+	var yearFormat = "";
+	var dayMonthFormatString = "";
+	var timeAxisArray = this.chartPropertyConfig.getProperty("timeAxisArray");
+	if(timeAxisArray === null || timeAxisArray === undefined)
+		timeAxisArray = [];
+	var chartType = this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.CHART_TYPE);
+	var dualYAxis = this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.DUAL_YAXIS);
+	var timeSeries = this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.TIME_SERIES);
+	if(chartType != null && chartType === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_PIE || chartType === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_GAUGE 
+			|| chartType === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_SCATTER || chartType === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_BUBBLE 
+			|| chartType === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_DONUT)
+		dualYAxis = false;
+	if((chartType == com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_SCATTER || 
+			chartType == com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_BUBBLE) && dualYAxis == true){
+		dualYAxis = false;
+	}
+	if((chartType ==com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_PIE || 
+			chartType ==com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_GROUP_BAR ||
+			chartType ==com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_HORIZONTAL_GROUP_BAR ||
+			chartType ==com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_HORIZONTAL_BAR ||
+			chartType ==com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_DONUT ||
+			chartType ==com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_STACKED_BAR) && timeSeries == true){
+		timeSeries= false
+	}
+	if(chartType === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_BAR || chartType === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_GROUP_BAR){
+		chartType = com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_COLUMN;
+		//commonBarType = true;
+	}
+	if(chartType ===  com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_HORIZONTAL_BAR || chartType ===  com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_HORIZONTAL_GROUP_BAR){
+		chartType = com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_BAR;
+		//commonBarType = true;
+	}
+	if(chartType === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_STACKED_BAR)
+		chartType = com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_STACKEDCOLUMN;
+	if(chartType === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_CUSTOM)
+		chartType = com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_COMBINATION; //custom chart
+	if(dualYAxis)
+		chartType = "dual_"+chartType;
+	if(timeSeries === true && (chartType === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_LINE || (chartType === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_COLUMN)// && !commonBarType)
+		|| chartType === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_BUBBLE || chartType === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_SCATTER || chartType === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_COMBINATION 
+		|| chartType === com.sap.xmii.common.util.i5ChartTypes.DUAL_COMBINATION)){
+		if(chartType === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_LINE){
+			chartType = com.sap.xmii.common.util.TimeseriesChartTypes.TIMESERIES_LINE;
+		}
+		if(chartType === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_COLUMN){
+			chartType = com.sap.xmii.common.util.TimeseriesChartTypes.TIMESERIES_COLUMN;
+		}
+		if(chartType === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_SCATTER){
+			chartType = com.sap.xmii.common.util.TimeseriesChartTypes.TIMESERIES_SCATTER;	
+		}
+		if(chartType === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_BUBBLE){
+			chartType = com.sap.xmii.common.util.TimeseriesChartTypes.TIMESERIES_BUBBLE;
+		}
+		if(chartType === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_COMBINATION){
+			chartType = com.sap.xmii.common.util.TimeseriesChartTypes.TIMESERIES_COMBINATION;
+		}
+		if(chartType === com.sap.xmii.common.util.i5ChartTypes.DUAL_COMBINATION){
+			chartType = com.sap.xmii.common.util.TimeseriesChartTypes.TIMESERIES_DUAL_COMBINATION;
+		}
+	}
+	
+	var yAxisLabel = this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.YAXIS_LABEL);
+	var xAxisLabel = this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.XAXIS_LABEL);
+	var label = "";
+	var yAxisNumberFormat;
+	//set number format for Y-axis
+	if(this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.DateTimeConstants.USE_LOCALE_FORMAT) == true){
+		yAxisNumberFormat = com.sap.xmii.common.util.numberformatPatternForLocale;
+		var index = 0;
+	 	if(isNaN(yAxisNumberFormat)) { //this happens only when UseLocaleFormat is true
+	 		var decimalSeperatorIndex = yAxisNumberFormat.indexOf('.');
+	 		if(decimalSeperatorIndex != -1)
+	 			index = yAxisNumberFormat.length - (decimalSeperatorIndex + 1);
+	 		switch(index) {
+				case 1 : yAxisNumberFormat = "0.0"; break;
+				case 2 : yAxisNumberFormat = "0.00"; break;
+				case 3 : yAxisNumberFormat = "0.000"; break;
+				case 4 : yAxisNumberFormat = "0.0000"; break;
+				case 5 : yAxisNumberFormat = "0.00000"; break;
+				case 6 : yAxisNumberFormat = "0.000000"; break;
+	 		}
+	 	} else {
+	 		index = yAxisNumberFormat.lastIndexOf("0");
+	 	}
+	}else {
+		yAxisNumberFormat =  this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.DateTimeConstants.YAXIS_NUMBER_FORMAT);
+	}	
+	var showLegendOnTop = JSON.parse(this.chartPropertyConfig.getProperty("LegendOnTop"));
+	var legendPosition;
+	if(showLegendOnTop){
+		legendPosition = "top";
+	}else{
+		legendPosition = "right";
+	}
+	if(chartType === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_BUBBLE || chartType === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_SCATTER){
+		//this is done because bubble chart in vizframe considers valueAxis as xAxis and valueAxis2 as yAxis
+		label = yAxisLabel;
+		yAxisLabel = xAxisLabel;
+		xAxisLabel=label;
+	}
+	// LINE CHART OBJECT CReation
+	var cssText = '.v-gridline{  stroke: ' + this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.GRID_LINE_COLOR) + '; } .v-background-body{  fill: '+ this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.CHART_BACKGROUND_COLOR) +'; }';
+
+	this.ui5ChartElement = new sap.viz.ui5.controls.VizFrame({
+		width : this.width,
+		height : this.height,
+		vizType: "info/"+chartType.toLowerCase(), 
+
+	vizProperties :{
+		title : {
+		text : "Test",
+		visible : false
+	},
+	legend : {
+		marker:{
+		showLine : true
+	},
+	hoverShadow : {
+		color : (this.chartPropertyConfig.getProperty("LegendSelectionBorderColor"))
+	},
+	label:{
+		
+		style:{
+			fontFamily : (this.chartPropertyConfig.getProperty("LegendFontFace")),
+			fontSize : (this.chartPropertyConfig.getProperty("LegendFontSize")) + "px",
+			color : (this.chartPropertyConfig.getProperty("LegendLabelColor")),
+			fontWeight : (this.chartPropertyConfig.getProperty("LegendFontStyle")),
+			fontStyle : (this.chartPropertyConfig.getProperty("LegendFontStyle"))
+			
+		}
+	},
+	isScrollable : this.chartPropertyConfig.getProperty("LegendUseScrollbars"),
+	visible : (this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.SHOW_LEGEND)),
+	isScrollable :  this.chartPropertyConfig.getProperty("LegendUseScrollbars"),
+	title : {
+		visible : true,
+		text : this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.LEG_DESC_LABEL)
+	},
+	
+	},
+	legendGroup:{
+		layout:{
+			height : (this.chartPropertyConfig.getProperty("LegendHeight")) + "px",
+			width:(this.chartPropertyConfig.getProperty("LegendWidth")) + "px",
+			position: legendPosition
+		}
+	
+
+	},
+	interaction : {
+		selectability : {
+		mode : this.chartPropertyConfig.getSelectionType(this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.ENABLE_ITEM_SEL))
+	}
+	},
+	tooltip : {
+		visible : this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.SHOW_TOOLTIP),
+		formatString : yAxisNumberFormat
+	},
+	general : {
+		groupData: false,
+		background : {
+		drawingEffect : this.chartPropertyConfig.getChartLook(this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.GLOSSY))
+		}
+	},
+	plotArea : {
+		drawingEffect: this.chartPropertyConfig.getChartLook(this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.GLOSSY)),
+		gridline:{
+			visible: this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.SHOW_GRID_LINE),
+			color: this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.GRID_LINE_COLOR)
+		},
+		marker : {
+			visible : this.chartPropertyConfig.showMarker(this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.MARKER_STYLE)),
+			shape : this.chartPropertyConfig.getMarkerStyle(this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.MARKER_STYLE)),
+			size : this.chartPropertyConfig.getMarkerSize(this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.MARKER_SIZE))
+		},
+	
+		dataPointStyle : {
+			rules: []
+		},
+		dataLabel:{
+			visible: JSON.parse(this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.SHOW_VAL_MARKER))
+		}
+	},
+	categoryAxis : {
+		//label: this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.XAXIS_LABEL),
+		visible : JSON.parse(this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.SHOW_XAXIS)),
+		color : '#DFDFDF',
+		title : {
+		visible : this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.SHOW_XAXIS_LABEL),
+		text : xAxisLabel,
+		style : {
+			color : this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.XAXIS_LABEL_COLOR),
+			fontFamily : this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.XAXIS_FONT_FACE),
+			fontSize : this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.XAXIS_FONT_SIZE)
+		},
+		applyAxislineColor : true
+	},
+	axisTick : {
+		visible : true
+	}
+	},
+	valueAxis : {
+		label : {
+			formatString : yAxisNumberFormat
+		},
+		visible:JSON.parse(this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.SHOW_YAXIS)),
+		color : '#DFDFDF', // color of yAxis
+		title : {
+		visible : this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.SHOW_YAXIS_LABEL),
+		text : yAxisLabel,
+		style : {
+			color : this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.YAXIS_LABEL_COLOR),
+			fontFamily : this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.YAXIS_FONT_FACE),
+			fontSize : this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.YAXIS_FONT_SIZE)
+		},
+		applyAxislineColor : true	
+	},
+	axisLine : {
+		visible : JSON.parse(this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.SHOW_GRID_LINE))
+		||JSON.parse(this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.SHOW_YAXIS)),
+		showFirstLine : true,
+		showLastLine : true,
+		size : 1
+	},
+	axisTick : {
+		visible : true
+	}
+	},
+	timeAxis: {
+        title: {
+            visible: this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.SHOW_XAXIS_LABEL),
+            text: xAxisLabel,
+            style : {
+				color : this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.XAXIS_LABEL_COLOR),
+				fontFamily : this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.XAXIS_FONT_FACE),
+				fontSize : this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.XAXIS_FONT_SIZE)
+			}
+        },
+        levels: ["day"],
+        levelConfig : {
+//        	second: {
+//        	},
+//        	minute:{
+//        	},
+//        	hour:{
+//        	},
+//        	month : {
+//        	},
+//        	year :{
+//        	},
+        	day :{
+        	}
+        }
+    },
+	//bubble chart y axis
+	valueAxis2 : {
+		label : {
+					formatString : yAxisNumberFormat
+				},
+		visible:JSON.parse(this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.SHOW_YAXIS)),
+		color : '#DFDFDF', // color of yAxis
+		title : {
+		visible : this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.SHOW_YAXIS_LABEL),
+		text : label,
+		style : {
+			color : this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.YAXIS_LABEL_COLOR),
+			fontFamily : this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.YAXIS_FONT_FACE),
+			fontSize : this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.YAXIS_FONT_SIZE)
+		},
+		applyAxislineColor : true
+	},
+	axisLine : {
+		visible : JSON.parse(this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.SHOW_GRID_LINE))
+		||JSON.parse(this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.SHOW_YAXIS)),
+		showFirstLine : true,
+		showLastLine : true,
+		size : 1
+	},
+	axisTick : {
+		visible : true
+	},
+	interaction: {
+        syncValueAxis: false
+    	}
+	}
+	}
+	});
+	if(com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(this.chartPropertyConfig.properties.ErrorMessage)) {
+		if(timeSeries === true && (chartType === com.sap.xmii.common.util.TimeseriesChartTypes.TIMESERIES_LINE || (chartType === com.sap.xmii.common.util.TimeseriesChartTypes.TIMESERIES_COLUMN)// && !commonBarType)
+			|| chartType === com.sap.xmii.common.util.TimeseriesChartTypes.TIMESERIES_BUBBLE || chartType === com.sap.xmii.common.util.TimeseriesChartTypes.TIMESERIES_SCATTER 
+			|| chartType === com.sap.xmii.common.util.TimeseriesChartTypes.TIMESERIES_COMBINATION || chartType === "dual_timeseries_combination")){
+			//check if the number of dimensions == 1 and data type is date type
+			if(this.chartCompnModel.getDataSet() != undefined && this.chartCompnModel.getDataSet() != "") {
+				var dimensions = this.chartCompnModel.getDataSet().getDimensions();
+				if(dimensions !== undefined && dimensions.length === 1 && dimensions[0].getDataType() === 'date') {
+					com.sap.xmii.common.util.MIIi5Util.setDateFormatAndTimeAxisProperties(this);
+				}
+			}
+		}
+	}
+	this.ui5ChartElement.setDataset(this.chartCompnModel.dataset);
+	this.ui5ChartElement.setVizProperties({css : cssText
+	});
+
+	if(chartType === com.sap.xmii.common.util.TimeseriesChartTypes.TIMESERIES_LINE) {
+		var plotTimeAxis = {plotArea : {referenceLine: {
+	        line: {
+	       	 timeAxis: timeAxisArray
+				 }
+		}}};
+		this.ui5ChartElement.setVizProperties(plotTimeAxis);
+	}
+	
+	var valueColumnOne = this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.VALUE_COLUMNS).split(",").length;
+	var valueColumnTwo = this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.VALUE_COLUMNS_2).split(",").length;
+	var chrType = this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.CHART_TYPE);
+	com.sap.xmii.common.util.MIIi5Util.addFeed(this.chartCompnModel.dataset , this.ui5ChartElement , chrType , dualYAxis,  valueColumnOne , timeSeries);
+	//setting rotation angle and auto rotate labels property for VizFrame Charts
+	var rotationAngle = this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.ROTATION_ANGLE); 
+	var autoRotateLabels = this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.AUTO_ROTATE_LABELS);
+	if(autoRotateLabels)
+		rotationAngle = 45;
+	var label = {
+		rotation : "fixed",
+		angle : rotationAngle
+	};
+	this.ui5ChartElement.getVizProperties().categoryAxis.label = label;
+	
+//setting properties for second Y-Axis if the chartType is of Dual Y-Axis	
+	if(dualYAxis){
+		var valueAxis2 = {
+				label : {
+					formatString : yAxisNumberFormat
+				},
+			visible : this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.SHOW_YAXIS_2),
+			color : '#DFDFDF',
+			title : {
+				visible : this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.SHOW_YAXIS_LABEL_2),
+				text : this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.YAXIS_LABEL_2),
+				style : {
+					color : this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.YAXIS_LABEL_COLOR_2),
+					fontFamily : this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.YAXIS_FONT_FACE_2),
+					fontSize : this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.YAXIS_FONT_SIZE_2)
+				}
+			},
+			axisLine : {
+				visible : JSON.parse(this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.SHOW_GRID_LINE))
+				||JSON.parse(this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.SHOW_YAXIS)),
+				showFirstLine : true,
+				showLastLine : true,
+				size : 1
+			},
+			axisTick : {
+				visible : true
+			}
+		};
+		this.ui5ChartElement.getVizProperties().valueAxis2= valueAxis2;
+		//Setting primary and secondary colour palette for Dual Y-Axis charts from the Data Series
+		var primaryColorPalette = [];
+		var secondaryColorPalette = [];
+		//var maxPenCount = valueColumnOne;
+		for(var i=0; i<valueColumnOne; i++) {
+			primaryColorPalette[i] = this.chartPropertyConfig.getProperty("PenColor." + (i+1));
+		}
+		var j=0;
+		for(var i=valueColumnOne; i<valueColumnOne+valueColumnTwo; i++) {
+			secondaryColorPalette[j] = this.chartPropertyConfig.getProperty("PenColor." + (i+1));
+			j++;
+		}
+		this.ui5ChartElement.getVizProperties().plotArea.primaryValuesColorPalette = primaryColorPalette;
+		this.ui5ChartElement.getVizProperties().plotArea.secondaryValuesColorPalette = secondaryColorPalette;
+		//Setting default labels for Dual Y-Axis
+		if(this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.YAXIS_LABEL) === ""){
+			var YAxis1Label = this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.VALUE_COLUMNS).replace(","," & ");
+			this.ui5ChartElement.getVizProperties().valueAxis.title.text = YAxis1Label;
+		}
+		if(this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.YAXIS_LABEL_2) === ""){
+			var YAxis2Label = this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.VALUE_COLUMNS_2).replace(","," & ");
+			this.ui5ChartElement.getVizProperties().valueAxis2.title.text = YAxis2Label;
+		}
+	}
+	//Setting Y-Axis Scaling
+	var modelScale = {
+			fixedRange : this.applyScaling,
+			minValue : this.min,
+			maxValue : this.max
+	};
+	if(chartType === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_BUBBLE || chartType === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_SCATTER)
+		this.ui5ChartElement.getVizProperties().plotArea.secondaryScale = modelScale;
+	else
+		this.ui5ChartElement.getVizProperties().plotArea.primaryScale = modelScale;
+	//Setting Y-Axis 2 Scaling if the Chart Type is of type Dual
+	if(dualYAxis){
+		var modelScale2 = {
+				fixedRange : this.applyScaling2,
+				minValue : this.min2,
+				maxValue : this.max2
+			};
+		this.ui5ChartElement.getVizProperties().plotArea.secondaryScale = modelScale2;
+	}
+
+	var valueAxisModel = {
+			visible:JSON.parse(this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.SHOW_XAXIS)),
+			color : '#DFDFDF', // color of yAxis
+			title : {
+		visible : this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.SHOW_XAXIS_LABEL),
+		text : yAxisLabel,
+		applyAxislineColor : true
+	},
+	axisLine : {
+		visible : JSON.parse(this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.SHOW_GRID_LINE))
+		||JSON.parse(this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.SHOW_XAXIS)),
+		showFirstLine : true,
+		showLastLine : true,
+		size : 1
+	},
+	axisTick : {
+		visible : true
+	}
+	};
+	if(chartType === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_BUBBLE || chartType === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_SCATTER)
+		this.ui5ChartElement.getVizProperties().valueAxis = valueAxisModel;
+
+
+	if((chartType) === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_COMBINATION || chartType === "timeseries_combination"){
+		var primaryAxis=[];
+		var maxPenCount = 32;
+		for(var i=0; i<maxPenCount; i++){
+			var penType = this.chartPropertyConfig.getProperty("PenType." + (i+1));
+			var penTypeLower = penType.toLowerCase();
+			primaryAxis.push(penTypeLower);
+		}
+		var dataShape = {
+				primaryAxis : primaryAxis
+		};
+		var line = {
+				marker : {
+			visible : this.chartPropertyConfig.showMarker(this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.MARKER_STYLE)),
+			shape : this.chartPropertyConfig.getMarkerStyle(this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.MARKER_STYLE)),
+			size : this.chartPropertyConfig.getMarkerSize(this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.MARKER_SIZE))
+		}
+		};
+		this.ui5ChartElement.getVizProperties().plotArea.dataShape=dataShape;
+		this.ui5ChartElement.getVizProperties().plotArea.line = line;
+		
+	} else if (chartType === com.sap.xmii.common.util.i5ChartTypes.DUAL_COMBINATION) {
+		
+		var primaryAxis = [], secondaryAxis = [];
+		var maxPenCount = valueColumnOne + valueColumnTwo;
+		
+		for(var i = 0; i < maxPenCount; i++){
+			var penType = this.chartPropertyConfig.getProperty("PenType." + (i + 1)).toLowerCase();
+			
+			if (i < valueColumnOne) {
+				primaryAxis.push(penType);
+			} else {
+				secondaryAxis.push(penType);
+			}
+			
+		}
+		
+		var dataShape = {
+			primaryAxis: primaryAxis,
+			secondaryAxis: secondaryAxis
+		};
+		var line = { marker: {
+				visible: this.chartPropertyConfig.showMarker(this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.MARKER_STYLE)),
+				shape: this.chartPropertyConfig.getMarkerStyle(this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.MARKER_STYLE)),
+				size: this.chartPropertyConfig.getMarkerSize(this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.MARKER_SIZE))
+			}
+		};
+		
+		this.ui5ChartElement.getVizProperties().plotArea.dataShape=dataShape;
+		this.ui5ChartElement.getVizProperties().plotArea.line = line;
+	}
+
+	var upperLimit = this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.SpecLimits.UPPER_LIMIT);
+	var lowerLimit = this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.SpecLimits.LOWER_LIMIT);
+	var initialUpdate = this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.INITIAL_UPDATE);
+	// the function applyFormatRulesforMeasures will apply rules for all the mapped measures 
+	if(initialUpdate)
+		com.sap.xmii.common.util.MIIi5Util.applyFormatRulesforMeasures(this.chartPropertyConfig,this.ui5ChartElement);
+	this.ui5ChartElement.setModel(this.chartCompnModel.oModel);
+	return this.ui5ChartElement;
+
+};

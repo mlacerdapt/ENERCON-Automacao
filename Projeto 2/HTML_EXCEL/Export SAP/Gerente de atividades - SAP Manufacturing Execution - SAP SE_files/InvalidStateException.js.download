@@ -1,0 +1,38 @@
+/* (c) Copyright 2008 SAP AG. All rights reserved. */
+
+/* "$Revision: 1$" */
+
+/*
+    InvalidStateException.js
+
+    This exception object represents an object that is in an invalid state.  If an object
+    is supposed to be in some defined state, but it's not, then this exception should be
+    thrown.
+
+*/
+
+/*
+$Log: InvalidStateException.js $
+Revision 1.1  2001/09/06 04:34:37Z  rasmussene
+Initial revision
+*/
+
+//
+// InvalidStateException Constructor
+// ---------------------------------
+// Constructs a new InvalidStateException object and initializes the error message.
+//
+// Implementation:
+//   1. If message was passed in, initialize the message member with it
+//   2. Initialize base members with subclass Exception object
+//
+function InvalidStateException( message )
+{
+    if ( ( message != null ) && ( typeof( message ) == "string" ) ) {
+        this.baseException = new Exception( message );
+    }
+    this.message = this.baseException.getMessage();
+    this.stackTrace = this.baseException.getStackTrace();
+}
+InvalidStateException.prototype = new Exception();
+

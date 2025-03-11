@@ -1,0 +1,384 @@
+/*
+ * @author I064174
+ * This file is responsible for holding a PIC Node specific data as its name, namespace, parent, childs, properties etc.
+ */
+
+//defining the namspace if the other files have not been loaded
+com.sap.xmii = com.sap.xmii ||{};
+
+/**
+ * @Namespace com.sap.xmii.ssce
+ */
+com.sap.xmii.ssce = com.sap.xmii.ssce ||{};
+//placeholder to hold the chart variable needed to destroy the chart
+com.sap.xmii.ssce.trendCharts = com.sap.xmii.ssce.trendCharts || {};
+
+/**
+ * Adding the constructor to hold the intialize the object with the given properties.
+ * keeping their visibility inside the constructor only so that they can't be reffered outside
+ * as .property
+ */
+
+com.sap.xmii.ssce.PICNode = function(namespace, name, description, type, category) {
+	
+	//private function to validate the output response 
+	var isValidResponse = function(data) {
+		if(isObjectNotNull(data) && isObjectNotNull(data.d) && isArrayNotEmpty(data.d.results) && isObjectNotNull(data.d.results[0]) && isObjectNotNull(data.d.results[0].Rowset) &&
+				isArrayNotEmpty(data.d.results[0].Rowset.results) && isObjectNotNull(data.d.results[0].Rowset.results[0]) && isObjectNotNull(data.d.results[0].Rowset.results[0].Row) &&
+				isArrayNotEmpty(data.d.results[0].Rowset.results[0].Row.results)) {
+			return true;
+		}
+		return false;
+	};
+	
+	//validation for name and namespace as they are mandatory
+	if (arguments.length == 0)
+		throw "Namespace is mandatory";
+	
+	if (arguments.length == 1) {
+		//it means only namespace is provided and all other values need to be resolved
+		var params = {};
+		params.Mode = "ObjectDetails", params.Namespace = namespace;
+		var data = getObjectsFromPIC(XMII_PIC_ODATA_URL, params, null);
+		if (isValidResponse(data)) {
+			//only single row is expected
+			var row = data.d.results[0].Rowset.results[0].Row.results[0];
+			//if the result is found then populating private variables
+			if (isObjectNotNull(row)) {
+				name = row.Name;
+				namespace = row.Namespace;
+				type = row.ObjectType;
+				description = row.Description;
+				category = row.Category;
+			}
+		}
+	}
+	
+	/**
+	 * private function to load all the property sets
+	 */
+	var loadAllProperies = function(propertySets) {
+		//if the propertySets are already been loaded then don't load
+		if (isObjectNotNull(propertySets))
+			return propertySets;
+		
+		var params = {};
+		params.Mode = "PropertiesList", params.Namespace = namespace, params.Type = type, params.IgnoreDataType = true; 
+		var data = getObjectsFromPIC(XMII_PIC_ODATA_URL, params, null);
+		if(isValidResponse(data)) {
+			var rowArray = data.d.results[0].Rowset.results[0].Row.results;
+			
+			//need to check if the propertyset already exist
+			var propertySetsArray = [];
+			var propertySet = {};
+			propertySet.Properties = [];
+			var isPropertySetExists = function(setName) {
+				for (var j = 0; j < propertySetsArray.length; j++) {
+					if (propertySetsArray[j].Name == setName) {
+						return [true, j];
+					}
+				}
+				return [false, j];
+			};
+			
+			//populating the propertySets holder
+			for (var i = 0; i < rowArray.length; i++) {
+				var propertySetSearch = isPropertySetExists(rowArray[i].PropertySetName); 
+				if (propertySetSearch[0]) {
+					//same property set just need to create the properties array
+					var property = {};
+					property[rowArray[i].PropertyName] = rowArray[i].PropertyValue;
+					propertySetsArray[propertySetSearch[1]].Properties.push(property);
+				} else {
+					//need to create a new property set
+					propertySet = {}; 
+					propertySet.Properties = [];
+					propertySet.Name = rowArray[i].PropertySetName;
+					var property = {};
+					property[rowArray[i].PropertyName] = rowArray[i].PropertyValue;
+					propertySet.Properties.push(property);
+					propertySetsArray.push(propertySet);
+				}
+			}
+			return propertySetsArray;
+		}
+		return null;
+	};
+	
+	/**
+	 * private function to find Custom Properties in propertySets
+	 */
+	var findProperties = function (propertySetName) {
+		for (var i = 0; i < propertySets.length; i++) {
+			if (propertySets[i].Name == propertySetName) {
+				return propertySets[i].Properties;
+			}
+		}
+		return null;
+	};
+	
+	/**
+	 * function to find a property in an array of properties
+	 */
+	var findProperty = function (properties, propertyName) {
+		if (isArrayEmpty(properties))
+			return null;
+		
+		for (var i = 0; i < properties.length; i++) {
+			if (properties[i].hasOwnProperty(propertyName))
+				return properties[i];
+		}
+		return null;
+	};
+	
+	/**
+	 * placeholder to hold the chart variable needed to destroy the chart
+	 */
+	var trendCharts = {};
+	
+	/**
+	 * defining private holders for parent, childs, property sets and custom properties
+	 */
+	var parent, childs = [], propertySets, customProperties;
+	
+	/**
+	 * function to return the name of the node
+	 */
+	this.getName = function() {
+		return name;
+	};
+	
+	/**
+	 * function to return the namespace of the node
+	 */
+	this.getNamespace = function() {
+		return namespace;
+	};
+	
+	/**
+	 * function to return the description of the node
+	 */
+	this.getDescription = function() {
+		return description;
+	};
+	
+	/**
+	 * function to return the type of the node either TagGroup or Tag
+	 */
+	this.getType = function() {
+		return type;
+	};
+	
+	/**
+	 * function to return the category assigned to the node
+	 */
+	this.getCategory = function() {
+		return category;
+	};
+	
+	/**
+	 * function to add a child
+	 */
+	this.addChild = function(child) {
+		if (isObjectNotNull(child) && child instanceof com.sap.xmii.ssce.PICNode)
+			childs.push(child);
+	};
+
+	/**
+	 * function to return the parent of the this node
+	 */
+	this.getParent = function() {
+		//if the parent node is already populated then simple return it otherwise populate it
+		if (isObjectNull(parent)) {
+			var parentNamespace = namespace.substring(0, namespace.lastIndexOf("/"));
+			var params = {};
+			params.Mode = "ObjectDetails", params.Namespace = parentNamespace;
+			var data = getObjectsFromPIC(XMII_PIC_ODATA_URL, params, null);
+			if (isValidResponse(data)) {
+				//only single row is expected
+				var row = data.d.results[0].Rowset.results[0].Row.results[0];
+				//if the result is found then populating private variables
+				if (isObjectNotNull(row)) {
+					parent = new com.sap.xmii.ssce.PICNode(row.Namespace, row.Name, row.Description, row.ObjectType, row.Category);
+				}
+			}
+		}
+		return parent;
+	};
+	
+	/**
+	 * function to set the parent of the current node
+	 */
+	this.setParent = function(parentParam) {
+		//TODO need to check the namespace of the current node?
+		if (isObjectNotNull(parentParam) && parentParam instanceof com.sap.xmii.ssce.PICNode)
+			parent = parentParam;
+	};
+	
+	/**
+	 * function to return the childs of the current node
+	 */
+	this.getChilds = function() {
+		//if the type is not defined and type is Tag then no need to check for child nodes
+		if (isObjectNull(type) || type == "Tag")
+			return childs;
+		
+		if (isArrayEmpty(childs) && type == "TagGroup") {
+			//need to populate childs
+			var params = {};
+			params.Mode = "ObjectList", params.Namespace = namespace;
+			params.Permission = "read";
+			var data = getObjectsFromPIC(XMII_PIC_ODATA_URL, params, null);
+			//need to parse results now and populate the ChildNodes
+			if(isValidResponse(data)) {
+				var rowArray = data.d.results[0].Rowset.results[0].Row.results;
+				for (var i = 0; i < rowArray.length; i++) {
+					var picNode = new com.sap.xmii.ssce.PICNode(rowArray[i].Namespace, rowArray[i].Name, rowArray[i].Description, rowArray[i].ObjectType, rowArray[i].Category);
+					//need to add the parent as well
+					picNode.setParent(this);
+					childs.push(picNode);
+				}
+			}
+			return childs;
+		}
+		return childs;	
+	};
+	
+	/**
+	 * function to return the property sets for this node
+	 */
+	this.getPropertySets = function () {
+		//load property sets
+		propertySets = loadAllProperies(propertySets);
+		return propertySets;
+	};
+	
+	/**
+	 * function to return the custom properties
+	 */
+	this.getCustomProperties = function () {
+		propertySets = loadAllProperies(propertySets);
+		return findProperties(null);
+	};
+	
+	this.getProperties = function (propertySetName) {
+		//need to only check for undefined as null would be treated as Custom Property Set
+		if (propertySetName === undefined)
+			return null;
+		
+		propertySets = loadAllProperies(propertySets);
+		return findProperties(propertySetName);
+	};
+	
+	/**
+	 * function to find and return a particular property
+	 */
+	this.getProperty = function (propertySetName, propertyName) {
+		if (isObjectNull(propertySetName) || isObjectNull(propertyName))
+			return null;
+		
+		propertySets = loadAllProperies(propertySets);
+		var properties = findProperties(propertySetName);
+		return findProperty(properties, propertyName);
+	};
+	
+	/**
+	 * function to find a property in the custom property sets
+	 */
+	this.getCustomProperty = function (propertyName) {
+		if (isObjectNull(propertyName))
+			return null;
+		
+		propertySets = loadAllProperies(propertySets);
+		var properties = findProperties(null);
+		return findProperty(properties, propertyName);
+	};
+	
+	/**
+	 * function to display the trend of the tags
+	 */
+	this.showTrend = function(cellId) {
+		//need to check the cell first whether it not null and exist on the DOM
+		if (isObjectNull(cellId) || isArrayEmpty(jQuery.sap.byId(cellId)))
+			return;
+		
+		//function to check whether a chart already exists on the cell, if yes, then destroy it
+		var checkAndDestroyExistingChartOnCell = function(cellId) {
+			if (isObjectNotNull(com.sap.xmii.ssce.trendCharts) && isObjectNotNull(com.sap.xmii.ssce.trendCharts[cellId]) && com.sap.xmii.ssce.trendCharts[cellId].chartPosId == cellId) {
+				com.sap.xmii.ssce.trendCharts[cellId].destroy();
+				delete com.sap.xmii.ssce.trendCharts[cellId];
+			}
+		};
+		
+		//function to draw the chart and assigning the chart to the placeholder
+		var drawChart = function(delimitedData, cellId) {
+			try {
+				//drawing the chart
+				var trendChart = new com.sap.xmii.chart.hchart.i5Chart(com.sap.xmii.common.util.ChartTypes.LINE, "Predefined/DefaultCatalogHistoryQuery");
+				trendChart.getQueryObject().setParameter("SelectedObjects", delimitedData.selectedObjects);
+				trendChart.getQueryObject().setParameter("NamespaceDelimeter", delimitedData.delimiter);
+				trendChart.getQueryObject().setParameter("SelectedAliases", delimitedData.selectedAliases);
+				trendChart.getChartTemplateObject().setProperty("ValueColumns", delimitedData.selectedAliases);
+				trendChart.getQueryObject().setMode("History");
+				trendChart.getChartTemplateObject().setProperty("TimeSeries", true);
+				trendChart.setChartHeight(jQuery.sap.byId(cellId).height());
+				//adding the object in the placeholder
+				com.sap.xmii.ssce.trendCharts[cellId] = trendChart;
+				trendChart.draw(cellId);
+				return trendChart;
+			} catch (err) {
+				sap.ui.core.BusyIndicator.hide();
+				console.log("An error has occured: " + err.name + "-" + err.message);
+				var oTextView = new sap.ui.commons.TextView();
+				oTextView.setText(err.message);
+				oTextView.placeAt(cellId,"only");
+			}
+		};
+		
+		var tagData = [];
+		//need to check the type as if it is a tag group then all the tags which are childs are to be shown
+		if (type == "TagGroup") {
+			var selectedAliases = [];
+			var childs = this.getChilds();
+			for (var i = 0; i < childs.length; i++) {
+				//only tags should be shown on the chart and not the groups
+				if (childs[i].getType() == "Tag"){
+					tagData.push({Namespace:childs[i].getNamespace()});
+					selectedAliases.push(childs[i].getName());
+				}
+			}
+			var delimitedData = applyNamespaceDelimiterForTags(tagData, true);
+			if (delimitedData.selectedObjects == "")
+				return;
+			
+			//destroying the older chart on the same cell
+			checkAndDestroyExistingChartOnCell(cellId);
+			delimitedData.selectedAliases = selectedAliases.toString();
+			//finally drawing the chart
+			return drawChart(delimitedData, cellId);
+			
+		} else if (type == "Tag") {
+			tagData.Namespace = this.getNamespace();
+			var delimitedData = applyNamespaceDelimiterForTags([tagData], true);
+			//destroying the older chart on the same cell
+			checkAndDestroyExistingChartOnCell(cellId);
+			delimitedData.selectedAliases = this.getName();
+			//finally drawing the chart
+			return drawChart(delimitedData, cellId );
+		}
+	};
+	
+	/**
+	 * 
+	 */
+	this.getPICNodeAsJson = function(){//namespace, name, description, type, category
+		var picNodeJson = {};
+		picNodeJson.Name = this.getName();
+		picNodeJson.Namespace = this.getNamespace();
+		picNodeJson.Description = this.getDescription();
+		picNodeJson.Type = this.getType();
+		picNodeJson.Category = this.getCategory();
+		return picNodeJson;
+		
+	};
+};

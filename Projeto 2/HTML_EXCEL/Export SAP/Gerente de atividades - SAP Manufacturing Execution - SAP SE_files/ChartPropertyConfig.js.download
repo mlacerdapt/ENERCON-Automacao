@@ -1,0 +1,253 @@
+/**
+ * Chart Config Class
+ */
+
+com.sap.xmii.charttemplate = com.sap.xmii.charttemplate ||{}; 
+
+/**
+ * Chart Property Config holds all the configuration specific to the Chart
+ * Template Object
+ * 
+ * @param chartConfig
+ * @param chartMetaDataJSONStr
+ */
+//com.sap.xmii.charttemplate.ChartPropertyConfig = function(chartConfig,chartMetaDataJSONStr){
+com.sap.xmii.charttemplate.ChartPropertyConfig = function(chartConfig){
+
+
+	/*
+	 * Populates Props from the JSON String Workaround by passing the object to
+	 * refer to, since the local functions refer to windows object as "this"
+	 */
+	var populatePropMapFromJSON = function(chartMetaDataJSONStr,rObj,chrtTemp){
+		var jsonObj = com.sap.xmii.common.util.MIIi5Util.evalJSONStr(chartMetaDataJSONStr);
+		var keys = Object.keys(jsonObj);
+		if(null!=keys) {
+			for(var i = 0; i < keys.length; i++) {
+				var key = keys[i];
+				var value = jsonObj[key];
+				if(chrtTemp != undefined) {
+					chrtTemp[key] = value;
+				}
+				//if key not equal to "NumberFormat" && "ColumnFormats" && "YAxisNumberFormat" && "XAxisNumberFormat", this is to be stored as String
+				if(key !== com.sap.xmii.common.util.GridPropertyConstants.NUMBER_FORMAT && 
+						key != com.sap.xmii.common.util.GridPropertyConstants.COLUMN_FORMATS &&
+						key != com.sap.xmii.common.util.SPCChartConstants.XAXIS_NUMBERFORMAT && 
+						key != com.sap.xmii.common.util.SPCChartConstants.YAXIS_NUMBERFORMAT) { 
+					if(!com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(value)) {
+						if(!isNaN(value)) {
+							//value is a number
+							value = parseFloat(value);
+						} else if(value === com.sap.xmii.common.util.GenericConstants.TRUE || value === com.sap.xmii.common.util.GenericConstants.FALSE){
+							//value is boolean
+							value = JSON.parse(value);
+						}
+					}
+					if(key === com.sap.xmii.common.util.ChartPropertyConstants.MARKER_STYLE) {
+						value = parseInt(value);
+					}
+					if(key == com.sap.xmii.common.util.ChartPropertyConstants.ENABLE_ITEM_SEL) {
+						value = parseInt(value);
+					}
+				}
+				rObj.properties[key] = value;
+			}
+
+		}else {
+			var message = com.sap.xmii.common.util.MessageBundle.getText("XMSG_CHART_CONFIG_LOAD_ERROR");
+			throw new com.sap.xmii.common.exception.MIIi5Exception(message);
+		}
+
+	};
+
+	this.properties = {};
+
+	this.getProperty = function(key){
+		return this.properties[key];
+	};
+
+	this.setProperty = function (key,value){ 
+		this.properties[key] = value;
+	};
+
+	com.sap.xmii.common.util.loggedInUser = chartConfig.User;
+
+	/**
+	 * Method adds additional Props to the Chart Config Object
+	 */
+	this.setAdditionalProps = function(chartMetaDataJSONStr){
+		populatePropMapFromJSON(chartMetaDataJSONStr,this);
+	};
+	
+	/**
+	 * Method adds additional Props to the Chart Config Object
+	 */
+	this.setJSONProps = function(chartMetaDataJSONStr, chartTemplate){
+		populatePropMapFromJSON(chartMetaDataJSONStr,this, chartTemplate);
+	};
+
+	//Populate the properties object
+	this.chartConfig = chartConfig; 
+
+	this.getChartLook = function(isGlossy){
+		//if(isGlossy == com.sap.xmii.common.util.GenericConstants.TRUE){
+		if(isGlossy === true){
+			return sap.viz.ui5.types.Line_drawingEffect.glossy;
+		}else{
+			return sap.viz.ui5.types.Line_drawingEffect.normal;
+		}
+	};
+
+	this.getTitleFontWeight = function(){
+		var miiSelectedFontStyle = com.sap.xmii.common.util.MIIFontStyles[this.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.SELECTED_FONT_STYLE)];
+
+		if(com.sap.xmii.common.util.ChartPropertyConstants.BOLD == miiSelectedFontStyle || com.sap.xmii.common.util.ChartPropertyConstants.BOLD_ITALIC == miiSelectedFontStyle) {
+			return com.sap.xmii.common.util.ui5Constants.BOLD;
+		} else {
+			return com.sap.xmii.common.util.ui5Constants.NORMAL;
+		}
+	};
+
+	this.getTitleFontStyle = function(){
+		var miiSelectedFontStyle = com.sap.xmii.common.util.MIIFontStyles[this.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.SELECTED_FONT_STYLE)];
+		if(com.sap.xmii.common.util.ChartPropertyConstants.ITALIC == miiSelectedFontStyle || com.sap.xmii.common.util.ChartPropertyConstants.BOLD_ITALIC == miiSelectedFontStyle){
+			return com.sap.xmii.common.util.ui5Constants.ITALIC;
+		} else {
+			return com.sap.xmii.common.util.ui5Constants.NORMAL;
+		}
+	};
+	
+	this.getXAxisFontWeight = function(){
+		var miiSelectedFontStyle = com.sap.xmii.common.util.MIIFontStyles[this.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.XAXIS_FONT_STYLE)];
+
+		if(com.sap.xmii.common.util.ChartPropertyConstants.BOLD == miiSelectedFontStyle || com.sap.xmii.common.util.ChartPropertyConstants.BOLD_ITALIC == miiSelectedFontStyle) {
+			return com.sap.xmii.common.util.ui5Constants.BOLD;
+		} else {
+			return com.sap.xmii.common.util.ui5Constants.NORMAL;
+		}
+	};
+
+	this.getXAxisFontStyle = function(){
+		var miiSelectedFontStyle = com.sap.xmii.common.util.MIIFontStyles[this.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.XAXIS_FONT_STYLE)];
+		if(com.sap.xmii.common.util.ChartPropertyConstants.ITALIC == miiSelectedFontStyle || com.sap.xmii.common.util.ChartPropertyConstants.BOLD_ITALIC == miiSelectedFontStyle){
+			return com.sap.xmii.common.util.ui5Constants.ITALIC;
+		} else {
+			return com.sap.xmii.common.util.ui5Constants.NORMAL;
+		}
+	};
+	
+	this.getTitleAlignment = function(){
+		//in case the user passes text (Center,Left,Right) as parameter to the setTitlePosition function, then the 
+		//corresponding index is assigned to the position variable
+		var position = this.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.TITLE_POSITION);
+        if(position == com.sap.xmii.common.util.ui5Constants.CENTER_ALIGN){
+           position = '0';
+		}
+        if(position == com.sap.xmii.common.util.ui5Constants.LEFT_ALIGN){
+        	position = '1';
+		}
+        if(position == com.sap.xmii.common.util.ui5Constants.RIGHT_ALIGN){
+        	position = '2';
+		 }
+		var fntAlignment = com.sap.xmii.common.util.MIIFontAlignment[position];
+		//var fntAlignment = com.sap.xmii.common.util.MIIFontAlignment[this.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.TITLE_POSITION)];
+		if(com.sap.xmii.common.util.ui5Constants.CENTER_ALIGN == fntAlignment){
+			return sap.viz.ui5.types.Title_alignment.center;
+		} else if(com.sap.xmii.common.util.ui5Constants.LEFT_ALIGN == fntAlignment){
+			return sap.viz.ui5.types.Title_alignment.left;
+		} else if(com.sap.xmii.common.util.ui5Constants.RIGHT_ALIGN == fntAlignment){
+			return sap.viz.ui5.types.Title_alignment.right;
+		}
+	};
+
+	this.getMarkerStyle = function(markerStyle){
+		//To handle when markerStyle is NaN
+		markerStyle = Number(markerStyle);
+		if(this.showMarker(markerStyle)) {
+			switch(markerStyle){
+			//case 0: return com.sap.xmii.common.util.ui5Constants.MARKER_NONE; 
+			case 0: return sap.viz.ui5.types.Line_marker_shape.circle;
+			case 1: return sap.viz.ui5.types.Line_marker_shape.diamond;
+			case 2: return sap.viz.ui5.types.Line_marker_shape.circle;
+			case 3: return sap.viz.ui5.types.Line_marker_shape.triangleLeft;
+			case 4: return sap.viz.ui5.types.Line_marker_shape.triangleDown;
+			case 5: return sap.viz.ui5.types.Line_marker_shape.triangleRight;
+			case 6: return sap.viz.ui5.types.Line_marker_shape.cross;
+			case 7: return sap.viz.ui5.types.Line_marker_shape.triangleUp;
+
+			default : return com.sap.xmii.common.util.ui5Constants.diamond;
+			}
+		}
+	};
+
+	this.showMarker = function(markerStyle) {
+		return (markerStyle === 0 || markerStyle == -1 || markerStyle == "0" || markerStyle == "-1") ? false : true;
+	};
+
+	this.getSelectionType = function(type){
+		//To handle when type is NaN
+		type = Number(type);
+		switch(type){
+			case 0: return sap.viz.ui5.types.controller.Interaction_selectability_mode.none;
+			case 1: return sap.viz.ui5.types.controller.Interaction_selectability_mode.single;
+			case 2: return sap.viz.ui5.types.controller.Interaction_selectability_mode.multiple;
+			default : return sap.viz.ui5.types.controller.Interaction_selectability_mode.multiple;
+		}
+	};
+	
+	this.getMarkerSize = function(size) {
+		if(size === "") 
+			return com.sap.xmii.common.util.GenericConstants.DEFAULT_MARKER_SIZE;
+		else 
+			return parseInt(size);
+	};
+	
+	this.toggleTicks =  function(){
+		var ticksVisible =  this.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.SHOW_HIDE_TICKS);
+		if((ticksVisible != null) && ticksVisible == false){
+			return "0";
+		}
+	};
+	this.toggleLabels =  function(){
+		var labelsVisible =  this.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.SHOW_HIDE_LABELS);
+		if(labelsVisible == false){
+			return "0px";
+		}
+	};
+	
+	this.toggleUpperChartTicks = function(){
+		var upperChartTicksVisible = this.getProperty(com.sap.xmii.common.util.SPCChartConstants.UPPER_CHART_TICKS);
+		if((upperChartTicksVisible != null) && upperChartTicksVisible == false){
+		return "0";
+		}
+	};
+	
+	this.toggleUpperChartLabels = function(){
+		var labelsVisible =  this.getProperty(com.sap.xmii.common.util.SPCChartConstants.UPPER_CHART_LABELS);
+		if(labelsVisible == false){
+			return "0px";
+		}
+	};
+	this.toggleLowerChartTicks = function(){
+		var lowerChartTicksVisible = this.getProperty(com.sap.xmii.common.util.SPCChartConstants.LOWER_CHART_TICKS);
+		if((lowerChartTicksVisible != null) && lowerChartTicksVisible == false){
+			return "0";
+		}
+	};
+	
+	this.toggleLowerChartLabels = function(){
+		var labelsVisible =  this.getProperty(com.sap.xmii.common.util.SPCChartConstants.LOWER_CHART_LABELS);
+		if(labelsVisible == false){
+			return "0px";
+		}
+	};
+}
+
+
+com.sap.xmii.charttemplate.ChartPropertyConfig.prototype = {
+		chartConfig:'',
+		//properties:{},
+		getChartConfig:function(){
+	return this.chartConfig; 
+}
+}

@@ -1,0 +1,2288 @@
+function getJSDoc() {
+	var x = 'String:formatDate(sourceDate, sourceFormat, destFormat);String:formatNumber(value, format);String:stringReplace(source, match, replace);String:stringReplaceAll(source, match, replace);String:dateToSeconds(stringDate, srcFormat);String:dateFromSeconds(seconds, destFormat);String:dateFromOffset(date1, date2, date3, dateFormat);String:dateDiff(date1, date2, format);String:dateNow(dateFormat);String:dateAdd(sourceDate, sourceDateFormat, sUnits, nUnits);String:encodeURL(urlString)';
+	return x;
+};
+//Class for Util Functions
+
+com.sap.xmii.common = com.sap.xmii.common || {};
+
+com.sap.xmii.common.util = {
+		MIIi5Util : {
+			
+	/**
+	 * UTIL Method accepts URL (Query template and displat template),
+	 * excutes it and returns OData.
+	 * 
+	 * @param strUrl
+	 * @return OData
+	 */
+	getOData : function(strUrl, successHandler, errorHandler, thisObject, postData) {
+		
+		var eURL = this.encodeURL(strUrl);
+		var pwdField = sap.ui.getCore().byId(com.sap.xmii.common.util.i5Command.INPUTPASSWORD)
+		if(pwdField!=undefined)
+		eURL=eURL+'&'+com.sap.xmii.common.util.i5Command.ILLUM_LOGIN_PWD+encodeURIComponent(pwdField.getValue());
+		if (successHandler && errorHandler && thisObject) {
+			$.ajax({
+				type: 'POST',
+				url: eURL,
+				dataType: 'json',
+				cache: false,
+				async: true,
+				success : function(data, textStatus, jqXHR) {
+					var jsonObj = data;
+					if (eURL.indexOf("DisplayTagCategories") > -1 && jqXHR.responseText.substr(0,1)=="{") {
+						if (jsonObj.Rowsets.hasOwnProperty("Rowset")) {
+							var rowset = jsonObj.Rowsets.Rowset[0];
+							jsonObj.Rowsets.Rowset[0] = repairOperator(rowset);
+						}
+					}
+					successHandler.apply(thisObject, [jsonObj]);
+				},
+				error : function(jqXHR, textStatus, errorThrown ) {
+					errorHandler.apply(thisObject, [com.sap.xmii.common.util.GenericConstants.POST])
+				}
+			});	
+		} else {
+	var odata = '';
+	var request = $.ajax( { 
+		url : eURL,
+		type : 'POST',
+		async : false,
+		data: postData
+	});
+	request.done(function(data, textStatus, xmlhttprequest) {
+		odata = xmlhttprequest.responseText;
+	});
+
+	request.fail(
+			function(textStatus) {
+				odata = JSON.stringify(com.sap.xmii.common.util.GenericConstants.POST);
+			});
+	if(eURL.indexOf("DisplayTagCategories") > -1 && odata.substr(0,1)=="{"){
+		var jsonObj = JSON.parse(odata);
+		if(jsonObj.Rowsets.hasOwnProperty("Rowset")){
+        	var rowset = jsonObj.Rowsets.Rowset[0];
+			jsonObj.Rowsets.Rowset[0] = repairOperator(rowset);
+        }
+		odata = JSON.stringify(jsonObj);
+ 	}
+	// This code will handle the session invalidation condition from server and triggers reload 
+	if (request.status == 200 && request.responseText != null && request.responseText.match(/<html>/gi) != null && (request.responseText.match(/id=\"logonForm\"/gi) != null) ) {
+		window.location.reload(true);
+	}
+	return odata;
+		}
+
+},
+getIllumOData : function(strUrl) {
+	//Removing content-type from IllumOdata url
+	strUrl = strUrl.replace(com.sap.xmii.common.util.GenericConstants.CONTENT_TYPE_URL_SUFFIX, "").replace();
+	var odata = '';
+	var eURL = this.encodeURL(strUrl);
+	var request = $.ajax( {
+		url : eURL,
+		type : 'GET',
+		async : false
+	});
+	request.done(function(data, textStatus, xmlhttprequest) {
+		odata = xmlhttprequest.responseText;
+	});
+
+	request.fail(
+
+			function(textStatus) {
+				throw new com.sap.xmii.common.exception.MIIi5Exception('FAIL ' + textStatus);
+			});
+	odata = this.transformIllumODataToMIIFormat(odata);
+	return odata;
+
+},
+
+//Make a call to the relevant Service with parameters in Json format and get the response here
+getServiceResponseInJson : function(strUrl, parameters) {
+	var result = '';
+	var request = $.ajax( {
+		url : strUrl,
+		dataType: 'json',
+		data : parameters,
+		cache: false,
+		type : 'POST',
+		async : false
+	});
+	request.done(function(data, textStatus, xmlhttprequest) {
+		try{
+			if(data.status == undefined)
+				result = data;
+			else if(data.status === 'success') //-- this needs to be done in success & failed scenarios
+				result = data.output;
+			else
+				throw new Error(data.output);
+		}catch(err){
+			//Hide BusyIndicator if it is being shown
+			sap.ui.core.BusyIndicator.hide();
+			var messageText = err.message;
+			throw new com.sap.xmii.common.exception.MIIi5Exception(messageText);
+			//throw err;
+		}
+		//Hide BusyIndicator if it is being shown
+		sap.ui.core.BusyIndicator.hide();
+	});
+	request.fail(
+			function(jqXHR, textStatus) {
+				//Hide BusyIndicator if it is being shown
+				sap.ui.core.BusyIndicator.hide();
+			});
+	return result;
+},
+
+/**
+ * windowOpenHttpPost() is used when wanting to open a new window with a POST call like in the case
+ * of Raw Data Export of i5Grid with Overwritten Query Parameters in SSCE Dashboard
+ */
+windowOpenHttpPost: function (url, data) {
+    var form = document.createElement("form");
+
+    form.target = "_blank";
+    form.method = "POST";
+    form.action = url;
+    form.style.display = "none";
+
+    for (var key in data) {
+        var input = document.createElement("input");
+
+        input.type = "hidden";
+        input.name = key;
+        input.value = data[key];
+        form.appendChild(input);
+    }
+
+    document.body.appendChild(form);
+    form.submit();
+    document.body.removeChild(form);
+},
+
+/**
+ * common method for exporting raw data in all formats The encoding from
+ * buildPostData encoding was removed to avoid double encoding by get ODATA calls,
+ * however export needs encoding of the url.
+ */
+exportData : function(urlNamespace, overrides) {
+	var postData = this.buildPostData(urlNamespace, overrides, true);
+	
+	this.windowOpenHttpPost(this.encodeURL(postData.url), postData.data);
+},
+
+/**
+ * common method for exporting SPC data in html/xml format
+ */
+exportSPCData : function(urlNamespace, overrides, contentType) {
+	$.ajax({
+		type: "POST",
+		url: urlNamespace,//'Illuminator?service=i5SPCService&QueryTemplate=SAP/SPC/TestDataQueryTemplate&DisplayTemplate=SAP/SPC/TestDisplayTemplate&ExportSPCResults=true&Content-Type=text/xml&IllumLoginName=mesys&IllumLoginPassword=icc8336',//urlNamespace,
+		data: overrides,//'&QueryTemplate=SAP/SPC/TestDataQueryTemplate&URL=http%3A%2F%2Flocalhost%3A50200%2FXMII%2FCM%2FSAP%2FSPC%2FTestData_MR.xml&WEUpperChartTrendAlarmLimit=0&WEUpperChartUpperZoneBAlarmLength=0&Title=title%203&WEUpperChartInsideZoneCAlarmLength=0&UpperWETrendAlarmEnabled=0&WEUpperChartUpperZoneBAlarmLimit=0&WEOutsideZoneCAlarmLimit=0&UpperWEControlLimitAlarmEnabled=1&WEUpperChartAlternatingAlarmLength=0&WEInsideZoneCAlarmLimit=0&WEAlternatingAlarmLimit=0&XAxisLabel=My%20X%20Axis&UpperShowSpecificationLimits=false&WESpecificationLimitAlarmLength=0&WEZoneBAlarmLimit=0&WEUpperChartLowerZoneBAlarmLength=0&WEInsideZoneCAlarmLength=0&WEUpperChartUSLAlarmLength=1&WEUpperChartOutsideZoneCAlarmLength=0&WEUpperChartInsideZoneCAlarmLimit=0&UpperWESpecificationLimitAlarmEnabled=1&WEUpperChartAlternatingAlarmLimit=0&WEAlternatingAlarmLength=0&WEUpperChartLSLAlarmLength=1&WEAltCenterLineAlarmLength=0&UpperWEZoneAAlarmEnabled=0&WEAltCenterLineAlarmLimit=0&WEUpperChartUpperZoneAAlarmLimit=0&WEUpperChartLSLAlarmLimit=1&SubgroupSize=2&WEUpperChartAboveCLRunAlarmLimit=0&WEUpperChartUSLAlarmLimit=1&WEZoneAAlarmLimit=0&UpperWESigmaDifferentAlarmEnabled=0&WEUpperChartUCLAlarmLength=1&WEUpperChartAltCenterLineAlarmLength=0&WEZoneAAlarmLength=0&WEUpperChartAboveCLRunAlarmLength=0&WETrendAlarmLimit=0&UpperWEZoneBAlarmEnabled=0&WEUpperChartLCLAlarmLength=1&WEControlLimitAlarmLimit=0&UpperWEInsideZoneCAlarmEnabled=0&WEUpperChartBelowCLRunAlarmLimit=0&ChartType=INDIVIDUALS&WERunAlarmLength=0&WEUpperChartLowerZoneBAlarmLimit=0&WESigmaDifferentAlarmLimit=0&WEUpperChartUCLAlarmLimit=1&WEUpperChartUpperZoneAAlarmLength=0&WEControlLimitAlarmLength=0&WEUpperChartLCLAlarmLimit=1&UpperWEAltCenterLineAlarmEnabled=0&AttributeColumns=XAXIS_ID&WEUpperChartBelowCLRunAlarmLength=0&UpperWEAlternatingAlarmEnabled=0&UpperShowControlLimits=true&UpperCalculateControlLimits=false&YAxisLabel=My%20Y%20Axis&WESpecificationLimitAlarmLimit=0&UpperLCL=7&WETrendAlarmLength=0&WEUpperChartAltCenterLineAlarmLimit=0&WESigmaDifferentAlarmLength=0&WEUpperChartTrendAlarmLength=0&WEZoneBAlarmLength=0&WEUpperChartLowerZoneAAlarmLength=0&UpperUCL=11&WEUpperChartLowerZoneAAlarmLimit=0&ValueColumns=ACTUAL_VALUE&UpperWEOutsideZoneCAlarmEnabled=0&WEOutsideZoneCAlarmLength=0&UpperChartType=INDIVIDUALS&UpperCL=9&UpperWERunAlarmEnabled=0&WEUpperChartOutsideZoneCAlarmLimit=0&WERunAlarmLimit=0',//overrides,
+		success: function(data, res) {
+		var tempFileName = arguments[2].responseText;
+		//Remove all new line & carriage returns from TempFileName
+		tempFileName = tempFileName.replace(/[\n\r]/g, '');
+		var url = com.sap.xmii.common.util.ExportDataURL + tempFileName + "?TargetContentType=" + contentType;
+		window.open(url);
+	}
+	});
+},
+
+
+
+evalJSONStr : function(jsonText) {
+
+	var jsonObj = '';
+	try {
+		var jsonObj = JSON.parse(jsonText);
+	} catch (err) {
+		var message = this.getMessageBundle(
+				com.sap.xmii.common.util.GenericConstants.MESSAGE_BUNDLE_URL).getText(
+				"XMSG_JSON_PARSE_ERROR")
+				+ " -" + jsonText;
+		throw new com.sap.xmii.common.exception.MIIi5Exception(message);
+	}
+	return jsonObj;
+},
+
+containsTimeIndicators : function(value) {
+	var STARTDATE_PLACEHOLDER = "[SD]";
+	var ENDDATE_PLACEHOLDER = "[ED]";
+	if (value == null) {
+		return false;
+	}
+	return value.indexOf(STARTDATE_PLACEHOLDER) > -1
+	|| value.indexOf(ENDDATE_PLACEHOLDER) > -1;
+},
+
+/**
+ * UTIL Method Checks if the value is Null or Empty
+ * 
+ * @param value
+ * @return boolean
+ */
+isNullOrEmpty : function(value) {
+	if (value) {
+		if (!(value.length > 0) || ("" + value).replace(/\s/g, "") === "") {
+			return true;
+		} else {
+			return false;
+		}
+	} else {
+		return true;
+	}
+},
+
+/**
+ * UTIL Method Checks if the String endsWith the specified suffix
+ * 
+ * @param str
+ * @param suffix
+ * @return boolean
+ */
+endsWith : function(str, suffix) {
+	return str.indexOf(suffix, str.length - suffix.length) !== -1;
+},
+
+/**
+ * UTIL Method return the localized bundle for displaying messages and
+ * errors
+ * 
+ * @param url
+ * @return bundle object
+ */
+getMessageBundle : function(url) {
+	var oBundle = jQuery.sap.resources( {
+		url : url,
+		locale : sap.ui.getCore().getConfiguration().getLanguage()
+	});
+	return oBundle;
+},
+
+/**
+ * UTIL Method Converts delimiter separated values into an array.
+ * 
+ * @param value
+ * @param delimiter
+ * @return Array
+ */
+stringToArray : function(value, delimiter) {
+	if (value == null) {
+		return [ "" ];
+	}
+
+	return value.toString().split(delimiter, -1);
+},
+
+/**
+ * UTIL Method validates source date against source format and converts
+ * it to the destination date format.
+ * 
+ * @param sourceDate
+ * @param sourceFormat
+ * @param destFormat
+ * @return string
+ */
+formatDate : function(sourceDate, sourceFormat, destFormat) {
+	if (sourceDate == undefined) {
+		sourceDate = "";
+	}
+	if (sourceFormat == undefined) {
+		sourceFormat = "";
+	}
+	if (destFormat == undefined) {
+		destFormat = "";
+	}
+	var params = "&mode=formatDate&SourceDate=" + sourceDate + "&SourceFormat="
+	+ sourceFormat + "&DestinationFormat=" + destFormat;
+	return this.callJSFunctions(params);
+},
+
+/**
+ * UTIL Method validates source date against source format and converts
+ * it to the destination date format.
+ * 
+ * @param sourceDate
+ * @param sourceFormat
+ * @param destFormat
+ * @return string
+ */
+formatDates : function(sourceDates, sourceFormat, destFormat) {
+	if (sourceDates == undefined) {
+		sourceDates = "";
+	}
+	if (sourceFormat == undefined) {
+		sourceFormat = "";
+	}
+	if (destFormat == undefined) {
+		destFormat = "";
+	}
+
+	var params = "&mode=formatDates";
+	for(var i=1; i<=sourceDates.length; i++){
+		params = params + "&SourceDate" + i + "=" + sourceDates[i-1];
+	}
+	params = params + "&SourceFormat=" + sourceFormat + "&DestinationFormat=" + destFormat;
+
+	return this.callJSFunctions(params).split(",");;
+},
+/**
+ * UTIL Method validates source date against source format and converts
+ * it to the destination date format considering the timezone offset.
+ * 
+ * @param sourceDate
+ * @param sourceFormat
+ * @param destFormat
+ * @return string
+ */
+convertDatetoServerTimeZone : function(dateMilliSeconds, destFormat) {
+	if (dateMilliSeconds == undefined) {
+		dateMilliSeconds = "";
+	}
+	if (destFormat == undefined) {
+		destFormat = "";
+	}
+	var params = "&mode=formatDatetoServerTimeZone&dateMilliSeconds=" + dateMilliSeconds + "&DestinationFormat=" + destFormat;
+	return this.callJSFunctions(params);
+},
+
+/**
+ * UTIL Method validates source date against source format and converts
+ * it to the destination date format considering the timezone offset.
+ * 
+ * @param sourceDate
+ * @param sourceFormat
+ * @param destFormat
+ * @return string
+ */
+convertDatestoServerTimeZone : function(datesMilliSeconds, destFormat) {
+	if (datesMilliSeconds == undefined) {
+		datesMilliSeconds = "";
+	}
+	if (destFormat == undefined) {
+		destFormat = "";
+	}
+	var params = "&mode=formatDatestoServerTimeZone";
+	for(var i=1; i<=datesMilliSeconds.length; i++){
+		params = params + "&Date" + i + "=" + datesMilliSeconds[i-1];
+	}
+	params = params + "&DestinationFormat=" + destFormat;
+
+	return this.callJSFunctions(params).split(";");
+},
+
+
+/**
+ * UTIL Method Converts a given number to the format specified.
+ * 
+ * @param value
+ * @param format
+ * @return string
+ */
+formatNumber : function(value, format) {
+	if (value == undefined) {
+		value = "";
+	}
+	if (format == undefined) {
+		format = "";
+	}
+	var params = "&mode=formatNumber&Number=" + value + "&DestinationFormat=" + format;
+	return this.callJSFunctions(params);
+},
+
+getDateTimePatternForLocale : function() {
+	var params = "&mode=dateTimePatternForLocale";
+	return this.callJSFunctions(params);
+},
+
+getNumberFormatPatternForLocale : function() {
+	var params = "&mode=numberFormatPatternForLocale";
+	return this.callJSFunctions(params);
+},
+
+getLoggedInUserLocale : function() {
+	var params = "&mode=loggedInUserLocale";
+	return this.callJSFunctions(params);
+},
+
+/**
+* UTIL Method unique array elements
+* @param array
+* #return uniqued result array
+*/
+uniqueArray : function(arr) {
+  var result = [], hash = {};
+  for (var i = 0, elem; (elem = arr[i]) != null; i++) {
+    if (!hash[elem]) {
+      result.push(elem);
+      hash[elem] = true;
+    }
+  }
+  return result;
+},
+
+/**
+ * Replace an occurance of a string with another
+ * 
+ * @param strSource
+ *            Source string/regex
+ * @param strSearch
+ *            String to look for
+ * @param strReplace
+ *            String to replace with
+ * @return New string with replacements or the original string or search
+ *         was null or empty
+ */
+stringReplace : function(source, match, replace) {
+	if (source == undefined) {
+		source = "";
+	}
+	if (match == undefined) {
+		match = "";
+	}
+	if (replace == undefined) {
+		replace = "";
+	}
+	var params = "&mode=stringReplace&srcString=" + source + "&matchExpr=" + match
+	+ "&replaceExpr=" + replace;
+	return this.callJSFunctions(params);
+},
+
+/**
+ * Replace all occurance of a string with another
+ * 
+ * @param strSource
+ *            Source string/regex
+ * @param strSearch
+ *            String to look for
+ * @param strReplace
+ *            String to replace with
+ * @return New string with replacements or the original string or search
+ *         was null or empty
+ */
+stringReplaceAll : function(source, match, replace) {
+	var globalMatchRegex = new RegExp(match, "g"); // for replaceAll
+	return source.replace(globalMatchRegex, replace);
+},
+
+/**
+ * UTIL Method Converts the date to seconds
+ * 
+ * @param stringDate
+ * @param dateFormat
+ * @return dateToSeconds
+ */
+dateToSeconds : function(stringDate, srcFormat) {
+	if (stringDate == undefined) {
+		stringDate = "";
+	}
+	if (srcFormat == undefined) {
+		srcFormat = "";
+	}
+	if(stringDate.indexOf("+"))
+		stringDate = stringDate.split('+').join('%2B');
+	var params = "&mode=dateToSeconds&SourceDate=" + stringDate + "&SourceFormat="
+	+ srcFormat;
+	return this.callJSFunctions(params);
+},
+
+/**
+ * UTIL Method Converts the date to seconds
+ * 
+ * @param stringDate
+ * @param dateFormat
+ * @return dateToSeconds
+ */
+dateToMilliSeconds : function(stringDate, srcFormat) {
+	if (stringDate == undefined) {
+		stringDate = "";
+	}
+	if (srcFormat == undefined) {
+		srcFormat = "";
+	}
+	if(stringDate.indexOf("+"))
+		stringDate = stringDate.split('+').join('%2B');
+	var params = "&mode=dateToMilliSeconds&SourceDate=" + stringDate + "&SourceFormat=" + srcFormat;
+	return this.callJSFunctions(params);
+},
+
+/**
+ * UTIL Method Converts the seconds to date
+ * 
+ * @param seconds
+ * @param dateFormat
+ * @return secondsToDate
+ */
+dateFromSeconds : function(seconds, destFormat) {
+	if (seconds == undefined) {
+		seconds = "";
+	}
+	if (destFormat == undefined) {
+		destFormat = "";
+	}
+	var params = "&mode=dateFromSeconds&LongSeconds=" + seconds + "&DestinationFormat="
+	+ destFormat;
+	return this.callJSFunctions(params);
+},
+
+/**
+ * UTIL Method Add (date3 - date2) to date1 and return as per format.
+ * 
+ * @param date1
+ * @param date2
+ * @param date3
+ * @param dateFormat
+ * @return date from offset
+ */
+dateFromOffset : function(date1, date2, date3, dateFormat) {
+	if (date1 == undefined) {
+		date1 = "";
+	}
+	if (date2 == undefined) {
+		date2 = "";
+	}
+	if (date3 == undefined) {
+		date3 = "";
+	}
+	if (dateFormat == undefined) {
+		dateFormat = "";
+	}
+	var params = "&mode=dateFromOffset&Date1=" + date1 + "&Date2=" + date2 + "&Date3="
+	+ date3 + "&DestinationFormat=" + dateFormat;
+	return this.callJSFunctions(params);
+},
+
+/**
+ * UTIL Method subtracts dat1 from date2 and returns seconds
+ * 
+ * @param date1
+ * @param date2
+ * @return (date2 - date1) in seconds
+ */
+dateDiff : function(date1, date2, format) {
+	if (date1 == undefined) {
+		date1 = "";
+	}
+	if (date2 == undefined) {
+		date2 = "";
+	}
+	if (format == undefined) {
+		format = "";
+	}
+	var params = "&mode=dateDiff&Date1=" + date1 + "&Date2=" + date2 + "&SourceFormat="
+	+ format;
+	return this.callJSFunctions(params);
+},
+
+/**
+ * UTIL Method returns current date in specified format. if no format is
+ * provided, picks the default XML date format.
+ * 
+ * @param dateFormat
+ * @return date
+ */
+dateNow : function(dateFormat) {
+	if (dateFormat == undefined) {
+		dateFormat = "";
+	}
+	var params = "&mode=dateNow&DestinationFormat=" + dateFormat;
+	return this.callJSFunctions(params);
+},
+
+/**
+ * UTIL Method Adds nUnits to sUnits taken from sourceDate in the given
+ * date format
+ * 
+ * @param numberFormat
+ * @return modifiedDate
+ */
+dateAdd : function(sourceDate, sourceDateFormat, sUnits, nUnits) {
+	if (sourceDate == undefined) {
+		sourceDate = "";
+	}
+	if (sourceDateFormat == undefined) {
+		sourceDateFormat = "";
+	}
+	if (sUnits == undefined) {
+		sUnits = "";
+	}
+	if (nUnits == undefined) {
+		nUnits = "";
+	}
+	var params = "&mode=dateAdd&SourceDate=" + sourceDate + "&SourceFormat="
+	+ sourceDateFormat + "&sUnits=" + sUnits + "&nUnits=" + nUnits;
+	return this.callJSFunctions(params);
+},
+
+/**
+ * Method ENCODES the URL String passed
+ */
+encodeURL : function(urlString) {
+	return encodeURI(urlString);
+},
+
+
+defineProperty : function(obj, propName, val) {
+	Object.defineProperty(obj,propName,{value:val,writable:true});
+	/*Object.defineProperty(obj, propName, {
+		set : function(val) {
+		if (typeof val === com.sap.xmii.common.util.GenericConstants.NUMBER) {
+			eval(propName + '=' + val);
+		} else if (typeof val === com.sap.xmii.common.util.GenericConstants.STRING) {
+			eval(propName + '=' + '\"' + val + '\"');
+		} else if (typeof val === com.sap.xmii.common.util.GenericConstants.BOOLEAN) {
+			eval(propName + '=' + val);
+		}
+
+	},
+	get : function() {
+	    	alert('Inside Object Define Property');
+		var r = eval(propName);
+		//return r;
+	}
+
+	});*/
+},
+
+/**
+ * UTIL Method returns assigned roles for logged-in user
+ * @return user roles
+ */
+getLoggedInUserRoles : function() {
+	var params = "&mode=loggedInUserRoles";
+	return this.callJSFunctions(params);
+},
+
+callJSFunctions : function(parametersString) {
+	var jsFunctionCallURL = com.sap.xmii.common.util.GenericConstants.ILLUM_URL_PREFIX + parametersString+ com.sap.xmii.common.util.GenericConstants.CONTENT_TYPE_URL_SUFFIX;
+	var functionResultsJSONStr = this.getOData(jsFunctionCallURL);
+	var functionResultsJSONObj = this.evalJSONStr(functionResultsJSONStr);
+	return functionResultsJSONObj.Rowsets.Rowset[0].Row[0].Result;
+},
+
+/**
+ * Query Parameters ("Param.#") can be large enough and not fit in the URL when passed in as URL Parameters
+ * Therefore buildPostData will return an object like { url: url, data: data} where URL contains the URL and URL Parameters and the data will contain only the Query Parameters
+ * For this the postData parameter needs to be present and set to true
+ * {
+ *		"url":"/XMII/Illuminator?service=CombineQueryRowsets&QueryTemplate=Default/XacuteQuery&Content-Type=text/json&NumberFormat=0.000000&DateFormat=yyyy-MM-dd'T'HH:mm:ssZZZ&IsTimeZoneFormatRequired=true&UseBOMForCSV=false",
+ *		"data":{
+ *			"Param.1":"PUnit"
+ *		}
+ *	}
+ */
+buildPostData: function (urlNamespace, propertiesMap, postData) {
+    var url = urlNamespace;
+    var data = {};
+
+    if (propertiesMap != null) {
+        //MDO Query fix-- DateTime parsing issue
+        if (propertiesMap[com.sap.xmii.common.util.IsTimeZoneFormatRequired] === undefined) {
+            propertiesMap[com.sap.xmii.common.util.IsTimeZoneFormatRequired] = true; // Setting IsTimeZoneFormatRequired URL parameter (MDO Query fix-- DateTime parsing issue)
+            propertiesMap[com.sap.xmii.common.util.DateTimeConstants.DATE_FORMAT] = undefined; // overriding DateFormat to undefined
+        }
+
+        for (var paramName in propertiesMap) {
+            if (paramName === com.sap.xmii.common.util.QueryConstants.XML_URL && !this.isNullOrEmpty(propertiesMap[paramName])) {
+                url = url + "&" + paramName + "=" + encodeURIComponent(propertiesMap[paramName]);
+            } else if (typeof propertiesMap[paramName] === com.sap.xmii.common.util.GenericConstants.STRING) { //Check for type,since IsNullOrEmpty would fail for Numbers
+                if (propertiesMap["Mode"] === "PICAnalysis") {
+                    if (paramName === "SelectedTagCategories" || paramName === "DisplayTagCategories" || paramName === "SelectedTagCategoryAliases" || paramName === 'SelectedGroupCategories' || paramName === 'NodeSelectionExpression') {
+                        propertiesMap[paramName] = propertiesMap[paramName].split('+').join('%2B');
+                    }
+                    if (paramName === 'ScopePropertyExpression' || paramName === 'NodeSelectionExpression' || paramName === 'ScopePeColExpression') {
+                        propertiesMap[paramName] = propertiesMap[paramName].replace(/\\/g, '');
+                    }
+                } else if ((paramName === com.sap.xmii.common.util.DateTimeConstants.START_DATE || paramName === com.sap.xmii.common.util.DateTimeConstants.END_DATE)
+                     && !this.isNullOrEmpty(propertiesMap[paramName]) && this.validateDateTimeFormat(propertiesMap[paramName])) {
+                    propertiesMap[paramName] = propertiesMap[paramName].split('+').join('%2B');
+                    propertiesMap[com.sap.xmii.common.util.DateTimeConstants.DATE_FORMAT] = com.sap.xmii.common.util.dateFormats.XML_FORMAT_TIMEZONE_OFFSET;
+                }
+
+                if (!(propertiesMap[paramName].indexOf('#') > -1)) {
+                    if (paramName.substring(0, 6) == "Param." && postData) {
+                    	data[paramName] = propertiesMap[paramName]; // Pass the Query Parameters ("Param.") as post data instead of URL Parameters
+                    } else {
+                        url = url + "&" + paramName + "=" + propertiesMap[paramName]; // The other parameters are still passed as URL Parameters
+                    }
+                }
+            } else if (typeof propertiesMap[paramName] === com.sap.xmii.common.util.GenericConstants.BOOLEAN) {
+                url = url + "&" + paramName + "=" + propertiesMap[paramName];
+            } else if (propertiesMap[paramName]) {
+                url = url + "&" + paramName + "=" + propertiesMap[paramName];
+            }
+        }
+    }
+
+    var result = { "url": url, "data": data };
+
+    return result;
+},
+
+setPropertyOnSession : function(name, value) {
+	var url = "/XMII/Illuminator?service=PropertyAccessService&mode=store&content-type=text/json&PropName="
+		+ name + "&PropValue=" + value;
+	var result = this.evalJSONStr(this.getOData(url));
+},
+
+getPropertyFromSession : function(name) {
+	var url = "/XMII/Illuminator?service=PropertyAccessService&mode=retrieve&content-type=text/json&PropName="
+		+ name;
+	var result = this.evalJSONStr(this.getOData(url));
+	return result.Rowsets.Rowset[0].Row[0].Value;
+},
+
+isEmpty : function(obj) {
+	for ( var isNotEmpty in obj) { //will loop through once if there is a property of some sort, then
+		return false;
+	}
+	return true; //nope obj was empty do this instead;	
+},
+
+transformIllumODataToMIIFormat : function(jsonModelText) {
+	var jsonModel = new sap.ui.model.json.JSONModel();
+	jsonModel.setJSON(jsonModelText);
+	//set Query result metadata (CreatedDate, StartDate, EndDate)
+	var dateFormatter = com.sap.xmii.common.util.MIIi5Util.getDateFormatter(com.sap.xmii.common.util.dateFormats.XML_FORMAT_TIMEZONE_OFFSET);
+	var sd = jsonModel.getProperty("/d").results[0].StartDate;
+	var longDate = Number(sd.substring(6, sd.length-2));
+	var startDate = dateFormatter.format(new Date(longDate));
+
+	var ed = jsonModel.getProperty("/d").results[0].EndDate;
+	longDate = Number(ed.substring(6, ed.length-2));
+	var endDate = dateFormatter.format(new Date(longDate));
+
+	var cd = jsonModel.getProperty("/d").results[0].DateCreated;
+	longDate = Number(cd.substring(6, cd.length-2));
+	var createdDate = dateFormatter.format(new Date(longDate));
+
+	var jsonResult = jsonModel.getProperty("/d").results[0].Rowset.results[0];
+	//same structure as the initial json data
+	var newChartModelData = {
+			"Rowsets" : {
+		"Rowset" : [ {
+			"Columns" : {
+			"Column" : []
+		},
+		"Row" : []
+		} ]
+	}
+	};
+
+	newChartModelData.Rowsets.DateCreated = createdDate;
+	newChartModelData.Rowsets.StartDate = startDate;
+	newChartModelData.Rowsets.EndDate = endDate;
+
+	var nCols = jsonResult.Column.results.length;
+	//adding records in to column from original chart data
+	for ( var i = 0; i < nCols; i++) {
+		var obj = jsonResult.Column.results[i];
+		newChartModelData.Rowsets.Rowset[0].Columns.Column.push(obj);
+	}
+	//adding records for rows
+	var nRows = jsonResult.Row.results.length;
+	for ( var x = 0; x < nRows; x++) {
+		var obj = jsonResult.Row.results[x];
+		if (!this.isNullOrEmpty(obj.DateTime)) {
+			var dt = obj.DateTime;
+			var index = dt.length - 2;
+			dt = dt.substring(6, index);
+			obj.DateTime = this.dateFromSeconds(dt / 1000, "MM/dd/yyyy HH:mm:ss");
+		}
+		newChartModelData.Rowsets.Rowset[0].Row.push(obj);
+	}
+	jsonModelText = JSON.stringify(newChartModelData);
+	return jsonModelText;
+},
+
+initializeCommonPropertiesForDataExport : function(thisObj, bDTOverridesRequired) {
+	var vizType = thisObj.getChartTemplateObject().chartConfig.Type;
+	var addTemplateOverridesToOverrides = function(overrides, tOverrides) {
+		for(var prop in tOverrides) {
+			if(thisObj.getQueryObject().isTimeBasedQuery() && prop == com.sap.xmii.common.util.DateTimeConstants.DATE_FORMAT)
+				continue;
+			overrides[prop] = tOverrides[prop];
+		}
+		return overrides;
+	};
+
+	var addJsonPropsToOverrides = function(overrides, jsonProps) {
+		var jsonObj = com.sap.xmii.common.util.MIIi5Util.evalJSONStr(jsonProps);
+		for(var prop in jsonObj) {
+			if(prop === com.sap.xmii.common.util.GenericConstants.CONTENT_TYPE ||
+					prop === com.sap.xmii.common.util.GenericConstants.DISPLAY_TEMPLATE_INDICATOR ||
+					prop === com.sap.xmii.common.util.QueryConstants.QUERY_TEMPLATE ||
+					prop === com.sap.xmii.common.util.GenericConstants.JSESSIONID)
+				continue;
+			overrides[prop] = jsonObj[prop];
+		}
+		return overrides;
+	};
+
+	var isEmptyObject = function(obj) {
+		if(obj){ //this will take care of empty/non-empty String values
+			//only for non-empty case of String.. but empty Objects will still pass this test
+			return jQuery.isEmptyObject(obj);
+		}
+		return true;
+	};
+
+	var SD_fromModel, ED_fromModel, rowsetIndex;
+	var queryTemplateName = thisObj.getQueryTemplate();
+	var sourceDateFormat =  thisObj.dateFormat;
+
+	var overrides = new Object();
+	overrides[com.sap.xmii.common.util.QueryConstants.QUERY_TEMPLATE] = queryTemplateName;
+
+	var rowsetData = thisObj.model.getModelData().getRowset();
+
+	var sliderMoved = function(sliderObj) {
+		if(sliderObj.getValue() !== 0 || sliderObj.getValue2() !== sliderObj.getMax())
+			return true;
+		else
+			return false;
+	}
+	
+	//check if slider was moved
+	if (thisObj.getQueryObject().isTimeBasedQuery() && thisObj.getChartObject().getShowTimeBar() == true && !jQuery.isEmptyObject(rowsetData) 
+			&& thisObj.getTimeBar().slider != undefined && sliderMoved(thisObj.getTimeBar().slider)) {
+		var sliderObj = thisObj.getTimeBar().slider;
+		var queryMetaData = thisObj.queryTemplate.getQueryObject().getQueryMetaData();
+		var rowStartIndex, rowEndIndex;
+
+		// SD_fromModel = thisObj.originalRows[sliderObj.getValue()].DateTime;
+		// ED_fromModel = thisObj.originalRows[sliderObj.getValue2()].DateTime;
+		if(vizType === "i5SPCChart") {
+			rowsetIndex = 1;
+			rowStartIndex = Number(sliderObj.getValue()) - 1;
+			rowEndIndex = Number(sliderObj.getValue2()) - 1;
+		} else {
+			rowStartIndex = sliderObj.getValue();
+			rowEndIndex = sliderObj.getValue2();
+		}
+		if(thisObj.model != null && thisObj.model != undefined && thisObj.model.getModelData() != null && thisObj.model.getModelData() != undefined){
+			if(thisObj.model.getModelData().getRow(rowStartIndex, rowsetIndex) != null && thisObj.model.getModelData().getRow(rowStartIndex, rowsetIndex) != undefined){
+				if(vizType === "i5SPCChart")
+					SD_fromModel = thisObj.model.getModelData().getRow(rowStartIndex, rowsetIndex).DateTime;
+				else 
+					SD_fromModel = thisObj.model.getModelData().getRow(rowStartIndex, rowsetIndex)._formattedColumn;
+			}
+			if(thisObj.model.getModelData().getRow(rowEndIndex, rowsetIndex) != null && thisObj.model.getModelData().getRow(rowEndIndex, rowsetIndex) != undefined){
+				if(vizType === "i5SPCChart")
+					ED_fromModel = thisObj.model.getModelData().getRow(rowEndIndex, rowsetIndex).DateTime;
+				else
+					ED_fromModel = thisObj.model.getModelData().getRow(rowEndIndex, rowsetIndex)._formattedColumn;
+			}
+		}	
+	} else {
+		SD_fromModel = thisObj.model.getJSONModel().oData.Rowsets.StartDate; //exists in XML Date format
+		ED_fromModel = thisObj.model.getJSONModel().oData.Rowsets.EndDate; //exists in XML Date format
+		sourceDateFormat = com.sap.xmii.common.util.dateFormats.XML_FORMAT_TIMEZONE_OFFSET;
+	}
+	if(SD_fromModel != undefined){
+		overrides[com.sap.xmii.common.util.DateTimeConstants.START_DATE] = SD_fromModel; // the SD and ED should be
+	}
+	if(ED_fromModel != undefined){
+		// initialised inside the
+		// functions..
+		overrides[com.sap.xmii.common.util.DateTimeConstants.END_DATE] = ED_fromModel; // so that latest dates set in
+	}// the model are retrieved
+	overrides[com.sap.xmii.common.util.DateTimeConstants.DATE_FORMAT] = sourceDateFormat;
+	overrides[com.sap.xmii.common.util.DateTimeConstants.DISPLAY_DATEFORMAT] = thisObj.dateFormat;
+
+	// pass empty values for Time, Time Period and Schedule because if any
+	// of these is configured in the query,
+	// then the overridden SD and ED are ignored if not set to empty in the
+	// URL
+	overrides[com.sap.xmii.common.util.DateTimeConstants.TIME] = "";
+	overrides[com.sap.xmii.common.util.DateTimeConstants.TIME_PERIOD] = "";
+	overrides[com.sap.xmii.common.util.DateTimeConstants.SCHEDULE] = "";
+	//Below code takes care of Query property overrides
+	var qOverrides = thisObj.queryTemplate.getQueryObject().overrides;
+	//Add Query Template overrides to overrides
+	//if(qOverrides != undefined)
+	if(!isEmptyObject(qOverrides))
+		overrides = addTemplateOverridesToOverrides(overrides, qOverrides);
+	//if(vizType === "i5SPCChart") {
+	if(bDTOverridesRequired) { //boolean holds if Display Template properties have to be overridden- This is needed only in case of exporting SPC result data as XML or HTML
+		//get JSON properties set through constructor
+		var jsonProps = thisObj.jsonTemplateProperties;
+		if(!jQuery.isEmptyObject(jsonProps) && !(jsonProps == ""))
+			overrides = addJsonPropsToOverrides(overrides, jsonProps);
+		//Override Display Template properties through setters
+		var dOverrides = thisObj.getChartObject().getOverridesMap();
+		//Add Display Template overrides to overrides
+		if(!isEmptyObject(dOverrides))
+			overrides = addTemplateOverridesToOverrides(overrides, dOverrides);
+	}
+
+	overrides[com.sap.xmii.common.util.IsTimeZoneFormatRequired] = true;
+	
+	if(vizType== "i5Grid" || vizType == "i5Chart")
+		overrides["BOM"]=thisObj.getChartTemplateObject().chartConfig.UseBOMForCSV;
+
+	return overrides;
+},
+
+/**
+ * this method is used to generate the GUID. The GUID will start with 'A'
+ * @return
+ */
+generateGuid : function() {
+	var result, i = 0, j;
+	result = 'A';
+	for (j = 0; j < 32; j++) {
+		i = Math.floor(Math.random() * 16).toString(16).toUpperCase();
+		result = result + i;
+	}
+	return result;
+},
+
+applyDelimiterOnRowsForCatalogQuery : function(jsonText) {
+	jsonText = this.evalJSONStr(jsonText);
+
+	var colCount = jsonText.Rowsets.Rowset[0].Columns.Column.length;
+	var colArr = {};
+	for(var i=0; i<colCount; i++) {
+		var sourceColumn = jsonText.Rowsets.Rowset[0].Columns.Column[i].SourceColumn;
+		colArr[i] = sourceColumn;
+	}
+	//get the SourceColumn from jsonText
+	var rows = jsonText.Rowsets.Rowset[0].Row;
+	if(rows != undefined) {
+		var rowCount = rows.length;
+		for(var j=0; j<rowCount; j++) {
+			var rowObj = rows[j];
+			var newrowObj = new Object();
+			var index = 0;
+			for(var key in rowObj){      
+				var attrName = colArr[index];
+				newrowObj[attrName] = rowObj[key];
+				index++;
+			}
+			jsonText.Rowsets.Rowset[0].Row.splice(j, 1, newrowObj); 
+		}
+	} else {
+		throw com.sap.xmii.common.util.MessageBundle.getText("XMSG_NO_ROWS_RETURNED");
+	}	
+	return JSON.stringify(jsonText);
+},
+
+getNumberFormatterForLocale : function(numFormatForLocale, loggedInUserLocale) {
+	var decimalSeperatorIndex = numFormatForLocale.indexOf('.');
+	var digitsAfterDecimal = 0;
+	if(decimalSeperatorIndex != -1) {
+		digitsAfterDecimal = numFormatForLocale.length - (decimalSeperatorIndex + 1);
+	}
+	jQuery.sap.require("sap.ui.core.format.NumberFormat");
+	var locale = new sap.ui.core.Locale(loggedInUserLocale);
+	return sap.ui.core.format.NumberFormat.getFloatInstance({maxFractionDigits : digitsAfterDecimal, minFractionDigits : digitsAfterDecimal}, locale);
+},
+
+
+getDateFormatterForLocale : function(loggedInUserLocale) {
+	jQuery.sap.require("sap.ui.core.format.DateFormat");
+	//var pattern = com.sap.xmii.common.util.MIIi5Util.getDateTimePatternForLocale();
+	var pattern = com.sap.xmii.common.util.datetimePatterForLocale;
+	var locale = new sap.ui.core.Locale(loggedInUserLocale);
+	return sap.ui.core.format.DateFormat.getDateTimeInstance({style : "medium", pattern : pattern}, locale);
+},
+
+isLogging : function(bool) {
+	com.sap.xmii.common.util.DEBUG_MODE_ON = bool;
+},
+
+endsWith : function(str, suffix) {
+	return str.indexOf(suffix, str.length - suffix.length) !== -1;
+},
+
+updateMessageAreaText : function(thisObj) {
+
+	if(thisObj.isCustomMessageArea) {
+		return;
+	}
+	var txtMessage = thisObj.getErrorMessage();
+	if(txtMessage) { //If txtMessage is not empty show it in the messageArea
+		thisObj.getMessageArea().setText(txtMessage);
+	} else {
+		jQuery.sap.require("sap.ui.core.format.DateFormat");
+		var locale = new sap.ui.core.Locale(sap.ui.getCore().getConfiguration().getLanguage());
+		var bUserLocaleformat = thisObj.chartTemplate.chartPropertyConfig.getProperty("UseLocaleFormat");
+		var dateFormatFromDisplayTemp = thisObj.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.DateTimeConstants.DATE_FORMAT);
+		var pattern;
+		if(dateFormatFromDisplayTemp == ""){
+			if(bUserLocaleformat == false){
+		pattern = com.sap.xmii.common.util.dateFormats.DEFAULT_FORMAT;
+		}}else{
+			pattern = dateFormatFromDisplayTemp;}
+		//var pattern = thisObj.model.modelData.DateFormatPattern;
+		var dateFormatterForMsgArea = sap.ui.core.format.DateFormat.getDateTimeInstance({style : "medium", pattern : pattern}, locale);
+		var lastUpdateTime = dateFormatterForMsgArea.format(new Date());
+		var labelId = thisObj.getMessageArea().sId;
+		var messageText = com.sap.xmii.common.util.MessageBundle.getText("XFLD_MESSAGE_AREA_TEXT_PREFIX");
+
+		//error message if value columns are not mapped. 
+		if(thisObj.chartTemplate.chartPropertyConfig.properties.ErrorMessage != undefined) {
+			//this.getTitleBar().mAggregations.rightItems[0].mAggregations.content[1] = null;
+			messageText = thisObj.chartTemplate.chartPropertyConfig.properties.ErrorMessage + " ";
+		}
+
+		if($('#'+labelId)[0] === undefined) {
+			thisObj.getMessageArea().mProperties.text = messageText + lastUpdateTime;
+		} else {
+			//$('#'+labelId).text(messageText + lastUpdateTime);
+			thisObj.getMessageArea().setText(messageText + lastUpdateTime);
+		}
+	}
+},
+
+getDateFormatPattern : function(chartTemplateDateFormat, queryTemplateDateFormat) {
+	// Date format
+	if (!this.isNullOrEmpty(chartTemplateDateFormat))
+		return chartTemplateDateFormat;
+	else {
+		if (!this.isNullOrEmpty(queryTemplateDateFormat))
+			return queryTemplateDateFormat;
+		else
+			return "yyyy-MM-dd HH:mm:ss z";	//default format for display
+	}
+},
+
+getNumberFormatPattern : function(chartTemplateNumberFormat, queryTemplateNumberFormat) {
+	// Number format
+	if (!this.isNullOrEmpty(chartTemplateNumberFormat) && !this.isNullOrEmpty(queryTemplateNumberFormat)){
+		return chartTemplateNumberFormat;
+	}
+	if(!this.isNullOrEmpty(chartTemplateNumberFormat) && this.isNullOrEmpty(queryTemplateNumberFormat)) {
+		return chartTemplateNumberFormat;
+	}
+	if(this.isNullOrEmpty(chartTemplateNumberFormat) && !this.isNullOrEmpty(queryTemplateNumberFormat)) {
+		return queryTemplateNumberFormat;
+	}
+	if(this.isNullOrEmpty(chartTemplateNumberFormat) && this.isNullOrEmpty(queryTemplateNumberFormat)) {
+		return "0.000"; //default
+	}
+},
+
+addFeed : function(dataSet, ui5ChartElement, chartType, dualYAxis, valueColumnOne, timeSeries){
+		//destroy feeds before adding
+		ui5ChartElement.destroyFeeds();
+		var measures;
+		var dimensions;
+		if (dataSet){
+			measures = dataSet.getMeasures();
+			dimensions = dataSet.getDimensions();
+		}
+		
+		function returnFeedItem(uid, type, feedName) {
+			var feed = new sap.viz.ui5.controls.common.feeds.FeedItem({
+				'uid': uid,
+				'type': type,
+				'values': [""+feedName+""]
+			});
+			return feed;
+		}
+		//Add feedItems for Measure - primaryValues/valueAxis
+		for(var measure in measures) {
+			var measureName = measures[measure].getName();
+			if(chartType === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_PIE || chartType === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_DONUT){
+				ui5ChartElement.addFeed(returnFeedItem("size", "Measure", measureName));
+			}else if(chartType === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_BUBBLE && timeSeries){
+				var uid = "";
+				switch(measure) {
+				case "0": {
+					uid = "valueAxis";
+					break;
+				}
+				case "1":{
+					uid = "bubbleWidth";
+					break;
+					}
+				default: break;
+				}
+				ui5ChartElement.addFeed(returnFeedItem(uid, "Measure", measureName));
+			}else if(chartType === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_BUBBLE 
+			||chartType === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_SCATTER){
+				var uid = "";
+				switch(measure) {
+				case "0": {
+					uid = "valueAxis";
+					break;
+					}
+				case "1":{
+					uid = "valueAxis2";
+					break;
+				}
+				case "2":{
+					uid = "bubbleWidth";
+					break;
+				}
+				default: break;
+				}
+				ui5ChartElement.addFeed(returnFeedItem(uid, "Measure", measureName));
+				
+			}else if(!dualYAxis){
+				ui5ChartElement.addFeed(returnFeedItem("valueAxis", "Measure", measureName));
+			}
+			else if(dualYAxis){
+				if(valueColumnOne>0){
+					ui5ChartElement.addFeed(returnFeedItem("valueAxis", "Measure", measureName));
+					valueColumnOne--;
+				}else
+					ui5ChartElement.addFeed(returnFeedItem("valueAxis2", "Measure", measureName));
+			}
+		}
+		
+		
+		//Add feedItems for Dimension - color
+		//Add feedItems for Dimension - axisLabels
+		for(var dimension in dimensions) {
+			var dimName = dimensions[dimension].getName();
+			var dimIdentity = dimensions[dimension].getIdentity();
+			var dimAxis = dimensions[dimension].getAxis();
+			if(dimIdentity != undefined && dimIdentity != null && dimIdentity.length > 0){
+				dimName = dimIdentity;
+			}
+			if(dimAxis===2) {
+				ui5ChartElement.addFeed(returnFeedItem("color", "Dimension", dimName));
+				continue;
+			}
+			if(timeSeries && (chartType === "Line" || chartType === "Bar" || chartType === "Custom" ||
+					chartType === "Bubble" || chartType === "Scatter")){
+					ui5ChartElement.addFeed(returnFeedItem("timeAxis", "Dimension", dimName));
+					if(chartType === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_SCATTER && timeSeries){
+						ui5ChartElement.addFeed(returnFeedItem("color", "Dimension", dimName));
+					}
+			}else if(chartType === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_PIE 
+				|| chartType === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_DONUT
+				|| chartType === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_SCATTER
+				|| chartType === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_BUBBLE){
+					ui5ChartElement.addFeed(returnFeedItem("color", "Dimension", dimName));
+			}else if(chartType === "Combination" || chartType === "Stacked_Column" || chartType === "StackedBar"
+				|| chartType === "GroupBar"){
+				ui5ChartElement.addFeed(returnFeedItem("categoryAxis", "Dimension", dimName));
+			}else{
+				ui5ChartElement.addFeed(returnFeedItem("axisLabels", "Dimension", dimName));//This should also work with CategoryAxis
+			}
+		}
+		
+},
+compare : function(a, b) {
+	var x = a.__data__.x;
+	var y = b.__data__.x;
+	if (x < y) {
+		return -1;
+	}
+	if (x > y) {
+		return 1;
+	}
+	return 0;
+},
+
+getDateTimeFormatForMIII5Viz : function(bUserLocaleformat, cDateFormat, qDateFormat) {
+	//check if the Display template property "User Locale Format" is checked or not
+	if (bUserLocaleformat == true) {
+		//get user locale date time format
+		//return this.getDateTimePatternForLocale();
+		return com.sap.xmii.common.util.datetimePatterForLocale;
+	} else {
+		if (!this.isNullOrEmpty(cDateFormat)) {
+			return cDateFormat;
+		} else if(this.isNullOrEmpty(qDateFormat)) {
+			//check if query has a date time format specified, if not assign XML dateTime format
+			return com.sap.xmii.common.util.GenericConstants.XML_DATETIME_FORMAT; // XML date format
+		} else {
+			//assign query metadata dateTime format
+			return qDateFormat;
+		}
+	}
+},
+
+getNumberFormatForMIII5Viz : function(bUserLocaleformat, cNumberFormat, axisNumberFormat, qNumberFormat) {
+	//check if the Display template property "User Locale Format" is checked or not
+	if (bUserLocaleformat == true) {
+		//get user locale number format
+		//return this.getNumberFormatPatternForLocale();
+		return com.sap.xmii.common.util.numberformatPatternForLocale;
+	} else {
+		if(!this.isNullOrEmpty(axisNumberFormat)) {
+			return axisNumberFormat;
+		} else if (!this.isNullOrEmpty(cNumberFormat)) {
+			return cNumberFormat;
+		} else if(this.isNullOrEmpty(qNumberFormat)) {
+			//check if query has a number format specified, if not assign default number format
+			return com.sap.xmii.common.util.GenericConstants.DEFAULT_NUMBER_FORMAT; // default number format
+		} else {
+			//assign query metadata number format
+			return qNumberFormat;
+		}
+	}
+},
+
+getDateFormatter : function(dateFormat) {
+	jQuery.sap.require("sap.ui.core.format.DateFormat");
+	//var locale = new sap.ui.core.Locale(sap.ui.getCore().getConfiguration().getLanguage());
+	var locale =  new sap.ui.core.Locale('en_US');
+	var pattern = dateFormat;
+	return sap.ui.core.format.DateFormat.getDateTimeInstance({style : "medium", pattern : pattern}, locale);
+},
+
+getNumberFormatter : function(numberFormat) {
+	jQuery.sap.require("sap.ui.core.format.NumberFormat");
+	//var locale = new sap.ui.core.Locale(sap.ui.getCore().getConfiguration().getLanguage());
+	var locale =  new sap.ui.core.Locale('en_US'); 
+	var decimalSeperatorIndex = numberFormat.indexOf('.');
+	var digitsAfterDecimal = 0;
+	if(decimalSeperatorIndex != -1)
+		digitsAfterDecimal = numberFormat.length - (decimalSeperatorIndex + 1);
+	return sap.ui.core.format.NumberFormat.getFloatInstance({maxFractionDigits : digitsAfterDecimal}, locale);
+},
+
+formatDateTime : function(dateValue) {
+	if(this.validateDateTimeFormat(dateValue) == true) {
+		var splitDate = dateValue.split("T"); //result: ["2013-08-23", "16:46:51+0530"]
+		var splitDateAgain = splitDate[0].split("-"); //result: ["2013", "08", "23"]
+		var dateOp, splitTimestamp;
+		if(splitDate[1].indexOf('+') != -1) { // splitDate[1] : 16:46:51+0530
+			splitTimestamp = splitDate[1].split("+"); //result: ["16:46:51", "0530"]
+			dateOp = 'UTC+';
+		} else { // splitDate[1] : 16:46:51-0800
+			splitTimestamp = splitDate[1].split("-"); //result: ["16:46:51", "0530"]
+			dateOp = 'UTC-';
+		}
+		var monthNumber = splitDateAgain[1]; 
+		var monthString = com.sap.xmii.common.util.MonthNamesArray.split(",")[parseInt(monthNumber) - 1];
+		var dateString = monthString + " " + splitDateAgain[2] + " " + splitDateAgain[0] + " " + splitTimestamp[0] +" " +dateOp + splitTimestamp[1];
+		return new Date(dateString);
+	} else {
+		return undefined;
+	}
+},
+
+validateDateTimeFormat : function(value) {
+	if(value != null && value.length >0 && value.length == 24
+			&& value.indexOf('T') > -1 && value.split('T').length == 2 && value.indexOf('T') == 10
+			&& value.indexOf('-') > -1 && (value.split('-').length == 3 || value.split('-').length == 4) 
+			&& value.indexOf('-') == 4 && (value.lastIndexOf('-') == 19 || value.lastIndexOf('+') == 19)
+			&& value.indexOf(':') > -1 && value.split(':').length == 3 && value.indexOf(':') == 13 && value.lastIndexOf(':') == 16) {
+		return true;
+	} else {
+		return false;
+	}
+},
+
+formatOverrideParams : function(overrides, mode) {
+	overrides[com.sap.xmii.common.util.GenericConstants.CONTENT_TYPE] = mode;
+	//The dates are in XML format with timezone offset
+	var startDateString = decodeURIComponent(overrides[com.sap.xmii.common.util.DateTimeConstants.START_DATE]);
+	var endDateString = decodeURIComponent(overrides[com.sap.xmii.common.util.DateTimeConstants.END_DATE]);
+	//var destDateFormat = overrides[com.sap.xmii.common.util.DateTimeConstants.DATE_FORMAT];
+	//This is the final display format
+	var destDateFormat = overrides[com.sap.xmii.common.util.DateTimeConstants.DISPLAY_DATEFORMAT];
+	var dateArray = this.convertDatestoServerTimeZone([new Date(startDateString).getTime(), new Date(endDateString).getTime()], destDateFormat);
+
+	startDateString = dateArray[0];
+	endDateString = dateArray[1];
+
+	overrides[com.sap.xmii.common.util.DateTimeConstants.START_DATE] = startDateString;
+	overrides[com.sap.xmii.common.util.DateTimeConstants.END_DATE] = endDateString;
+	//Reset dateformat to final display format
+	overrides[com.sap.xmii.common.util.DateTimeConstants.DATE_FORMAT] = destDateFormat;
+},
+
+extractTimeZoneInfo : function(timeWithZoneinfo) {
+	if(timeWithZoneinfo.indexOf('+') != -1) { // splitDate[1] : 16:46:51+0530
+		return '+' + timeWithZoneinfo.split("+")[1]; //result: ["16:46:51", "0530"]
+	} else { // splitDate[1] : 16:46:51-0800
+		return '-' + timeWithZoneinfo.split("-")[1]; //result: ["16:46:51", "0800"]
+	}
+},
+
+extractTimeZoneInfoFromDateTime : function(datetimeWithZoneinfo) {
+	//datetimeWithZoneinfo is in XML DateTime format
+	var timeWithZoneinfo = datetimeWithZoneinfo.split("T")[1];
+	if(timeWithZoneinfo.indexOf('+') != -1) { // splitDate[1] : 16:46:51+0530
+		return '+' + timeWithZoneinfo.split("+")[1]; //result: ["16:46:51", "0530"]
+	} else { // splitDate[1] : 16:46:51-0800
+		return '-' + timeWithZoneinfo.split("-")[1]; //result: ["16:46:51", "0800"]
+	}
+},
+
+scaleDataset : function(dataset, axisNumberFormat, bShowSpecLimits, bShowCtrlLimits) {
+	var max = Math.max.apply(null, dataset.map(function(d) { return d.VALUE; }));
+	var min = Math.min.apply(null, dataset.map(function(d) { return d.VALUE; }));
+
+	//check if USL or UCL is bigger than the max if so make that as max
+	var USL = Math.max.apply(null, dataset.map(function(d) { return d.USL; }));//this.upperYMax
+	var UCL = Math.max.apply(null, dataset.map(function(d) { return d.UCL; }));//this.upperYMax
+
+	if(bShowSpecLimits && bShowCtrlLimits && !isNaN(USL) && !isNaN(UCL)) {
+		max = (USL > UCL && max < USL) ? USL : ((USL < UCL && max < UCL) ? UCL : max);
+	} else if((bShowSpecLimits && !bShowCtrlLimits) || (bShowSpecLimits && isNaN(UCL))) { //USL
+		max = USL > max ? USL : max;
+	} else if((!bShowSpecLimits && bShowCtrlLimits) || (bShowCtrlLimits && isNaN(USL))) { //UCL
+		max = UCL > max ? UCL : max;
+	}
+
+	//check if LSL or LCL is smaller than the min if so make that as min
+	var LSL = Math.max.apply(null, dataset.map(function(d) { return d.LSL; }));//this.upperYMax
+	var LCL = Math.max.apply(null, dataset.map(function(d) { return d.LCL; }));//this.upperYMax
+
+	if(bShowSpecLimits && bShowCtrlLimits && !isNaN(LSL) && !isNaN(LCL)) {
+		min = (LSL < LCL && min > LSL) ? LSL : ((LSL > LCL && min > LCL) ? LCL : min);
+	} else if((bShowSpecLimits && !bShowCtrlLimits) || (bShowSpecLimits && isNaN(LCL))) { //LSL
+		min = LSL < min ? LSL : min;
+	} else if((!bShowSpecLimits && bShowCtrlLimits)  || (bShowCtrlLimits && isNaN(LSL))) { //LCL
+		min = LCL < min ? LCL : min;
+	}
+
+	var offset;
+	if(max - min === 0)
+		offset = com.sap.xmii.common.util.SPCChartConstants.AUTOSCALING_CONSTANT;
+	else 
+		offset = (max - min) * com.sap.xmii.common.util.SPCChartConstants.AUTOSCALING_CONSTANT;
+	var actualMin = min - offset;
+	var actualMax = max + offset;
+	var axisNumberFormatter = this.getNumberFormatter(axisNumberFormat);
+
+	var formattedMin = axisNumberFormatter.format(actualMin);
+	var formattedMax = axisNumberFormatter.format(actualMax);
+	while(formattedMax.indexOf(',') > -1){
+		formattedMax = formattedMax.replace(',', "");
+	}
+	while(formattedMin.indexOf(',') > -1){
+		formattedMin = formattedMin.replace(',',"");
+	}
+	var calcMin = Number(formattedMin);
+ 	var calcMax = Number(formattedMax);
+	 	
+ 	var index = 0;
+ 	if(isNaN(axisNumberFormat)) { //this happens only when UseLocaleFormat is true
+ 		var decimalSeperatorIndex = axisNumberFormat.indexOf('.');
+ 		if(decimalSeperatorIndex != -1)
+ 			index = axisNumberFormat.length - (decimalSeperatorIndex + 1);
+ 		switch(index) {
+			case 1 : axisNumberFormat = ".0"; break;
+			case 2 : axisNumberFormat = ".00"; break;
+			case 3 : axisNumberFormat = ".000"; break;
+			case 4 : axisNumberFormat = ".0000"; break;
+			case 5 : axisNumberFormat = ".00000"; break;
+			case 6 : axisNumberFormat = ".000000"; break;
+ 		}
+ 	} else {
+ 		index = axisNumberFormat.lastIndexOf("0");
+ 	}
+ 	if(actualMax > calcMax) {
+ 		var adjustmentFactor = this.replaceAt(axisNumberFormat,"1",index);
+ 		calcMax = calcMax + Number(adjustmentFactor);
+ 	}
+ 	
+ 	if(actualMin < calcMin) {
+ 		//var index = axisNumberFormat.lastIndexOf("0"); 
+ 		var adjustmentFactor = this.replaceAt(axisNumberFormat,"1",index);
+ 		calcMin = calcMin - Number(adjustmentFactor);
+ 	}
+ 	
+ 	var minBeforeFormat=calcMin;
+ 	var maxBeforeFormat=calcMax;
+ 	calcMax = Number(axisNumberFormatter.format(calcMax));
+	calcMin = Number(axisNumberFormatter.format(calcMin)); 
+	
+	// to return original number if formatting makes as Nan
+	if(Number.isNaN(calcMin) )
+		{
+		calcMin=minBeforeFormat;
+		}
+	
+	if(Number.isNaN(calcMax) )
+		{
+		calcMax=maxBeforeFormat
+		}
+	
+ 	return {max:calcMax, min:calcMin};
+},
+
+scaleDatasetChart : function(dataset, valueColumns) {
+	var calcMax, calcMin;
+	if(!this.isNullOrEmpty(valueColumns)){
+		if(valueColumns.indexOf(",") != -1) {
+			var cols = valueColumns.split(",");
+			var datasetArray = [];
+			for(var col in cols) {
+				datasetArray = $.merge(datasetArray, dataset.map(function(d){return d[cols[col]];}));
+			}
+			var ymax = Math.max.apply(null, datasetArray);
+			var ymin = Math.min.apply(null, datasetArray);
+			var diff = ymax - ymin;
+			var offset;
+			if(diff === 0)
+				offset = com.sap.xmii.common.util.SPCChartConstants.AUTOSCALING_CONSTANT;
+			else
+				offset = diff * com.sap.xmii.common.util.SPCChartConstants.AUTOSCALING_CONSTANT;
+			calcMin = ymin - offset;
+			calcMax = ymax + offset;
+			//No number formatting on Y-Axis is applied in i5Chart
+		} else {
+			ymax = Math.max.apply(null, dataset.map(function(d){return d[valueColumns]}));
+			ymin = Math.min.apply(null, dataset.map(function(d){return d[valueColumns]}));
+			var diff = ymax - ymin;
+			var offset;
+			if(diff === 0)
+				offset = com.sap.xmii.common.util.SPCChartConstants.AUTOSCALING_CONSTANT;
+			else
+				offset = diff * com.sap.xmii.common.util.SPCChartConstants.AUTOSCALING_CONSTANT;
+			calcMin = ymin - offset;
+    		calcMax = ymax + offset;
+		}
+	}
+	return {max: calcMax, min: calcMin};
+},
+
+replaceAt : function(string, char, index) {
+	return string.substring(0, index) + char + string.substring(index+1);
+},
+
+evaluateLimits : function(modelData, chartPropertyConfig) {
+	var upperLimitColumn = chartPropertyConfig.getProperty(com.sap.xmii.common.util.SpecLimits.UPPER_LIMIT_COLUMN);
+	var centerLimitColumn = chartPropertyConfig.getProperty(com.sap.xmii.common.util.SpecLimits.CENTER_LIMIT_COLUMN);
+	var lowerLimitColumn = chartPropertyConfig.getProperty(com.sap.xmii.common.util.SpecLimits.LOWER_LIMIT_COLUMN);
+	if (upperLimitColumn || centerLimitColumn || lowerLimitColumn) {
+		var rowCount = modelData.getRows().length;
+		var rowData = modelData.getRow([ rowCount - 1 ]);
+		for ( var myKey in rowData) {
+			if (myKey == upperLimitColumn) {
+				if (upperLimitColumn) {
+					chartPropertyConfig.UpperLimit = rowData[myKey];
+					chartPropertyConfig.setProperty(com.sap.xmii.common.util.SpecLimits.UPPER_LIMIT,
+							rowData[myKey].toString());
+				}
+			}
+			if (myKey == centerLimitColumn) {
+				if (centerLimitColumn) {
+					chartPropertyConfig.CenterLimit = rowData[myKey];
+					chartPropertyConfig.setProperty(com.sap.xmii.common.util.SpecLimits.CENTER_LIMIT,
+							rowData[myKey].toString());
+				}
+			}
+			if (myKey == lowerLimitColumn) {
+				if (lowerLimitColumn) {
+					chartPropertyConfig.lowerLimit = rowData[myKey];
+					chartPropertyConfig.setProperty(com.sap.xmii.common.util.SpecLimits.LOWER_LIMIT,
+							rowData[myKey].toString());
+				}
+			}
+		}
+	}
+},
+
+applySpecificationLimits : function(chartObj) {
+	jQuery.sap.log.info("applySpecificationLimits");
+	var compMode = chartObj.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.COMP_MODE);
+	var timeSeries = chartObj.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.TIME_SERIES);
+	if(compMode)
+		var yaxis = $('#'+chartObj.chartPosId).find('.v-m-yAxis .viz-axis-body');
+	else
+		var yaxis = $('#'+chartObj.chartPosId).find('.v-m-yAxis .v-m-axisBody'); //vizFrame chart
+	if(yaxis.length > 0) {
+		var plot = $('#'+chartObj.chartPosId).find('.v-m-plot');
+		var texts = $(yaxis).find('text');
+		if(compMode)
+			var lines = $(yaxis).find('line');
+		else
+			var lines = $($('#'+chartObj.chartPosId).find('.v-m-yAxis .v-m-axisBody')).find('line'); //vizFrame chart
+		if(texts.length > 0 && lines.length > 0) {
+			var x1 = 0;
+			if(timeSeries && !compMode)
+				var x2 = $(plot).find('rect')[0].getAttribute('width');
+			else
+				var x2 = plot[0].getBoundingClientRect('width').width;
+			
+			if(compMode){
+				var ymax = lines[0].getAttribute('y1');
+				var ymin = lines[lines.length - 1].getAttribute('y1');
+			}
+			else{
+				var ymin = lines[0].getAttribute('y1'); 	//For vizFrame charts
+				var ymax = lines[0].getAttribute('y2');
+			}
+			var valuemin = $(texts[0]).text();
+			var valuemax = $(texts[texts.length - 1]).text();
+			if(!compMode){
+				valuemin = processKVizFrame(valuemin);
+				valuemax = processKVizFrame(valuemax);
+				}
+			}
+			var yScale = d3.scale.linear().domain([valuemin, valuemax]).range([ymax, ymin]);
+
+			var upperLimitColumn = chartObj.chartPropertyConfig.getProperty(com.sap.xmii.common.util.SpecLimits.UPPER_LIMIT_COLUMN);
+			var centerLimitColumn = chartObj.chartPropertyConfig.getProperty(com.sap.xmii.common.util.SpecLimits.CENTER_LIMIT_COLUMN);
+			var lowerLimitColumn = chartObj.chartPropertyConfig.getProperty(com.sap.xmii.common.util.SpecLimits.LOWER_LIMIT_COLUMN);
+
+			if(isSpecificationColumnsProvided(chartObj.chartPropertyConfig)) {
+				var modelData = chartObj.chartModel.getModelData();
+				setSpecificationColumnValues(modelData, chartObj.chartPropertyConfig);
+			} 
+
+			var usl = chartObj.chartPropertyConfig.getProperty(com.sap.xmii.common.util.SpecLimits.UPPER_LIMIT);
+			var cl = chartObj.chartPropertyConfig.getProperty(com.sap.xmii.common.util.SpecLimits.CENTER_LIMIT);
+			var lsl = chartObj.chartPropertyConfig.getProperty(com.sap.xmii.common.util.SpecLimits.LOWER_LIMIT);
+
+			var uslCol = chartObj.chartPropertyConfig.getProperty(com.sap.xmii.common.util.SpecLimits.UPPER_LIMIT_LINE_COLOR);
+			var clCol = chartObj.chartPropertyConfig.getProperty(com.sap.xmii.common.util.SpecLimits.CENTER_LIMIT_LINE_COLOR);
+			var lslCol = chartObj.chartPropertyConfig.getProperty(com.sap.xmii.common.util.SpecLimits.LOWER_LIMIT_LINE_COLOR);
+
+			var yPointUSL = yScale(usl);
+			jQuery.sap.log.info(yPointUSL);
+			var yPointCL = yScale(cl);
+			jQuery.sap.log.info(yPointCL);
+			var yPointLSL = yScale(lsl);
+			jQuery.sap.log.info(yPointLSL);
+			if(!compMode){
+				if(valuemax>usl&&valuemin<usl)
+					plot.append(createline(x1, x2, yPointUSL, yPointUSL, uslCol));
+				if(valuemax>cl&&valuemin<cl)
+					plot.append(createline(x1, x2, yPointCL, yPointCL, clCol));
+				if(valuemax>lsl&&valuemin<lsl)
+					plot.append(createline(x1, x2, yPointLSL, yPointLSL, lslCol));
+			}else{
+				plot.append(createline(x1, x2, yPointUSL, yPointUSL, uslCol));
+				plot.append(createline(x1, x2, yPointCL, yPointCL, clCol));
+				plot.append(createline(x1, x2, yPointLSL, yPointLSL, lslCol));
+			}
+			if("CatalogQuery" === chartObj.chartModel.queryObject.getQueryType() && "PICAnalysis" === chartObj.chartModel.queryObject.getMode()){
+				if("" !== upperLimitColumn || 0 !== usl){
+					plot.append(createtext(x1, x2, yPointUSL, yPointUSL, usl));
+				}
+				if("" !== centerLimitColumn || 0 !== cl){
+					plot.append(createtext(x1, x2, yPointCL, yPointCL, cl));
+				}
+				if("" !== lowerLimitColumn || 0 !== lsl){
+					plot.append(createtext(x1, x2, yPointLSL, yPointLSL, lsl));
+				}
+			}
+			function isSpecificationColumnsProvided(chartPropertyConfig) {
+				if (upperLimitColumn || centerLimitColumn || lowerLimitColumn) {
+					return true;
+				}
+				return false;
+			}
+
+			function setSpecificationColumnValues(modelData, chartPropertyConfig) {
+				var rowCount = modelData.getRows().length;
+				var rowData = modelData.getRow([ rowCount - 1 ]);
+				for ( var myKey in rowData) {
+					if (myKey == upperLimitColumn) {
+						if (upperLimitColumn) {
+							chartPropertyConfig.UpperLimit = rowData[myKey];
+							chartPropertyConfig.setProperty(com.sap.xmii.common.util.SpecLimits.UPPER_LIMIT,
+									rowData[myKey].toString());
+						}
+					}
+					if (myKey == centerLimitColumn) {
+						if (centerLimitColumn) {
+							chartPropertyConfig.CenterLimit = rowData[myKey];
+							chartPropertyConfig.setProperty(com.sap.xmii.common.util.SpecLimits.CENTER_LIMIT,
+									rowData[myKey].toString());
+						}
+					}
+					if (myKey == lowerLimitColumn) {
+						if (lowerLimitColumn) {
+							chartPropertyConfig.lowerLimit = rowData[myKey];
+							chartPropertyConfig.setProperty(com.sap.xmii.common.util.SpecLimits.LOWER_LIMIT,
+									rowData[myKey].toString());
+						}
+					}
+				}
+			}
+
+			function createline(x1, x2, y1, y2, color){
+				var line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+				line.setAttribute("x1", x1);
+				line.setAttribute("x2", x2);
+				line.setAttribute("y1", y1);
+				line.setAttribute("y2", y2);
+				line.setAttribute("stroke", color);
+				//line.setAttribute("style", "stroke-dasharray:5,5"); //dotted line
+				//line.setAttribute("style", "stroke-dasharray:20,10,5,5,5,10"); //dashed line
+				line.setAttribute("stroke-width", 1);
+				return line;
+			}
+			
+			function createtext(x1, x2, y1, y2, lineText){
+				   var text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+				   text.setAttribute("x", x1);
+				   text.setAttribute("y", y2);
+				   text.setAttribute("fill", "000000");
+				   text.setAttribute("font-size", "13");
+				   text.textContent = lineText;
+				   return text;
+			}
+			
+			function processKVizFrame(value){
+				var v = value;
+				if(value.match(/k/i) !== null){
+					if(v.match(/\./) !== null){
+						v = value.replace(/k/i,"00");
+						v = v.replace(/\./,"");
+					} else {
+						v = value.replace(/k/i,"000");
+					}
+					value=v;
+				}else if(value.match(/M/i) !== null){
+					if(v.match(/\./) !== null){
+						v = value.replace(/M/i,"00000");
+						v = v.replace(/\./,"");
+					} else {
+						v = value.replace(/M/i,"000000");
+					}
+					value=v;
+				}else if(value.match(/b/i) !== null){
+					if(v.match(/\./) !== null){
+						v = value.replace(/b/i,"00000000");
+						v = v.replace(/\./,"");
+					} else {
+						v = value.replace(/b/i,"000000000");
+					}
+					value=v;
+				}else if(value.match(/t/i) !== null){
+					if(v.match(/\./) !== null){
+						v = value.replace(/t/i,"00000000000");
+						v = v.replace(/\./,"");
+					} else {
+						v = value.replace(/t/i,"000000000000");
+					}
+					value=v;
+				}
+				return value;
+			}
+	}
+},
+applySpecificationLimitsforHorizontalBarCharts : function(chartObj) {
+	jQuery.sap.log.info("applySpecificationLimits");
+	var compMode = chartObj.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.COMP_MODE);
+	var timeSeries = chartObj.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.TIME_SERIES);
+	if(compMode)
+		var xaxis = $('#'+chartObj.chartPosId).find('.v-m-xAxis .viz-axis-body');
+	else
+		var xaxis = $('#'+chartObj.chartPosId).find('.v-m-xAxis .v-m-axisBody'); //vizFrame chart
+	if(xaxis.length > 0) {
+		var plot = $('#'+chartObj.chartPosId).find('.v-m-plot');
+		var texts = $(xaxis).find('text');
+		if(compMode)
+			var lines = $(xaxis).find('line');
+		else
+			var lines = $($('#'+chartObj.chartPosId).find('.v-m-xAxis .v-m-axisBody')).find('line'); //vizFrame chart
+		if(texts.length > 0 && lines.length > 0) {
+			var y1 = 0;
+			if(timeSeries && !compMode)
+				var y2 = $(plot).find('rect')[0].getAttribute('height');
+			else
+				var y2 = plot[0].getBoundingClientRect('height').height;
+			
+			if(compMode){
+				var xmax = lines[0].getAttribute('x1');
+				var xmin = lines[lines.length - 1].getAttribute('x1');
+			}
+			else{
+				var xmax = lines[0].getAttribute('x1'); 	//For vizFrame charts
+				var xmin = lines[0].getAttribute('x2');
+			}
+			var valuemin = $(texts[0]).text();
+			var valuemax = $(texts[texts.length - 1]).text();
+			if(!compMode){
+				valuemin = processKVizFrame(valuemin);
+				valuemax = processKVizFrame(valuemax);
+				}
+			}
+			var xScale = d3.scale.linear().domain([valuemin, valuemax]).range([xmax, xmin]);
+
+			var upperLimitColumn = chartObj.chartPropertyConfig.getProperty(com.sap.xmii.common.util.SpecLimits.UPPER_LIMIT_COLUMN);
+			var centerLimitColumn = chartObj.chartPropertyConfig.getProperty(com.sap.xmii.common.util.SpecLimits.CENTER_LIMIT_COLUMN);
+			var lowerLimitColumn = chartObj.chartPropertyConfig.getProperty(com.sap.xmii.common.util.SpecLimits.LOWER_LIMIT_COLUMN);
+
+			if(isSpecificationColumnsProvided(chartObj.chartPropertyConfig)) {
+				var modelData = chartObj.chartModel.getModelData();
+				setSpecificationColumnValues(modelData, chartObj.chartPropertyConfig);
+			} 
+
+			var usl = chartObj.chartPropertyConfig.getProperty(com.sap.xmii.common.util.SpecLimits.UPPER_LIMIT);
+			var cl = chartObj.chartPropertyConfig.getProperty(com.sap.xmii.common.util.SpecLimits.CENTER_LIMIT);
+			var lsl = chartObj.chartPropertyConfig.getProperty(com.sap.xmii.common.util.SpecLimits.LOWER_LIMIT);
+
+			var uslCol = chartObj.chartPropertyConfig.getProperty(com.sap.xmii.common.util.SpecLimits.UPPER_LIMIT_LINE_COLOR);
+			var clCol = chartObj.chartPropertyConfig.getProperty(com.sap.xmii.common.util.SpecLimits.CENTER_LIMIT_LINE_COLOR);
+			var lslCol = chartObj.chartPropertyConfig.getProperty(com.sap.xmii.common.util.SpecLimits.LOWER_LIMIT_LINE_COLOR);
+
+			var xPointUSL = xScale(usl);
+			jQuery.sap.log.info(xPointUSL);
+			var xPointCL = xScale(cl);
+			jQuery.sap.log.info(xPointCL);
+			var xPointLSL = xScale(lsl);
+			jQuery.sap.log.info(xPointLSL);
+			if(!compMode){
+				if(valuemax>usl&&valuemin<usl)
+					plot.append(createline(xPointUSL, xPointUSL, y1, y2, uslCol));
+				if(valuemax>cl&&valuemin<cl)
+					plot.append(createline(xPointCL, xPointCL, y1, y2, clCol));
+				if(valuemax>lsl&&valuemin<lsl)
+					plot.append(createline(xPointLSL, xPointLSL, y1, y2, lslCol));
+			}else{
+				plot.append(createline(xPointUSL, xPointUSL, y1, y2, uslCol));
+				plot.append(createline(xPointCL, xPointCL, y1, y2, clCol));
+				plot.append(createline(xPointLSL, xPointLSL, y1, y2, lslCol));
+			}
+			if("CatalogQuery" === chartObj.chartModel.queryObject.getQueryType() && "PICAnalysis" === chartObj.chartModel.queryObject.getMode()){
+				if("" !== upperLimitColumn || 0 !== usl){
+					plot.append(createtext(y1, y2, xPointUSL, xPointUSL, usl));
+				}
+				if("" !== centerLimitColumn || 0 !== cl){
+					plot.append(createtext(y1, y2, xPointCL, xPointCL, cl));
+				}
+				if("" !== lowerLimitColumn || 0 !== lsl){
+					plot.append(createtext(y1, y2, xPointLSL, xPointLSL, lsl));
+				}
+			}
+			function isSpecificationColumnsProvided(chartPropertyConfig) {
+				if (upperLimitColumn || centerLimitColumn || lowerLimitColumn) {
+					return true;
+				}
+				return false;
+			}
+
+			function setSpecificationColumnValues(modelData, chartPropertyConfig) {
+				var rowCount = modelData.getRows().length;
+				var rowData = modelData.getRow([ rowCount - 1 ]);
+				for ( var myKey in rowData) {
+					if (myKey == upperLimitColumn) {
+						if (upperLimitColumn) {
+							chartPropertyConfig.UpperLimit = rowData[myKey];
+							chartPropertyConfig.setProperty(com.sap.xmii.common.util.SpecLimits.UPPER_LIMIT,
+									rowData[myKey].toString());
+						}
+					}
+					if (myKey == centerLimitColumn) {
+						if (centerLimitColumn) {
+							chartPropertyConfig.CenterLimit = rowData[myKey];
+							chartPropertyConfig.setProperty(com.sap.xmii.common.util.SpecLimits.CENTER_LIMIT,
+									rowData[myKey].toString());
+						}
+					}
+					if (myKey == lowerLimitColumn) {
+						if (lowerLimitColumn) {
+							chartPropertyConfig.lowerLimit = rowData[myKey];
+							chartPropertyConfig.setProperty(com.sap.xmii.common.util.SpecLimits.LOWER_LIMIT,
+									rowData[myKey].toString());
+						}
+					}
+				}
+			}
+
+			function createline(x1, x2, y1, y2, color){
+				var line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+				line.setAttribute("x1", x1);
+				line.setAttribute("x2", x2);
+				line.setAttribute("y1", y1);
+				line.setAttribute("y2", y2);
+				line.setAttribute("stroke", color);
+				//line.setAttribute("style", "stroke-dasharray:5,5"); //dotted line
+				//line.setAttribute("style", "stroke-dasharray:20,10,5,5,5,10"); //dashed line
+				line.setAttribute("stroke-width", 1);
+				return line;
+			}
+			
+			function createtext(x1, x2, y1, y2, lineText){
+				   var text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+				   text.setAttribute("x", x1);
+				   text.setAttribute("y", y2);
+				   text.setAttribute("fill", "000000");
+				   text.setAttribute("font-size", "13");
+				   text.textContent = lineText;
+				   return text;
+			}
+			
+			function processKVizFrame(value){
+				var v = value;
+				if(value.match(/k/i) !== null){
+					if(v.match(/\./) !== null){
+						v = value.replace(/k/i,"00");
+						v = v.replace(/\./,"");
+					} else {
+						v = value.replace(/k/i,"000");
+					}
+					value=v;
+				}else if(value.match(/M/i) !== null){
+					if(v.match(/\./) !== null){
+						v = value.replace(/M/i,"00000");
+						v = v.replace(/\./,"");
+					} else {
+						v = value.replace(/M/i,"000000");
+					}
+					value=v;
+				}else if(value.match(/b/i) !== null){
+					if(v.match(/\./) !== null){
+						v = value.replace(/b/i,"00000000");
+						v = v.replace(/\./,"");
+					} else {
+						v = value.replace(/b/i,"000000000");
+					}
+					value=v;
+				}else if(value.match(/t/i) !== null){
+					if(v.match(/\./) !== null){
+						v = value.replace(/t/i,"00000000000");
+						v = v.replace(/\./,"");
+					} else {
+						v = value.replace(/t/i,"000000000000");
+					}
+					value=v;
+				}
+				return value;
+			}
+	}
+},
+localFormatDateTime : function(sDate, isTime) {
+	var oDate;
+	if (typeof sDate === "string") {
+		oDate = new Date(sDate);
+		//if isTime and the date is not valid
+		if(!(oDate && oDate instanceof Date && oDate.toString() !== "Invalid Date") && isTime) {
+			jQuery.sap.require("sap.ui.core.format.DateFormat");
+			var time = sap.ui.core.format.DateFormat.getTimeInstance();
+			oDate = time.parse(sDate);
+		} 
+	} 
+
+	if(oDate && oDate instanceof Date && oDate.toString() !== "Invalid Date") {
+		return oDate;
+	} else {
+		return "";
+	}
+},
+
+reInitializeUtilVariables : function() {
+	com.sap.xmii.common.util.FCQUERY = false;
+	com.sap.xmii.common.util.FCCHART = false;
+},
+
+/**
+ * dataTransfer is responsible for the type transfer for basic js data type;
+ */
+dataTransfer : function(value, type) {
+	if (typeof value === type) {
+		return value;
+	}
+
+	var reuslt;
+	switch (type) {
+	case 'string':
+		result = String(value);
+		break;
+
+	case 'number':
+		result = Number(value);
+		break;
+
+	case 'boolean':
+		//do some special logic for boolean
+		if (typeof value === "string" && value.toLowerCase() === "false") {
+			result = false;
+		}
+		else {
+			result = Boolean(value);
+		}
+		break;
+
+	case 'object':
+		result = {};
+		break;
+
+	default : 
+		result = value;
+	break;
+	}
+	return result;
+},
+
+/**
+ * @param {object}
+ * @return {number} 
+ * -3 : data is string, not an object
+ * -2 : data is null
+ * -1 : fatal error returned
+ * 0 : unknown status
+ * 1 : valid with row data returned
+ * 2 : valid but without row data returned
+ */
+validateRowsets : function(data) {
+	if(typeof data === "string") {
+		return com.sap.xmii.common.util.dataStatus.TYPE_STRING;
+	} else if(data == undefined || !data.Rowsets) {
+		return com.sap.xmii.common.util.dataStatus.TYPE_NULL;
+	} else if(data.Rowsets.Rowset && data.Rowsets.Rowset[0] && data.Rowsets.Rowset[0].Row ) {
+		return com.sap.xmii.common.util.dataStatus.VALID_WITH_ROW;
+	} else if(data.Rowsets.Rowset && data.Rowsets.Rowset[0] && !data.Rowsets.Rowset[0].Row) {
+		return com.sap.xmii.common.util.dataStatus.VALID_WITHOUT_ROW;
+	} else if(data.Rowsets.FatalError) {
+		return com.sap.xmii.common.util.dataStatus.FATAL_ERROR;
+	} else {
+		return com.sap.xmii.common.util.dataStatus.UNKNOWN;
+	}
+},
+
+getColorAndCodes : function() {
+	return com.sap.xmii.common.util.colorAndCodes;
+},
+/**
+ * This function Would check if the object is not undefined and not null
+ * @param object
+ * @return
+ */
+isObjectNotNull : function(object) {
+	if (object !== undefined && object !== null && object !== "")
+		return true;
+
+	return false;
+},
+
+isNumberFormatRequired : function(sqlDataType) {
+	return sqlDataType === 2 || sqlDataType === 3 || sqlDataType === 6 || sqlDataType === 7 || sqlDataType === 8;
+},
+
+isDateTimeColumn : function(sqlDataType) {
+	return sqlDataType === 91 || sqlDataType === 92 || sqlDataType === 93; 
+},
+
+setDateFormatAndTimeAxisProperties : function(thisObj){
+	if(thisObj.chartModel != undefined){
+		var formattedDateTime, yearFormat, startDate, endDate;
+		
+		function dateFormatting(chartPropertyConfig, chartModel){
+			var dateFormatForXAxis = chartPropertyConfig.getProperty(com.sap.xmii.common.util.DateTimeConstants.XAXIS_DATE_FORMAT);
+			var timeFormatForXAxis = chartPropertyConfig.getProperty(com.sap.xmii.common.util.DateTimeConstants.XAXIS_TIME_FORMAT);
+			var dateFormatFromDisplayTemp = chartPropertyConfig.getProperty(com.sap.xmii.common.util.DateTimeConstants.DATE_FORMAT);
+			
+			if(!com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(dateFormatForXAxis) && !com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(timeFormatForXAxis)){
+				dateFormatFromDisplayTemp = dateFormatForXAxis+" "+timeFormatForXAxis;
+			} else if(com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(dateFormatForXAxis) && !com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(timeFormatForXAxis)) {
+				dateFormatFromDisplayTemp = timeFormatForXAxis;
+			} else if(!com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(dateFormatForXAxis) && com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(timeFormatForXAxis)){
+				dateFormatFromDisplayTemp = dateFormatForXAxis;
+			}
+			//query date format = if DateFormat passed in overrides then use that else query metadata DateFormat 
+			var qDateFormat = com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(chartModel.queryObject.overrides.DateFormat) ? chartModel.queryObject.getQueryMetaData().DateFormat : chartModel.queryObject.overrides.DateFormat;  
+			//thisObj.dateFormat = com.sap.xmii.common.util.MIIi5Util.getDateTimeFormatForMIII5Viz(thisObj.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.DateTimeConstants.USE_LOCALE_FORMAT), dateFormatFromDisplayTemp, thisObj.queryTemplate.getQueryObject().getQueryMetaData().DateFormat);
+			yearFormat = com.sap.xmii.common.util.MIIi5Util.getDateTimeFormatForMIII5Viz(chartPropertyConfig.getProperty(com.sap.xmii.common.util.DateTimeConstants.USE_LOCALE_FORMAT), dateFormatFromDisplayTemp, qDateFormat);
+			return yearFormat;
+		}
+		
+		function monthYearFormatForTimeseries() {
+			yearFormat = "";
+			if(thisObj.chartModel != undefined){
+				yearFormat = dateFormatting(thisObj.chartPropertyConfig, thisObj.chartModel);
+				
+				var dayMonth = [];
+				if(yearFormat.indexOf("'T'") > -1){
+					dayMonth = yearFormat.split("'T'");
+				}else{
+					dayMonth = yearFormat.split(" ");
+				}
+				var temp ="";
+				if(yearFormat.toUpperCase().indexOf("MMM") > -1 && yearFormat.toLowerCase().indexOf("yyyy") > -1) {
+					temp = "MMM d yyyy";
+				}else if(yearFormat.toUpperCase().indexOf("MMM") > -1 && yearFormat.toLowerCase().indexOf("yy") > -1){
+					temp = "MMM d yy";
+				}else if(yearFormat.toUpperCase().indexOf("MM") > -1 && yearFormat.toLowerCase().indexOf("yyyy") > -1){
+					temp = "MM d yyyy";
+				}else if(yearFormat.toUpperCase().indexOf("MM") > -1 && yearFormat.toLowerCase().indexOf("yy") > -1) {
+					temp = "MM d yy";
+				}
+				dayMonth = temp;
+				for(var i=0; i<dayMonth.length;i++){
+					if(dayMonth[i].indexOf("HH") > -1 || dayMonth[i].indexOf("hh") >-1 || dayMonth[i].indexOf("a") >-1
+							|| dayMonth[i].indexOf("z") >-1 || dayMonth[i].indexOf("Z") >-1 || dayMonth[i].indexOf("H") > -1
+							|| dayMonth[i].indexOf("h") >-1){
+						dayMonth.splice(i,1);
+						i = i-1;
+					}
+				}
+				var dayMonthString = dayMonth.toString();
+				var dayMonthFormatString = '';
+				if(dayMonthString.indexOf("yyyy") > -1 || dayMonthString.indexOf("yy") > -1){
+					if(dayMonthString.indexOf("yyyy") === 0){
+						dayMonthFormatString = dayMonthString.substr(5);
+					}else if(dayMonthString.indexOf("yyyy") === (dayMonthString.length - 4)) {
+						dayMonthFormatString = dayMonthString.substr(0,dayMonthString.length-5);
+					}else if(dayMonthString.indexOf("yy") === 0){
+						dayMonthFormatString = dayMonthString.substr(2);
+					}else if(dayMonthString.indexOf("yy") === (dayMonthString.length - 2)){
+						dayMonthFormatString = dayMonthString.substr(0,dayMonthString.length-3);
+					}else{
+						dayMonthFormatString = dayMonthString;
+					}
+				}
+				var numberOfRows = thisObj.chartModel.getJSONModel().getData().Rowsets.Rowset[0].Row.length;
+				var labelColumn  = thisObj.chartCompnModel.getDataSet().getDimensions()[0].getName();
+				
+				startDate = thisObj.chartModel.getJSONModel().getData().Rowsets.Rowset[0].Row[0][labelColumn];
+				endDate = thisObj.chartModel.getJSONModel().getData().Rowsets.Rowset[0].Row[numberOfRows-1][labelColumn];
+				formattedDateTime = dayMonthFormatString;
+			}
+		}
+		
+		monthYearFormatForTimeseries(thisObj);
+//		if(yearFormat.indexOf("MMM") >-1){
+//			thisObj.ui5ChartElement.getVizProperties().timeAxis.levelConfig.month.formatString = "MMM";
+//		}else if(yearFormat.indexOf("MM") >-1){
+//			thisObj.ui5ChartElement.getVizProperties().timeAxis.levelConfig.month.formatString = "MM";
+//		}
+//		if(yearFormat.indexOf("yyyy") >-1){
+//			thisObj.ui5ChartElement.getVizProperties().timeAxis.levelConfig.year.formatString = "yyyy";
+//		}else if(yearFormat.indexOf("yy") >-1){
+//			thisObj.ui5ChartElement.getVizProperties().timeAxis.levelConfig.year.formatString = "yy";
+//		}
+//		if(this.formattedDateTime === ""){
+//			thisObj.ui5ChartElement.getVizProperties().timeAxis.levelConfig.day.formatString = undefined;
+//		}
+		var sdTime = "";
+		var edTime = "";
+		if(startDate != "" && endDate != ""){
+			sdTime = startDate.getTime();
+			edTime = endDate.getTime();
+		}
+		var plotWindow = {plotArea: { 
+			window :{
+				start: sdTime,
+				end: edTime
+			}}
+		};
+		thisObj.ui5ChartElement.setVizProperties(plotWindow);
+		//this is done so that if no xaxis label is given in wb config, labelcolumn name should be displayed automatically
+		//this happens by default if text is not set explicitly
+		if(thisObj.ui5ChartElement.getVizProperties().timeAxis.title.text === "")
+			thisObj.ui5ChartElement.getVizProperties().timeAxis.title.text = undefined;
+		
+		var xAxisLabel = thisObj.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.XAXIS_LABEL);
+		var label = "";
+		if(thisObj.chartType === "Bubble" || thisObj.chartType === "Scatter"){
+			//this is done because bubble chart in vizframe considers valueAxis as xAxis and valueAxis2 as yAxis
+			label = yAxisLabel;
+			yAxisLabel = xAxisLabel;
+			xAxisLabel = label;
+		}
+		thisObj.ui5ChartElement.getVizProperties().timeAxis.title.visible = thisObj.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.SHOW_XAXIS_LABEL);
+		thisObj.ui5ChartElement.getVizProperties().timeAxis.title.text = xAxisLabel;
+		thisObj.ui5ChartElement.getVizProperties().timeAxis.levels = ["day"];
+//		thisObj.ui5ChartElement.getVizProperties().timeAxis.levelConfig.month.row = 1;
+//		thisObj.ui5ChartElement.getVizProperties().timeAxis.levelConfig.year.row = 1;
+		thisObj.ui5ChartElement.getVizProperties().timeAxis.levelConfig.day.formatString = yearFormat;
+		thisObj.ui5ChartElement.getVizProperties().timeAxis.levelConfig.day.row = 1;
+//		thisObj.ui5ChartElement.getVizProperties().timeAxis.levelConfig.second.row = 1;
+//		thisObj.ui5ChartElement.getVizProperties().timeAxis.levelConfig.minute.row = 1;
+//		thisObj.ui5ChartElement.getVizProperties().timeAxis.levelConfig.hour.row = 1;
+		if(formattedDateTime === "")
+			formattedDateTime = undefined;
+//		thisObj.ui5ChartElement.getVizProperties().timeAxis.levelConfig.day.formatString = formattedDateTime;
+	}
+},
+getColumnName : function(thisObj , measureName){
+	var cols = thisObj.chartModel.getModelMetaData().getColumns().Column;
+	for(var i=0; i<cols.length; i++) {
+		var obj = cols[i];
+		if(obj.SourceColumn === measureName) {
+			return obj.Name;
+		}
+	}	
+},
+validateChartConfigAtRunTime : function(chartType , compMode, dualYAxis, timeSeries){
+	if(dualYAxis && timeSeries){
+		if(chartType != com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_CUSTOM)
+			throw new com.sap.xmii.common.exception.MIIi5Exception(
+				com.sap.xmii.common.util.MessageBundle.getText("XMSG_DUAL_TIMESERIES_ERROR"));
+	}else if((timeSeries && (chartType != com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_LINE && chartType != com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_BAR 
+			&& chartType != com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_BUBBLE && chartType != com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_SCATTER 
+			&& chartType != com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_CUSTOM)) && compMode){
+		throw new com.sap.xmii.common.exception.MIIi5Exception(
+				com.sap.xmii.common.util.MessageBundle.getText("XMSG_TIMESERIES_COMPMODE_ERROR"));
+	}else if(timeSeries && (chartType === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_GROUP_BAR || 
+			chartType === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_HORIZONTAL_BAR ||
+			chartType === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_HORIZONTAL_GROUP_BAR ||
+			chartType === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_STACKED_BAR ||
+			chartType === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_DONUT ||
+			chartType === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_GAUGE ||
+			chartType === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_PIE)){
+		throw new com.sap.xmii.common.exception.MIIi5Exception(com.sap.xmii.common.util.MessageBundle
+				.getText("XMSG_TIMESERIES_CHART_TYPE_ERROR", chartType));
+	}else if(dualYAxis && (chartType === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_DONUT ||
+			chartType === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_PIE ||
+			chartType === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_GAUGE ||
+			chartType === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_SCATTER ||
+			chartType === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_BUBBLE)){
+		throw new com.sap.xmii.common.exception.MIIi5Exception(com.sap.xmii.common.util.MessageBundle
+				.getText("XMSG_DUALYAXIS_CHART_TYPE_ERROR", chartType));
+	}
+},
+configureChartParameters : function(chartPropertyConfig, chartType, compMode , dualYAxis, timeSeries){
+	if(chartType == com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_GAUGE){
+		chartPropertyConfig.setProperty(com.sap.xmii.common.util.ChartPropertyConstants.COMP_MODE, true);
+		chartPropertyConfig.setProperty(com.sap.xmii.common.util.ChartPropertyConstants.DUAL_YAXIS, false);
+		chartPropertyConfig.setProperty(com.sap.xmii.common.util.ChartPropertyConstants.TIME_SERIES, false);
+	}else if(compMode){
+		chartPropertyConfig.setProperty(com.sap.xmii.common.util.ChartPropertyConstants.DUAL_YAXIS, false);
+		chartPropertyConfig.setProperty(com.sap.xmii.common.util.ChartPropertyConstants.TIME_SERIES, false);
+	}else if((chartType == com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_SCATTER || 
+			chartType == com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_BUBBLE) && dualYAxis == true){
+		chartPropertyConfig.setProperty(com.sap.xmii.common.util.ChartPropertyConstants.DUAL_YAXIS, false);
+	}else if(( chartType ==com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_PIE || 
+			chartType ==com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_GROUP_BAR ||
+			chartType ==com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_HORIZONTAL_GROUP_BAR ||
+			chartType ==com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_HORIZONTAL_BAR ||
+			chartType ==com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_DONUT ||
+			chartType ==com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_STACKED_BAR) && timeSeries == true){
+		chartPropertyConfig.setProperty(com.sap.xmii.common.util.ChartPropertyConstants.TIME_SERIES, false);
+		
+	}
+},
+applyFormatRulesforMeasures : function(chartPropertyConfig , ui5ChartElement){
+	if (ui5ChartElement.getDataset()) {
+		var measures = ui5ChartElement.getDataset().getMeasures();
+		var measureNames = [];
+		for (var i in measures) {
+			measureNames.push(measures[i].getName());
+		}
+	}
+	var upperLimit = chartPropertyConfig.getProperty(com.sap.xmii.common.util.SpecLimits.UPPER_LIMIT);
+	var lowerLimit = chartPropertyConfig.getProperty(com.sap.xmii.common.util.SpecLimits.LOWER_LIMIT);
+	var valueColumnOne = chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.VALUE_COLUMNS).split(",").length;
+	var valueColumnTwo = chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.VALUE_COLUMNS_2).split(",").length;
+	var chartType =  chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.CHART_TYPE);
+	var dualYAxis = chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.DUAL_YAXIS);
+	if((chartType === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_LINE)||(chartType === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_COMBINATION)|| 
+			(chartType === com.sap.xmii.common.util.i5ChartTypes.DUAL_LINE) || (chartType === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_CUSTOM)||
+			(chartType === com.sap.xmii.common.util.TimeseriesChartTypes.TIMESERIES_LINE)||(chartType === com.sap.xmii.common.util.TimeseriesChartTypes.TIMESERIES_COMBINATION) 
+			||(chartType === com.sap.xmii.common.util.TimeseriesChartTypes.TIMESERIES_DUAL_COMBINATION)){
+		if(chartPropertyConfig.getProperty(com.sap.xmii.common.util.SpecLimits.ALLOW_SPEC_LIMIT_ALARM).toString() ==  com.sap.xmii.common.util.GenericConstants.TRUE 
+				&& chartPropertyConfig.getProperty(com.sap.xmii.common.util.SpecLimits.APPLY_SPEC_RULES).toString() == com.sap.xmii.common.util.GenericConstants.TRUE){
+			var iterator;
+			if(dualYAxis)
+				iterator = measureNames.length;
+			else
+				iterator = valueColumnOne;	
+			for(var i = 0; i <iterator; i++) {
+				var formatRulesObject = {};
+				var color = {color : chartPropertyConfig.getProperty("ViolationMarkerColor."+(i+1)),
+						lineColor : chartPropertyConfig.getProperty("PenColor."+(i+1))};
+				if(!isNaN(upperLimit)) {
+					var min = {min : upperLimit};
+
+					var measureName = measureNames[i];
+					var dataContext = {};
+					dataContext[measureName] = min;
+
+					formatRulesObject.dataContext = dataContext;
+
+					//var color = {color : this.chartPropertyConfig.getProperty("ViolationMarkerColor."+(i+1))};
+
+					formatRulesObject.properties = color;
+					formatRulesObject.displayName = measureName +" > "+ upperLimit;
+					ui5ChartElement.getVizProperties().plotArea.dataPointStyle.rules.push(formatRulesObject);
+				}
+				if(!isNaN(lowerLimit)) {
+					formatRulesObject = {};
+
+					var max = {max : lowerLimit};
+
+					var measureName = measureNames[i];
+					var dataContext = {};
+					dataContext[measureName] = max;
+
+					formatRulesObject.dataContext = dataContext;
+
+					formatRulesObject.properties = color;
+					formatRulesObject.displayName = measureName +" < "+ lowerLimit;
+					ui5ChartElement.getVizProperties().plotArea.dataPointStyle.rules.push(formatRulesObject);
+				}
+				if((!isNaN(lowerLimit))&&(!isNaN(upperLimit))){
+					formatRulesObject = {};
+					var color = {color : chartPropertyConfig.getProperty("PenColor."+(i+1)),
+							lineColor : chartPropertyConfig.getProperty("PenColor."+(i+1)) };
+					var max = {min : lowerLimit,max : upperLimit};
+
+					var measureName = measureNames[i];
+					var dataContext = {};
+					dataContext[measureName] = max;
+
+					formatRulesObject.dataContext = dataContext;
+
+					formatRulesObject.properties = color;
+					formatRulesObject.displayName = measureName +" ( "+ lowerLimit+" - "+upperLimit+" ) ";
+					ui5ChartElement.getVizProperties().plotArea.dataPointStyle.rules.push(formatRulesObject);
+				}
+			}
+		}
+		else{
+			var colorPalette = [];
+			var maxPenCount = 32;
+			for(var i=0; i<maxPenCount; i++) {
+				colorPalette[i] = chartPropertyConfig.getProperty("PenColor." + (i+1));
+			}
+			ui5ChartElement.getVizProperties().plotArea.colorPalette = colorPalette;
+		}
+	}
+	else
+	{
+		//Setting colour for Data Series
+		var colorPalette = [];
+		var maxPenCount = 32;
+		for(var i=0; i<maxPenCount; i++) {
+			colorPalette[i] = chartPropertyConfig.getProperty("PenColor." + (i+1));
+		}
+		ui5ChartElement.getVizProperties().plotArea.colorPalette = colorPalette;
+	}
+},
+
+getChartDataForStartEndIndices : function(thisObj, startIndex, endIndex, useActualChartModel) {
+	//same structure as the initial json data
+	var newChartModelData =  { "Columns" : { 
+		"Column" : [  ] }, 
+		"Row" : [  ] };
+	//get chart data
+	var chartModelData;
+	if(useActualChartModel)
+		chartModelData = thisObj.model.getModelData().data.getData().Rowsets.Rowset[0];
+	else
+		chartModelData = thisObj.getChartObject().getUI5ChartElement().getModel().getData().miiData;
+
+	var nCols = chartModelData.Columns.Column.length;
+	//adding records in to column from original chart data
+	for(var i=0; i<nCols; i++) {
+		var obj = chartModelData.Columns.Column[i]; 
+		newChartModelData.Columns.Column.push(obj);
+	}
+
+	//adding records into row based on start and end date from slider
+	for(var x=startIndex; x<=endIndex; x++){
+		var obj = chartModelData.Row[x]; 
+		newChartModelData.Row.push(obj);
+
+	}
+	//newChartModelData is set on the new json model
+	var oModelNew = new sap.ui.model.json.JSONModel();
+
+	if(thisObj instanceof com.sap.xmii.chart.hchart.i5Chart) {
+		oModelNew.setData( {
+			miiData : newChartModelData
+		});
+		//new model is set to chartElement
+		thisObj.getChartObject().getUI5ChartElement().setModel(oModelNew);
+		//this method updates the dataset of the chart (addMeasure,dimensions)
+		thisObj.getChartObject().chartCompnModel.updateDataSet();
+		//get new data set
+		var dataset = thisObj.getChartObject().chartCompnModel.getDataSet();
+		//set the dataSet on the ui5chart object
+		thisObj.getChartObject().getUI5ChartElement().setDataset(dataset);
+	}
+}
+}
+};

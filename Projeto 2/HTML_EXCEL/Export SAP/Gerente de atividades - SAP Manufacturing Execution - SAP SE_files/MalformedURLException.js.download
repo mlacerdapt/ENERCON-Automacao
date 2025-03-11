@@ -1,0 +1,36 @@
+/* (c) Copyright 2008 SAP AG. All rights reserved. */
+
+/* "$Revision: 1$" */
+
+/*
+    MalformedURLException.js
+
+    This exception object represents an invalid or malformed URL.  This exception should
+    be thrown whenever a URL cannot be properly parsed.
+*/
+
+/*
+$Log: MalformedURLException.js $
+Revision 1.1  2001/09/07 22:10:53Z  rasmussene
+Initial revision
+*/
+
+//
+// MalformedURLException Constructor
+// ---------------------------------
+// Constructs a new MalformedURLException object and initializes the error message.
+//
+// Implementation:
+//   1. If invalidURL was passed in, initialize the message member with it
+//   2. Initialize base members with subclass Exception object
+//
+function MalformedURLException( invalidURL )
+{
+    if ( ( invalidURL != null ) && ( typeof( invalidURL ) == "string" ) ) {
+        this.baseException = new Exception( invalidURL );
+    }
+    this.message = this.baseException.getMessage();
+    this.stackTrace = this.baseException.getStackTrace();
+}
+MalformedURLException.prototype = new Exception();
+

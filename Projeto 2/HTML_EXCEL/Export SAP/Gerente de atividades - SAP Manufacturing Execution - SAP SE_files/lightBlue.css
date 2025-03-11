@@ -1,0 +1,59 @@
+@CHARSET "UTF-8";
+
+.formStyle {
+	background-color: aliceblue;
+}
+
+.formTextViewStyle>span {
+	line-height : inherit !important;
+}
+
+.formTextFieldStyle>label.sapMInputBasePlaceholder, .formTextFieldStyle>input.sapMInputBaseInner{
+	font-size : inherit;
+	padding-left : 0.3rem;
+}
+.formTextFieldStyle>input::-webkit-input-placeholder {
+	font-size : inherit;
+}
+.formTextFieldStyle>input::-moz-placeholder {
+	font-size : inherit;
+}
+
+.formTextAreaStyle>.sapMTextAreaInner,  .formTextAreaStyle>.sapMInputBasePlaceholder{
+	font-size : inherit;
+	padding : 0.3rem;
+	line-height : inherit;
+}
+.formTextAreaStyle>textarea::-webkit-input-placeholder {
+	font-size : inherit;
+}
+.formTextAreaStyle>textarea::-moz-placeholder {
+	font-size : inherit;
+}
+
+.formDropdownBoxStyle>label.sapMSltLabel {
+	line-height: inherit;
+}
+.formDropdownBoxStyle>span.sapMSltArrow {
+	line-height: inherit;
+}
+.formDropdownBoxItemStyle.sapMSelectListItem {
+	padding-left: 0.5rem;
+}
+
+.formRadioButtonStyle>div{
+	vertical-align: middle;
+}
+.formRadioButtonStyle>label{
+	font-size: inherit;
+	line-height: inherit !important;
+}
+
+.formCheckBoxStyle>div.sapMCbBg {
+	position: inherit;
+}
+.formCheckBoxStyle>label{
+	font-size: inherit;
+	padding-left: 0.375rem !important;
+	line-height: inherit !important;
+}

@@ -1,0 +1,76 @@
+function getJSDoc() {
+	var x = '';
+
+	function getAddMethods() {
+		var addMethodStr = '';
+		var propNames = [ 'Mode', 'Query', 'QueryParams', 'Attributes',
+				'DateColumn', 'JoinExpr', 'FilterExpr', 'GroupingExpr',
+				'SortExpr', 'IsCached', 'AllowFuture' ];
+
+		for (prop in propNames) {
+			var getStr = 'String:' + 'get' + propNames[prop] + ';';
+			var setStr = 'void:' + 'set' + propNames[prop] + '(val)' + ';';
+			addMethodStr = addMethodStr + getStr + setStr;
+		}
+
+		return addMethodStr;
+	}
+	;
+	x = x + getAddMethods();
+	return x;
+};
+
+/**
+ * @Namespace
+ */
+com.sap.xmii.querytemplate.query = com.sap.xmii.querytemplate.query || {};
+
+// FOR INHERITANCE
+var parentQueryObj = new com.sap.xmii.querytemplate.query.Query();
+
+/***
+ * MDOQUERY CLASS
+ * 
+ * @constructor
+ * 
+ * @param queryTemplateName
+ * @param queryMetaData
+ * @return
+ */
+com.sap.xmii.querytemplate.query.MDOQuery = function MDOQuery(
+		queryTemplateName, queryMetaData) {
+
+	this.setQueryMetaData(queryMetaData);
+	this.setQueryTemplateName(queryTemplateName);
+	this.addGettersAndSetters(com.sap.xmii.common.util.MDOQueryPropNames);
+
+}
+
+// Inheritance
+com.sap.xmii.querytemplate.query.MDOQuery.prototype = parentQueryObj;
+com.sap.xmii.querytemplate.query.MDOQuery.prototype.constructor = com.sap.xmii.querytemplate.query.MDOQuery;
+
+/**
+ * isTimeBasedQuery Method
+ * @private
+ * @return
+ */
+com.sap.xmii.querytemplate.query.MDOQuery.prototype.isTimeBasedQuery = function() {
+	
+	if (!com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(this.getMode())
+			&& (this.getMode() == com.sap.xmii.common.util.QueryConstants.MODE_QUERY || this.getMode() == com.sap.xmii.common.util.QueryConstants.MODE_SELECT)) {
+		if (!com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(this
+				.getDateColumn())) {
+			return true;
+		}
+		if (com.sap.xmii.common.util.MIIi5Util.containsTimeIndicators(this
+				.getJoinExpr())) {
+			return true;
+		}
+		if (com.sap.xmii.common.util.MIIi5Util.containsTimeIndicators(this
+				.getFilterExpr())) {
+			return true;
+		}
+	}
+	return false;
+}

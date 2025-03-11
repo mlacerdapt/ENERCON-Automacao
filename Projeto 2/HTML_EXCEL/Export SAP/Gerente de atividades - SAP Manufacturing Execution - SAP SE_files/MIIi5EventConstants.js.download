@@ -1,0 +1,483 @@
+/**
+ * To expose Event Triggers:
+ * fill in com.sap.xmii.common.util.EventObjectProperties
+ * 
+ * To expose Event Handlers:
+ * fill in com.sap.xmii.common.util.ObjectExposedHandlerEvents
+ * 
+ * To expose Property Methods:
+ * fill in com.sap.xmii.common.util.ObjectExposedProperties
+ * 
+ * To expose Template Types:
+ * fill in com.sap.xmii.common.util.TemplateType
+ */
+
+com.sap.xmii.common.util.ObjectExposedHandlerEvents =  {
+     "sap.m.Select": [{
+         "name": "refresh",
+         "desc": "DESC_HANDLER_REFRESH",
+         "feature": "dynamic"
+     }],
+     "sap.ui.commons.ListBox": [{
+         "name": "refresh",
+         "desc": "DESC_HANDLER_REFRESH",
+         "feature": "dynamic"
+     }],
+     "form": [{
+         "name": "reset",
+         "desc": "DESC_FORM_RESET"
+     },{
+         "name": "setValues",
+         "desc": "DESC_FORM_SET_VALUES"
+     }],
+     "i5Chart": [{
+         "name": "refresh",
+         "desc": "DESC_HANDLER_REFRESH"
+     }],
+     "i5Grid": [{
+         "name": "refresh",
+         "desc": "DESC_HANDLER_REFRESH"
+     }],
+     "Query": [{
+         "name": "refresh",
+         "desc": "DESC_HANDLER_REFRESH"
+     }],
+     "i5SPCChart": [{
+         "name": "refresh",
+         "desc": "DESC_HANDLER_REFRESH"
+     }],
+     "MDO": [{
+         "name": "refresh",
+         "desc": "DESC_HANDLER_REFRESH"
+     }],
+     "KPI": [{
+         "name": "refresh",
+         "desc": "DESC_HANDLER_REFRESH"
+     }],
+     "toolbar": [{
+    	 "name":"refresh", 
+    	 "desc": "DESC_HANDLER_REFRESH"
+     }]
+ };
+
+com.sap.xmii.common.util.ObjectExposedProperties = {
+    "sap.m.Button": [{
+        "name": "getTextValue()",
+        "desc": "DESC_BUTTON_GET_TEXT"
+    }],
+    "sap.m.CheckBox": [{
+        "name": "isChecked()",
+        "desc": "DESC_CHECKBOX_IS_CHECKED"
+    }, {
+        "name": "getTextValue()",
+        "desc": "DESC_CHECKBOX_GET_TEXT"
+    }],
+    "sap.m.Select": [{
+        "name": "getSelectedKey()",
+        "desc": "DESC_DROPDOWN_GET_KEY"
+    }, {
+        "name": "getSelectedValue()",
+        "desc": "DESC_DROPDOWN_GET_TEXT"
+    }],
+    "sap.m.TextArea": [{
+        "name": "getTextValue()",
+        "desc": "DESC_TEXTAREA_GET_TEXT"
+    }],
+    "sap.m.Input": [{
+        "name": "getTextValue()",
+        "desc": "DESC_TEXTFIELD_GET_TEXT"
+    }, {
+    	"name":	"getDateTimeFormat()",
+    	 "desc": "DESC_TEXTFIELD_GET_DATETIME_FORMAT"
+    }],
+    "sap.m.RadioButtonGroup": [{
+        "name": "getSelectedValue()",
+        "desc": "DESC_RADIOGROUP_GET_TEXT"
+    }],
+    "Query": [{
+        "name": "getSelectedRow()",
+        "desc": "QUERY_TABLE_GET_SELECTED_ROW",
+        "struct": "getColumnList"
+    }],
+    "i5SPCChart": [
+    ],
+    "MDO": [],
+    "KPI": [],
+    "toolbar": [{
+    	"name":"getStartDate()", 
+    	"desc": "XLBL_DESCRIPTION"
+    }, {
+    	"name":"getEndDate()", 
+    	"desc": "XLBL_DESCRIPTION"
+    },{
+    	"name":"getDateFormat()", 
+    	"desc": "XLBL_DESCRIPTION"
+    },{
+    	"name":"getTimePeriod()", 
+    	"desc": "XLBL_DESCRIPTION"
+    },{
+    	"name":"getNamespace()", 
+    	"desc": "XLBL_SELECTED_NAMESPACE"
+    },{
+    	"name":"getCategory()", 
+    	"desc": "XLBL_DESCRIPTION"
+    },{
+    	"name":"getChilds()", 
+    	"desc": "XLBL_DESCRIPTION"
+    },{
+    	"name":"getName()", 
+    	"desc": "XLBL_DESCRIPTION"
+    },{
+    	"name":"getPropertySets()", 
+    	"desc": "XLBL_DESCRIPTION"
+    },{
+    	"name":"getProperties()", 
+    	"desc": "XLBL_DESCRIPTION"
+    },{
+    	"name":"getType()", 
+    	"desc": "XLBL_DESCRIPTION"
+    }],
+    "toolbar_TimePeriod": [{
+    	"name":"getStartDate()", 
+    	"desc": "XLBL_DESCRIPTION"
+    }, {
+    	"name":"getEndDate()", 
+    	"desc": "XLBL_DESCRIPTION"
+    },{
+    	"name":"getDateFormat()", 
+    	"desc": "XLBL_DESCRIPTION"
+    },{
+    	"name":"getTimePeriod()", 
+    	"desc": "XLBL_DESCRIPTION"
+    }],
+    "toolbar_PIC": [{
+    	"name":"getNamespace()", 
+    	"desc": "XLBL_SELECTED_NAMESPACE"
+    },{
+    	"name":"getCategory()", 
+    	"desc": "XLBL_DESCRIPTION"
+    },{
+    	"name":"getChilds()", 
+    	"desc": "XLBL_DESCRIPTION"
+    },{
+    	"name":"getName()", 
+    	"desc": "XLBL_DESCRIPTION"
+    },{
+    	"name":"getPropertySets()", 
+    	"desc": "XLBL_DESCRIPTION"
+    },{
+    	"name":"getProperties()", 
+    	"desc": "XLBL_DESCRIPTION"
+    },{
+    	"name":"getType()", 
+    	"desc": "XLBL_DESCRIPTION"
+    }],
+    "PICGroup": [{
+    	"name":"getNamespace()", 
+    	"desc": "XLBL_SELECTED_NAMESPACE"
+    },{
+    	"name":"getCategory()", 
+    	"desc": "XLBL_DESCRIPTION"
+    },{
+    	"name":"getChilds()", 
+    	"desc": "XLBL_DESCRIPTION"
+    },{
+    	"name":"getName()", 
+    	"desc": "XLBL_DESCRIPTION"
+    },{
+    	"name":"getPropertySets()", 
+    	"desc": "XLBL_DESCRIPTION"
+    },{
+    	"name":"getProperties()", 
+    	"desc": "XLBL_DESCRIPTION"
+    },{
+    	"name":"getType()", 
+    	"desc": "XLBL_DESCRIPTION"
+    }],
+    "sap.ui.commons.ListBox":[{
+        "name": "getSelectedKey()",
+        "desc": "DESC_LISTBOX_GET_KEY"
+    }, {
+        "name": "getSelectedValue()",
+        "desc": "DESC_LISTBOX_GET_TEXT"
+    }, 
+    {
+        "name": "getSelectedIndex()",
+        "desc": "DESC_LISTBOX_GET_SELECTED_INDEX"
+    }]
+};
+
+com.sap.xmii.common.util.EventObjectProperties = {
+    "sap.m.Button": {
+        "onPress": {
+            "desc": "DESC_BUTTON_ON_PRESS"
+        },
+        "onQueryComplete": {
+        	"desc": "DESC_BUTTON_ON_QUERY_COMPELETE",
+        	"feature": "i5Command"
+        },
+        "onQuerySuccess": {
+        	"desc": "DESC_BUTTON_ON_QUERY_SUCCESS",
+        	"feature": "i5Command"
+        },
+        "onQueryError": {
+        	"desc": "DESC_BUTTON_ON_QUERY_ERROR",
+            "path": "oEvent.mParameters",	
+        	"feature": "i5Command",
+			"data" : [ {
+				"name" : "error",
+				"desc" : "DESC_ERROR_OBJECT",
+                "struct": [{
+                	"name" : "message",
+					"desc" : "DESC_DETAILED_INFO"
+                }]
+			} ]
+        }
+    },
+    "sap.m.CheckBox": {
+        "onChange": {
+            "desc": "DESC_CHECKBOX_ON_CHANGE",
+            "path": "oEvent.mParameters",	
+            "data": [{
+                "name": "selected",
+                "desc": "DESC_STATUS_WHEN_EVENT_TRIGGERED"
+            }]
+        }
+    },
+    "sap.m.Select": {
+        "onChange": {
+			"desc" : "DESC_RADIOGROUP_ON_SELECT",
+			"path" : "oEvent.mParameters",
+			"data" : [{
+				"name" : "selectedItem",
+				"desc" : "DESC_SELECTED_ITEM",
+				"struct" : [ {
+					"name" : "getKey()",
+					"desc" : "DESC_DROPDOWN_GET_KEY"
+				},
+				{
+					"name" : "getText()",
+					"desc" : "DESC_DROPDOWN_GET_TEXT"
+				}]
+			}]
+        }
+    },
+    "sap.m.TextArea": {
+        "onLiveChange" : {
+			"desc" : "ON_LIVECHANGE_DESC",
+			"path" : "oEvent.mParameters",
+			"data" : [ {
+				"name" : "value",
+				"desc" : "DESC_CONTENT_WHEN_EVENT_TRIGGERED"
+			} ]
+		},
+        "onChange" : {
+			"desc" : "ON_CHANGE_DESC",
+			"path" : "oEvent.mParameters",
+			"data" : [ {
+				"name" : "value",
+				"desc" : "DESC_CONTENT_WHEN_EVENT_TRIGGERED"
+			} ]
+		}
+    },
+    "sap.m.Input" : {
+		"onLiveChange" : {
+			"desc" : "ON_LIVECHANGE_DESC",
+			"path" : "oEvent.mParameters",
+			"data" : [ {
+				"name" : "value",
+				"desc" : "DESC_CONTENT_WHEN_EVENT_TRIGGERED"
+			} ]
+		},
+		"onChange" : {
+			"desc" : "ON_CHANGE_DESC",
+			"path" : "oEvent.mParameters",
+			"data" : [ {
+				"name" : "value",
+				"desc" : "DESC_CONTENT_WHEN_EVENT_TRIGGERED"
+			} ]
+		}
+    },
+    "sap.m.RadioButtonGroup": {
+        "onSelect": {
+            "desc": "DESC_RADIOGROUP_ON_SELECT"
+        }
+    },	   
+    "sap.ui.commons.ListBox":{
+    	 "onSelect": {
+			"desc" : "DESC_LISTBOX_ON_SELECT",
+			"path" : "oEvent.mParameters",
+			"data" : [{
+				"name" : "selectedItem",
+				"desc" : "DESC_SELECTED_ITEM",
+				"struct" : [ {
+					"name" : "getKey()",
+					"desc" : "DESC_LISTBOX_GET_KEY"
+				},
+				{
+					"name" : "getText()",
+					"desc" : "DESC_LISTBOX_GET_TEXT"
+				}]
+			}]
+        }
+    },
+    "i5Grid": {
+        "onRowSelection": {
+            "desc": "DESC_ROW_SELECTION",
+            "path": "oEvent.mParameters",
+            "data": [{
+                "name": "rowData",
+                "desc": "DESC_EVENTDATA_ROW",
+                "struct": "getColumnList"
+            }, {
+                "name": "rowIndex",
+                "desc": "DESC_EVENTDATA_ROW_INDEX"
+            }]
+        },
+        "onCellSelection": {
+            "path": "oEvent.mParameters",
+            "desc": "DESC_CELL_SELECTION",
+            "data": [{
+                "name": "cellValue",
+                "desc": "DESC_CELL_VALUE"
+            }]
+        },
+        "onUpdate": {
+            "desc": "DESC_GRID_UPDATE"
+        }
+    },
+    "i5Chart": {
+        "onSelectDatapoint": {
+            "path": "oEvent.mParameters",
+            "desc": "DESC_ON_DATAPOINT",
+            "data": [{
+                "name": "dataPointValue",
+                "desc": "DESC_EVENTDATA_POINT_VALUE"
+            }, {
+                "name": "dataPointProperties",
+                "desc": "DESC_EVENTDATA_POINT_PROPERTIES",
+                "struct": "getDataPointPropertyKeys"
+            }]
+        },
+        "onSelectLegend": {
+        	"path": "oEvent.mParameters",
+        	"desc": "DESC_ON_LEGEND",
+	        "data": [{
+	            "name": "legendValue",
+	            "desc": "DESC_EVENTDATA_LEGEND"
+	        }]
+		},
+        "onUpdate": {
+            "desc": "DESC_ON_CHART_UPDATE"
+        }
+    },
+    "Query": {
+        "onRowSelection": {
+	    	"desc": "QUERY_TABLE_ROW_SELECTION",
+            "path": "oEvent.mParameters",
+            "data": [{
+                "name": "rowData",
+                "desc": "ROW_DATA_ON_ROW_SELECTION",
+                "struct": "getColumnList"
+            }, {
+                "name": "rowIndex",
+                "desc": "ROW_INDEX_ON_CELL_SELECTION"
+            }]
+        },
+        "onCellSelection": {
+        	"desc": "QUERY_TABLE_CELL_SELECTION",
+        	"path": "oEvent.mParameters",
+            "data": [{
+                "name": "cellValue",
+                "desc": "CELL_VALUE_ON_CELL_SELECTION"
+            },{
+            	"name": "columnIndex",
+            	"desc": "COLUMN_INDEX_ON_CELL_SELECTION"
+            }, {
+            	"name": "rowIndex",
+            	"desc": "ROW_INDEX_ON_CELL_SELECTION"
+            }, {
+            	"name": "columnName",
+            	"desc": "COLUMN_NAME_ON_CELL_SELECTION"
+            }]
+        }
+    },
+    "i5SPCChart": {
+    },
+    "KPI": {
+    }
+    ,
+    "toolbar_PIC": {
+        "onPicChange": {
+            "desc": "XLBL_DESCRIPTION"
+        }
+    },
+    "toolbar_TimePeriod": {
+        "onTimeChange": {
+            "desc": "XLBL_DESCRIPTION"
+        }
+    },
+    "toolbar": {
+        "onTimeChange": {
+            "desc": "XLBL_DESCRIPTION"
+        },
+        "onPicChange": {
+            "desc": "XLBL_DESCRIPTION"
+        }
+    },
+    "PICGroup":{
+    	"onSelect" :{
+	    	"desc" :  "XLBL_DESCRIPTION"
+	    }
+    }
+};
+
+com.sap.xmii.common.util.ObjectExposedDataType = {
+	TRIGGER : "ExposedTriggerEvents",
+	HANDLER : "ExposedHandlerEvents",
+	PROPERTY : "ExposedProperties"
+};
+
+com.sap.xmii.common.util.SourceDataType = {
+	TRIGGER : "Trigger",
+	HANDLER : "Handler",
+	PARAM_SOURCE : "ExposedProperties",
+	PARAM_TARGET: "Target"
+};
+
+com.sap.xmii.common.util.TemplateType = {
+	"iGrid": 1,
+	"iTicker": 2,
+	"iChart": 3,
+	"iSPCChart": 4,
+	"iBrowser": 5,
+	"iCommand": 6,
+	"iCalendar": 7,
+	"i5Chart": 8,
+	"i5Grid": 9,
+	"i5SPCChart": 10,
+	"i5ValueHelp": 11,
+	"AggregateQuery": 20,
+	"AlarmQuery": 21,
+	"OLAPQuery": 22,
+	"SQLQuery": 23,
+	"TagQuery": 24,
+	"TemplateQuery": 25,
+	"XacuteQuery": 26,
+	"XMLQuery": 27,
+	"MDOQuery": 28,
+	"PCoQuery": 29,
+	"CatalogQuery": 30,
+	"KPIQuery": 31,
+	"AppletObject": 40,
+	"GraphicObject": 41,
+	"HyperlinkObject": 42,
+	"ReportObject": 43
+};
+
+com.sap.xmii.common.util.RadioButtonGroup = {
+	GROUP_NAME_PREFIX: "RadioButtonGroup_"
+};
+
+//Following configurations are generated at build time.
+com.sap.xmii.common.util.annotation = com.sap.xmii.common.util.annotation || {};com.sap.xmii.common.util.annotation.ObjectExposedProperties = {"i5Grid": [{"name": "getSelectedCellValue()","desc": "Get Text of selected cell","struct": ""},{"name": "getSelectedRow()","desc": "Get selected row of table","struct": "getColumnList"}],"i5Chart": [{"name": "getSelectedDataPointProperties()","desc": "Get property set of selected data","struct": "getDataPointPropertyKeys"},{"name": "getSelectedDataPointValue()","desc": "Get value of data point","struct": ""}]};

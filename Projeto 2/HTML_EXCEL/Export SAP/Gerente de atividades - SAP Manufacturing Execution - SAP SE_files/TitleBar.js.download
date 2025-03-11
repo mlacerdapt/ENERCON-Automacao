@@ -1,0 +1,103 @@
+//document.write('<scr'+'ipt type="text/javascript" src="/XMII/JavaScript/com/sap/xmii/common/tools/ExtendedLabel.js"></scr'+'ipt>');
+//document.write('<scr' + 'ipt type="text/javascript" src="/XMII/JavaScript/com/sap/xmii/common/tools/ToolBar.js"></scr' + 'ipt>');
+
+com.sap.xmii.common.tools = com.sap.xmii.common.tools||{};
+
+var parentToolComponent = new com.sap.xmii.common.tools.AppToolBar();
+
+/*
+ * TITLEBAR CONSTRUCTOR
+ */
+com.sap.xmii.common.tools.TitleBar = function(thisObj){
+
+	var titleBarId = com.sap.xmii.common.util.GenericConstants.TITLEBAR + com.sap.xmii.common.util.MIIi5Util.generateGuid();
+	this.titleBar = new sap.ui.commons.Toolbar(titleBarId, 
+			{width : thisObj.chartWidth//thisObj.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.WIDTH)
+			});
+	this.titleBar.setDesign(sap.ui.commons.ToolbarDesign.Standard);
+	
+	// i5Chart Title panel properties
+	if ((thisObj.getChartTemplateObject().getProperty(com.sap.xmii.common.util.GenericConstants.TYPE) == com.sap.xmii.common.util.ChartPropertyConstants.I5CHART
+			|| thisObj.getChartTemplateObject().getProperty(com.sap.xmii.common.util.GenericConstants.TYPE) == com.sap.xmii.common.util.SPCChartConstants.I5SPCCHART
+			|| thisObj.getChartTemplateObject().getProperty(com.sap.xmii.common.util.GenericConstants.TYPE) == com.sap.xmii.common.util.ChartPropertyConstants.ICHART)
+			&& (thisObj.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.SHOW_TITLE) == true)) {
+		
+		//initializing title and adding it to the toolbar.
+		jQuery.sap.log.info("Initiliazing title bar for i5Chart");
+		var title = new ExtendedLabel({
+			text: thisObj.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.TITLE),
+			visible: true,
+			textAlign: thisObj.chartTemplate.chartPropertyConfig.getTitleAlignment(),
+			textcolor: thisObj.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.TITLE_COLOR),
+			fontSize: ((thisObj.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.FONT_SIZE) > 24) ? 24 + "px" : thisObj.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.FONT_SIZE) + "px"),
+			font: thisObj.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.FONT_FACE),
+			fontStyle: thisObj.chartTemplate.chartPropertyConfig.getTitleFontStyle(),
+			fontWeight: thisObj.chartTemplate.chartPropertyConfig.getTitleFontWeight()
+		});
+		
+		this.titleBar.addItem(title);
+		jQuery.sap.log.info("title bar Initiliazed and added");
+
+	// i5Grid Header panel properties 
+	} else if ((thisObj.getChartTemplateObject().getProperty(com.sap.xmii.common.util.GenericConstants.TYPE) == com.sap.xmii.common.util.GridPropertyConstants.I5GRID
+			|| thisObj.getChartTemplateObject().getProperty(com.sap.xmii.common.util.GenericConstants.TYPE) == com.sap.xmii.common.util.GridPropertyConstants.IGRID)
+			&& (thisObj.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.GridPropertyConstants.SHOW_TITLE_AREA) == true)) {
+		
+		//initializing title and adding it to the toolbar.
+		jQuery.sap.log.info("Initiliazing title bar for i5Grid");
+		var fontStyle, fontWeight;		
+		var inputFontStyle = thisObj.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.GridPropertyConstants.HEADER_FONT_STYLE);
+		if(inputFontStyle == 0 || inputFontStyle == 2){
+			fontStyle = com.sap.xmii.common.util.MIIFontStyles[inputFontStyle];
+		}else if(inputFontStyle == 1){
+			fontWeight = com.sap.xmii.common.util.MIIFontStyles[inputFontStyle];
+		}else{
+			fontWeight = com.sap.xmii.common.util.MIIFontStyles[1];
+			fontStyle = com.sap.xmii.common.util.MIIFontStyles[2];
+		}
+
+		var title = new ExtendedLabel({
+			text: thisObj.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.GridPropertyConstants.TITLE),
+			visible: true,
+			textAlign: thisObj.chartTemplate.chartPropertyConfig.getTitleAlignment(),
+			textcolor: thisObj.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.GridPropertyConstants.HEADER_TEXT_COLOR),
+			fontSize: ((thisObj.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.GridPropertyConstants.HEADER_FONT_SIZE) > 24) ? 24 + "px" : thisObj.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.GridPropertyConstants.HEADER_FONT_SIZE)  + "px"),
+			font: thisObj.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.GridPropertyConstants.HEADER_FONT_FACE),
+			fontStyle: fontStyle,
+			fontWeight: fontWeight
+		});
+
+		this.titleBar.addItem(title);
+		jQuery.sap.log.info("title bar Initiliazed and added");
+	}
+	
+	var toolBar;
+	
+	if(thisObj.getChartTemplateObject().chartConfig.Type === com.sap.xmii.common.util.SPCChartConstants.I5SPCCHART){
+		toolBar = new com.sap.xmii.common.tools.i5SPCToolBar(thisObj);
+	} else {
+		toolBar = new com.sap.xmii.common.tools.ToolBar(thisObj);
+	}
+	
+	if(thisObj.getChartTemplateObject().getProperty(com.sap.xmii.common.util.GenericConstants.TYPE) === com.sap.xmii.common.util.SPCChartConstants.I5SPCCHART)
+		thisObj.setToolBar(toolBar);
+	if (thisObj.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.SHOW_APP_TOOLBAR) != undefined
+			&& thisObj.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.SHOW_APP_TOOLBAR).toString() == com.sap.xmii.common.util.GenericConstants.TRUE) {
+		//initializing settings button and adding it to the toolbar.
+		jQuery.sap.log.info("Initiliazing tool bar");
+		this.titleBar.addRightItem(toolBar.toolBarObj);
+		jQuery.sap.log.info("tool bar Initiliazed and added");
+	}
+}
+
+
+com.sap.xmii.common.tools.TitleBar.prototype = parentToolComponent;
+com.sap.xmii.common.tools.TitleBar.prototype.constructor = com.sap.xmii.common.tools.TitleBar;
+
+	
+/*
+ * TITLEBAR CLASS
+ */	
+com.sap.xmii.common.tools.TitleBar.prototype.getTitleBar = function() {
+	return this.titleBar;
+}

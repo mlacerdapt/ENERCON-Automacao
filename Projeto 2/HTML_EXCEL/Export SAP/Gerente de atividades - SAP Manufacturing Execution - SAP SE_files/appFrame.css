@@ -1,0 +1,135 @@
+/*
+    11.06.2020
+    Moved from UI5AppFrame.jsp
+    todo: revise, clean up
+*/
+
+.sapUiBodyBackground, .sapUiBody {
+    background-image: none;
+}
+
+.sapUiBody {
+    display: inline;
+    background-color: #3F5161;
+    height: 100%;
+    margin: 0;
+    padding: 10px 0;
+
+}
+.TreeGroup,.sapMLabel {
+    font-family: inherit;
+    color:#b7cfe4 !important;
+    text-transform: uppercase;
+    font-weight: 600;
+    background-color: #3b4c5b;
+    border-bottom:0px;
+}
+.sapMLabel {
+    font-family: inherit;
+    color:#b7cfe4 !important;
+    text-transform: uppercase;
+    font-weight: 600;
+    border-bottom:0px;
+    background:transparent;
+}
+.sapUiBody.activityListBody{
+    overflow: hidden;
+}
+
+.sapUiGlobalBackgroundColor{
+    background-color: #3b4c5b;
+
+}
+.TreeChild{
+    font-family: inherit;
+    background-color: #3b4c5b ;
+    color:#fafafa;
+    border-bottom:0px;
+}
+.TreeChild:active{
+    background-color: #495e70 !important;
+}
+.sapMLIBTypeActive:active{
+    background-color: #495e70;
+}
+.sapMTreeItemBaseExpander{
+    font-family: inherit;
+    color: #fafafa;
+}
+.sapMLIBHoverable:hover{
+    background-color:rgba(0, 124, 192, 0.54) !important;
+    border-radius: 0 4px 4px 0;
+}
+.sapMLnk:hover:not(.sapMLnkDsbl),.sapMLnk:visited.sapMLnk:visited{
+    color: #fafafa;
+
+}
+.sapMLnk{
+    font-family: inherit;
+    font-size:medium;
+    color: #fafafa;
+    white-space: normal;
+}
+
+.sapMLabel {
+    white-space: normal;
+}
+
+.activityTree .sapMLIBFocusable:focus {
+    outline-color: white;
+    background-color: rgba(102, 128, 150, 0.5);
+}
+
+html.sap-desktop .activityTree .sapMLnk:focus:not(.sapMLnkDsbl) {
+    color: #d1e8ff;
+    outline-color: #fafafa;
+}
+
+.activityTree .sapMLIBLegacyOutline:focus::before {
+    border-color: white;
+}
+
+/* Scroll bar customization */
+:root {
+    --scrollWidth: 14px;
+    --trackColor: #3b4c5b;
+    --thumbColor: #8db3db;
+}
+
+html[data-sap-ui-browser*='ie'] .darkScrollbar,
+.darkScrollbar {
+    /* Firefox */
+    scrollbar-width: thin;
+    scrollbar-color: var(--thumbColor) var(--trackColor);
+
+    /* IE */
+    scrollbar-track-color: #3b4c5b;
+    scrollbar-darkshadow-color: #3b4c5b;
+    scrollbar-3dlight-color: rgba(255, 255, 255, 0.1);
+    scrollbar-face-color: #8db3db;
+    scrollbar-shadow-color: #8db3db;
+    scrollbar-highlight-color: #8db3db;
+    scrollbar-arrow-color: #ffffff;
+}
+
+/* Chrome, Edge, Safari */
+html.sap-desktop .darkScrollbar ::-webkit-scrollbar-track,
+.darkScrollbar ::-webkit-scrollbar-track
+{
+    /*border-left: 1px solid rgba(255, 255, 255, 0.1);*/
+    border-left: none;
+    background-color: var(--trackColor);
+}
+
+.darkScrollbar ::-webkit-scrollbar
+{
+    width: var(--scrollWidth);
+}
+
+html.sap-desktop .darkScrollbar ::-webkit-scrollbar-thumb,
+html.sap-desktop .darkScrollbar ::-webkit-scrollbar-thumb:hover,
+html.sap-desktop .darkScrollbar ::-webkit-scrollbar-thumb:active
+{
+    background-color: var(--thumbColor);
+    border-radius: 12px 0 0 12px;
+}

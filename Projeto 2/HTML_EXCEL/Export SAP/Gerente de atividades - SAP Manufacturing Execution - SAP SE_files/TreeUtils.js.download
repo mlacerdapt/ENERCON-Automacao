@@ -1,0 +1,1035 @@
+/**
+ * Constant declaration
+ */
+var FILE_TYPE_DISPLAY = "Display";
+var FILE_TYPE_QUERY   = "Query";
+var FILE_TYPE_KPI 	  = "KPI";
+var FILE_TYPE_MDO 	  = "MDO";
+var FILE_TYPE_I5CHART = "i5Chart";
+var FILE_TYPE_CONTENT = "Content";
+var FILE_TYPE_I5GRID = "i5Grid";
+var FILE_TYPE_I5SPCCHART = "i5SPCChart";
+var FILE_TYPE_SVG = "SVGObject";
+var FILE_TYPE_TAGS = "Tags";
+var FILE_TYPE_UIELEMENT = "UIElement";
+var FILE_TYPE_PIC_GROUP = "PICGroup"; 
+var FILE_TYPE_VDS = "VDS";
+var FILE_TYPE_MAP = "Map";
+
+/**
+ * this method is used to generate the GUID. The GUID will start with 'A'
+ * @return
+ */
+function generateGuid()
+{
+	var result, i=0, j;
+	result = 'A';
+	for (j = 0; j < 32; j++) {
+		i = Math.floor(Math.random() * 16).toString(16).toUpperCase();
+		result = result + i;
+	}
+	return result;
+}
+
+/***
+ * this method is called to determine the icons for different type of workbench objects
+ * @param type
+ * @param oNode
+ * @return
+ */
+function determineIconForNode(type,oNode){
+	var iconUri = "Images/document_plain.png";
+	switch(type){
+	case 'iChart':
+		iconUri = "Images/dynamicPage.gif";
+		break;
+	case 'iBrowser':
+		iconUri = "Images/window_earth.png";
+		break;
+	case 'iCommand':
+		iconUri = "Images/application.png";
+		break;
+	case 'iCalendar':
+		iconUri = "Images/calendar.png";
+		break;
+	case 'iSPCChart':
+		iconUri = "Images/chart.png";
+		break;
+	case 'iTicker':
+		iconUri = "Images/stopwatch.png";
+		break;
+	case 'iGrid':
+		iconUri = "Images/column.png";
+		break;
+	case 'i5Grid':
+		iconUri = "Images/CompositionEnvironment/IlluminatorI5Grid.png";
+		break;
+	case 'i5SPCChart':
+		iconUri = "Images/CompositionEnvironment/IlluminatorI5SPCChart.png";
+		break;
+	case 'i5Chart':
+		iconUri = "Images/hChart.png";
+		break;
+	case 'AggregateQuery':
+		iconUri = "Images/AggregateQuery.png";
+		break;
+	case 'AlarmQuery':
+		iconUri = "Images/AlarmQuery.png";
+		break;
+	case 'OLAPQuery':
+		iconUri = "Images/OLAPQuery.png";
+		break;
+	case 'SQLQuery':
+		iconUri = "Images/SQLQuery.png";
+		break;
+	case 'TagQuery':
+		iconUri = "Images/TagQuery.png";
+		break;
+	case 'XacuteQuery':
+		iconUri = "Images/XacuteQuery.png";
+		break;
+	case 'XMLQuery':
+		iconUri = "Images/XMLQuery.png";
+		break;
+	case 'MDOQuery':
+		iconUri = "Images/MDOQuery.png";
+		break;
+	case 'PCoQuery':
+		iconUri = "Images/PCoQuery.png";
+		break;
+	case 'CatalogQuery':
+		iconUri = "Images/ETCQuery.png";
+		break;
+	case 'KPIQuery':
+		iconUri = "Images/KPIQuery.png";
+		break;
+	case 'BaseKPIDefinition':
+		iconUri = "Images/baseKPI.png";
+		break;
+	case 'CompositeKPIDefinition':
+		iconUri = "Images/compositeKPI.png";
+		break;
+	case 'MDOJoinedDefinition':
+		iconUri = "Images/joinedMDO.png";
+		break;
+	case 'MDOOnDemandDefinition':
+		iconUri = "Images/mdoOnDemand.png";
+		break;
+	case 'MDOPersistentDefinition':
+		iconUri = "Images/mdoPersistent.png";
+		break;	
+	case 'AlertDefinition':
+		iconUri = "Images/Alert.png";
+		break;		
+	case 'Content':
+		iconUri = "Images/document_plain.png";
+		break;
+	case 'ReferenceDocument':
+		iconUri = "Images/XmlDocument.png";
+		break;
+	case 'ReferenceSchema':
+		iconUri = "Images/RefSchemaLoader.png";
+		break;
+	case 'Tags' :
+		iconUri = "Images/CompositionEnvironment/tag_grey_16.png";
+		break;
+	case 'PICGroup':
+		iconUri = "Images/CompositionEnvironment/picTree_16.png";
+		break;
+	default:
+		break;
+	}
+	if (oNode !== undefined && oNode != null) {
+		oNode.setIcon(iconUri);
+	} else {
+		return iconUri;
+	}
+}
+
+function determineDropImageForNode(type){
+	switch(type){
+	case 'iChart':
+		return "Images/CompositionEnvironment/DisplayTemplate_1.png";
+	case 'iBrowser':
+		return "Images/CompositionEnvironment/DisplayTemplate_1.png";
+	case 'iCommand':
+		return "Images/CompositionEnvironment/DisplayTemplate_1.png";
+	case 'iCalendar':
+		return "Images/CompositionEnvironment/DisplayTemplate_1.png";
+	case 'iSPCChart':
+		return "Images/CompositionEnvironment/DisplayTemplate_1.png";
+	case 'iTicker':
+		return "Images/CompositionEnvironment/DisplayTemplate_1.png";
+	case 'iGrid':
+		return "Images/CompositionEnvironment/DisplayTemplate_1.png";
+	case 'i5Grid':
+		return "Images/CompositionEnvironment/DisplayTemplate_1.png";
+	case 'i5Chart':
+		return "Images/CompositionEnvironment/DisplayTemplate_1.png";
+	case 'i5SPCChart':
+		return "Images/CompositionEnvironment/DisplayTemplate_1.png";
+	case 'AggregateQuery':
+		return "Images/CompositionEnvironment/QueryTemplate.png";
+	case 'AlarmQuery':
+		return "Images/CompositionEnvironment/QueryTemplate.png";
+	case 'OLAPQuery':
+		return "Images/CompositionEnvironment/QueryTemplate.png";
+	case 'SQLQuery':
+		return "Images/CompositionEnvironment/QueryTemplate.png";
+	case 'TagQuery':
+		return "Images/CompositionEnvironment/QueryTemplate.png";
+	case 'XacuteQuery':
+		return "Images/CompositionEnvironment/QueryTemplate.png";
+	case 'XMLQuery':
+		return "Images/CompositionEnvironment/QueryTemplate.png";
+	case 'MDOQuery':
+		return "Images/CompositionEnvironment/QueryTemplate.png";
+	case 'PCoQuery':
+		return "Images/CompositionEnvironment/QueryTemplate.png";
+	case 'CatalogQuery':
+		return "Images/CompositionEnvironment/QueryTemplate.png";
+	case 'KPIQuery':
+		return "Images/CompositionEnvironment/QueryTemplate.png";
+	case 'BaseKPIDefinition':
+		return "Images/CompositionEnvironment/KPI.png";
+	case 'CompositeKPIDefinition':
+		return "Images/CompositionEnvironment/KPI.png";
+	case 'Content':
+		return "Images/CompositionEnvironment/HTML_File.png";
+	case 'MDOJoinedDefinition':
+		return "Images/CompositionEnvironment/QueryTemplate.png";
+	case 'MDOOnDemandDefinition':
+		return "Images/CompositionEnvironment/QueryTemplate.png";
+	case 'MDOPersistentDefinition':
+		return "Images/CompositionEnvironment/QueryTemplate.png";
+	case 'UIElement':
+		return "Images/CompositionEnvironment/QueryTemplate.png";
+	case 'Tags':
+		return "Images/CompositionEnvironment/tag_grey_256.png";
+	case 'PICGroup' :
+		return "Images/CompositionEnvironment/picTree_256.png";
+	case 'VDS' :
+		return "Images/CompositionEnvironment/visual_design_streaming_file_grey_256.png";
+	case 'SVGObject' :
+		return "Images/CompositionEnvironment/explore_grey_64.png";
+	default:
+		break;
+	}
+}
+
+function determineFileType(type){
+    if(type == "iChart" || type == "iBrowser" || type == "iCommand" || type == "iCalendar" || type == "iSPCChart" || type == "iTicker" || type == "iGrid"){
+            return FILE_TYPE_DISPLAY;
+    } else if (type == "AggregateQuery" || type == "AlarmQuery" || type == "OLAPQuery" || type == "SQLQuery" || type == "TagQuery"
+            || type == "XacuteQuery" || type == "XMLQuery" || type == "MDOQuery" || type == "PCoQuery" || type == "CatalogQuery" || type == "KPIQuery"){
+            return FILE_TYPE_QUERY;
+    } else if (type == "BaseKPIDefinition" || type == "CompositeKPIDefinition") {
+    	return FILE_TYPE_KPI;
+    } else if (type == "MDOJoinedDefinition" || type == "MDOOnDemandDefinition" || type == "MDOPersistentDefinition") {
+    	return FILE_TYPE_MDO;
+    }else if (type == "i5Chart") {
+    	return FILE_TYPE_I5CHART;
+    }else if (type == "Content" || type == FILE_TYPE_TAGS) {
+    	return FILE_TYPE_TAGS;
+    }else if (type == "i5Grid") {
+    	return FILE_TYPE_I5GRID;
+    }else if (type == "i5SPCChart") {
+    	return FILE_TYPE_I5SPCCHART;
+    }else if (type == "SVGObject") {
+    	return FILE_TYPE_SVG;
+    } else if (type == FILE_TYPE_TAGS) {
+    	return FILE_TYPE_TAGS;
+    } else if(type == "UIElement"){
+    	return FILE_TYPE_UIELEMENT;
+    } else if (type == "PICGroup") {
+    	return FILE_TYPE_PIC_GROUP;
+    }else if (type == "VDS") {
+    	return FILE_TYPE_VDS;
+    }
+}
+
+function determineFileTypeForHelpLink(type){
+    if(type == "iChart" || type == "iBrowser" || type == "iCommand" || type == "iCalendar" || type == "iSPCChart" || type == "iTicker" || type == "iGrid"){
+            return FILE_TYPE_DISPLAY;
+    } else if (type == "AggregateQuery" || type == "AlarmQuery" || type == "OLAPQuery" || type == "SQLQuery" || type == "TagQuery"
+            || type == "XacuteQuery" || type == "XMLQuery" || type == "MDOQuery" || type == "PCoQuery" || type == "CatalogQuery" || type == "KPIQuery"){
+            return FILE_TYPE_QUERY;
+    } else if (type == "BaseKPIDefinition" || type == "CompositeKPIDefinition") {
+    	return FILE_TYPE_KPI;
+    } else if (type == "MDOJoinedDefinition" || type == "MDOOnDemandDefinition" || type == "MDOPersistentDefinition") {
+    	return FILE_TYPE_MDO;
+    }else if (type == "i5Chart") {
+    	return FILE_TYPE_I5CHART;
+    }else if (type == "Content") {
+    	return FILE_TYPE_CONTENT;
+    } else if (type == FILE_TYPE_TAGS) {
+    	return FILE_TYPE_TAGS;
+    }else if (type == "i5Grid") {
+    	return FILE_TYPE_I5GRID;
+    }else if (type == "i5SPCChart") {
+    	return FILE_TYPE_I5SPCCHART;
+    }else if (type == "SVGObject") {
+    	return FILE_TYPE_SVG;
+    } else if (type == FILE_TYPE_TAGS) {
+    	return FILE_TYPE_TAGS;
+    } else if(type == "UIElement"){
+    	return FILE_TYPE_UIELEMENT;
+    } else if (type == "PICGroup") {
+    	return FILE_TYPE_PIC_GROUP;
+    }else if (type == "VDS") {
+    	return FILE_TYPE_VDS;
+    }
+}
+// Function to get the query names.
+function determineConnectorType(type){
+
+	switch(type){
+
+	case "TagQuery" : return "Tag";
+	case "PCoQuery" : return "PCo";
+	case "AggregateQuery" : return "Aggregate";
+	case "AlarmQuery" : return "Alarm";
+	case "OLAPQuery" : return "OLAP";
+	case "SQLQuery" : return "SQL";
+	case "XacuteQuery" : return "Xacute";
+	case "XMLQuery" : return "XML";
+	case "MDOQuery" : return "MDO";
+	case "CatalogQuery" : return "PIC";
+	case "KPIQuery" : return "KPI";
+	default : " ";
+	}       
+}
+function containsPath(filePath,searchString){
+	if(filePath.indexOf(searchString) != -1){
+		return true;
+	}else
+		return false;
+}
+
+function removeExtension(name){
+	return name.match(/\./g)!=null?name.substring(0,name.lastIndexOf(".")):name; 
+}
+function processfilePath(name,delimiter){
+	var Index = name.lastIndexOf(delimiter);
+	return name.substring(Index+1);
+}
+function getFileName(filePath){
+	return filePath.substring(filePath.lastIndexOf("/")+1); 
+}
+function setFileName(filePath){
+	if(filePath.match(/.cemd$/gi))
+		filePath = removeExtension(filePath);
+	var fileName = getFileName(filePath);
+	
+	var designFileName = sap.ui.getCore().byId("FileName");
+	var previewFileName = sap.ui.getCore().byId("previewFileName");
+	var codeFileName = sap.ui.getCore().byId("sourceCodeFileName");
+	var settingFileName = sap.ui.getCore().byId("settingFileName");
+	
+	if (designFileName != null && designFileName !== undefined) {
+		designFileName.setText(fileName);
+		designFileName.setTooltip("File-"+filePath);
+	}
+	if (previewFileName != null && previewFileName !== undefined) {
+		previewFileName.setText(fileName);
+		previewFileName.setTooltip("File-"+filePath);
+	}
+	if (codeFileName != null && codeFileName !== undefined) {
+		codeFileName.setText(fileName);
+		codeFileName.setTooltip("File-"+filePath);
+	}	
+	//Setting the filename after save-Remove "*"
+	if (settingFileName != null && settingFileName !== undefined) {
+		settingFileName.setText(fileName);
+		settingFileName.setTooltip("File-"+filePath);
+	}
+
+}
+
+function setTemplateFileName(filePath) {
+	var fileName = getFileName(filePath);
+	
+	var designFileName = sap.ui.getCore().byId("templateFileName");
+	var previewFileName = sap.ui.getCore().byId("templatePreviewFileName");
+	var settingFileName = sap.ui.getCore().byId("templatesSettingFileName");
+	
+	if (designFileName != null && designFileName !== undefined) {
+		designFileName.setText(fileName);
+		designFileName.setTooltip("File-"+filePath);
+	}
+	if (previewFileName != null && previewFileName !== undefined) {
+		previewFileName.setText(fileName);
+		previewFileName.setTooltip("File-"+filePath);
+	}
+	if (settingFileName != null && settingFileName !== undefined) {
+		settingFileName.setText(fileName);
+		settingFileName.setTooltip("File-"+filePath);
+	}
+}
+
+/* This method sets the DashBoard title after any changes made to the dashboard are saved */
+function setDashboardtitle(){	
+	var designDashboard_title = sap.ui.getCore().byId("Dashboard_title") ;
+	var previewDashboard_title = sap.ui.getCore().byId("previewTitleName") ;
+	var sourceDashboard_title = sap.ui.getCore().byId("sourcecodeTitleName");
+	
+	if (designDashboard_title != null && designDashboard_title !== undefined) {
+			designDashboard_title.setValue(sap.mii.ce.dashBoardTitle);
+		}
+   	if (previewDashboard_title != null && previewDashboard_title !== undefined) {
+			previewDashboard_title.setText(sap.mii.ce.dashBoardTitle);
+		}
+	if (sourceDashboard_title != null && sourceDashboard_title !== undefined) {
+			sourceDashboard_title.setText(sap.mii.ce.dashBoardTitle);
+		}
+}
+
+function endsWith(str, suffix) {
+	return str.indexOf(suffix, str.length - suffix.length) !== -1;
+}
+
+function isImage(fileName){
+	if(fileName !== undefined){
+	var isImage=fileName.match(/.jpg$|.jpeg$|.png$|.gif$|.bmp$/ig);
+	if(isImage != null){
+		return true;
+	}
+	}
+	return false;
+}
+
+function isXCelcius(fileName){
+	if(fileName !== undefined){
+	var isXCelcius=fileName.match(/.swf$/ig);
+	if(isXCelcius != null){
+		return true;
+	}
+	}
+	return false;
+}
+
+function isVEFile(fileName) {
+	if(fileName !== undefined){
+	var isVE=fileName.match(/.rh$/ig);
+	if(isVE != null){
+		return true;
+	}
+	}
+	return false;
+}
+
+function isSVGFile(fileName) {
+	if(fileName !== undefined){
+	var isSVG=fileName.match(/.svg$/ig);
+	if(isSVG != null){
+		return true;
+	}
+	}
+	return false;
+}
+
+function isWebPage(fileName){
+	if(fileName !== undefined){
+	var isWeb=fileName.match(/.html$|.htm$|.jsp$|.irpt$/ig);
+	if(isWeb != null){
+		return true;
+	}
+	}
+	return false;
+}
+
+/* VDS files are light weight RH file which can run within HTML5 using the plugin */
+function isVDSFile(fileName){
+	if(fileName !== undefined){
+	var isWeb=fileName.match(/.vds$/ig);
+		if(isWeb != null){
+		return true;
+		}
+	}
+	return false;
+}
+
+/* Check if file is one of the supported draggable type */
+function isDraggable(name){
+	return (isImage(name)|| isXCelcius(name) || isVEFile(name) || isSVGFile(name) || isWebPage(name) || isVDSFile(name));
+}
+
+
+/**
+ * This function will return the type of the chart for the i5Chart
+ * @param type
+ * @return
+ */
+function determineChartType(type){
+	switch(type){
+	case 'Line':
+		return "com.sap.xmii.common.util.ChartTypes.LINE";
+	case 'Bar':
+		return "com.sap.xmii.common.util.ChartTypes.BAR";
+	case 'Pie':
+		return "com.sap.xmii.common.util.ChartTypes.PIE";
+	case 'StackedBar':
+		return "com.sap.xmii.common.util.ChartTypes.STACKED";
+	case 'GroupBar':
+		return "com.sap.xmii.common.util.ChartTypes.GROUP_BAR";
+	case 'Custom':
+		return "com.sap.xmii.common.util.ChartTypes.CUSTOM";
+	case 'HorizontalBar':
+		return "com.sap.xmii.common.util.ChartTypes.HORIZONTAL_BAR";
+	case 'HorizontalGroupBar':
+		return "com.sap.xmii.common.util.ChartTypes.HORIZONTAL_GROUP_BAR";
+	case 'Scatter':
+		return "com.sap.xmii.common.util.ChartTypes.SCATTER";
+	case 'Bubble':
+		return "com.sap.xmii.common.util.ChartTypes.BUBBLE";
+	case 'Donut':
+		return "com.sap.xmii.common.util.ChartTypes.DONUT";
+	case 'Gauge':
+		return "com.sap.xmii.common.util.ChartTypes.GAUGE";		
+	default:
+		break;
+	}
+}
+
+/**
+ * This function will return the type of the grid for the i5Grid
+ * @param type
+ * @return
+ */
+function determineGridType(type){
+	switch(type){
+	case 'Grid':
+		return com.sap.xmii.common.util.GridTypes.GRID;
+	case 'Lights':
+		return com.sap.xmii.common.util.GridTypes.LIGHTS;
+	case 'ColumnLights' :
+		return com.sap.xmii.common.util.GridTypes.COLUMNLIGHTS;
+	case 'MultiLights':
+		return com.sap.xmii.common.util.GridTypes.MULTILIGHTS;
+	case 'Scoreboard':
+		return com.sap.xmii.common.util.GridTypes.SCOREBOARD;
+	case 'EmbeddedLights':
+		return com.sap.xmii.common.util.GridTypes.EMBEDDEDLIGHTS;
+	default:
+		break;
+	}
+}
+
+/****
+ * this method makes a menu-button draggable. 
+ * This is necessary when the user drags/re-drags a tag object
+ * @param tagContextMenuButton
+ * @param XPos
+ * @param YPos
+ * @return
+ */
+function makeTagObjDraggable(panel, tagContextMenuButton, tagData){
+
+	var multiDrag = false;
+	tagContextMenuButton.addDelegate({
+		onAfterRendering : function () {
+			jQuery("#"+tagContextMenuButton.getId()).draggable({
+				helper:  function(event, ui)
+				{        
+					return $(this).clone().attr("id", "draggedObj").appendTo('body').css({'background': '#00669c' , 'zIndex' : '5'}).show();
+				},
+				stop: function(event,ui){
+					var currentTab = 'nav-Design-Layout';
+					pushDataInUndoQueue(currentTab);
+					$(this).draggable('option','enabled',true);
+					jQuery("#draggedObj").remove();
+					var onDroppedArea = null;
+					var onDropped = null;
+					multiDrag = true;
+					var menuId = event.target.id;
+					var menuBTNObj = sap.ui.getCore().byId(menuId);
+					var obj = document.elementFromPoint(event.pageX, event.pageY);
+					if (obj == null) return;
+					if (obj.tagName == "AREA") {
+						onDroppedArea = obj;
+						onDropped = sap.ui.getCore().byId(obj.id.split(":")[0]);
+					}
+					//checking if any other tag exists over this area; if yes then the current drop
+					//on the area is discarded
+					if (onDroppedArea != null) {
+						if (isAnyOtherObjectExistOnArea(onDropped, onDroppedArea.attributes.name.value, event.target.id, false)) {
+							//if any other tag is found on this area then the onDroppedArea is set to null to
+							//avoid setting this area name on the tag
+							onDroppedArea = null;
+						}
+					}
+					var pattern = new RegExp("^p[0-9]+p[0-9]+");
+					if (onDropped == null && obj != null && typeof(obj) != 'undefined') {
+						while (!pattern.test(obj.id)) {
+							obj = obj.parentNode;
+							if (obj.parentNode == null || typeof(obj.parentNode) == 'undefined') {
+								return;
+							}
+						}
+					}
+					if (onDroppedArea == null) {
+						menuBTNObj.data("TagData").Area = null;
+					} else {
+						menuBTNObj.data("TagData").Area = onDroppedArea.attributes.name.value;
+					}
+
+					if (onDropped == null)
+						onDropped = sap.ui.getCore().byId(obj.id);
+
+					//get the cell's position
+					var panelPosition = jQuery.sap.byId(onDropped.sId).parent().offset();
+					//get the dropped object's position
+					var tagPosition = ui.offset;	
+
+					//calculate the difference
+					var newX = tagPosition.left - panelPosition.left;
+					var newY = tagPosition.top - panelPosition.top ;
+
+					$("#"+menuId).css({
+						top : newY,
+						left : newX
+
+					});
+					$("#"+menuId).css('zIndex',5); 
+
+					/*//set the position
+					menuBTNObj.addDelegate({
+						onAfterRendering : function () {
+						}
+					});*/
+
+					//%Calculation <distance of the tag from it cell walls>
+					var _xPercentage = newX/$("#"+onDropped.getId()).parent().width();
+					//Calculate _yPercentage wrt (parentHeight - toobar height)
+					//Get the  height of cell without toolbar
+					var parentHeight = (jQuery.sap.byId(onDropped.getId()).parent().height()) - 32; //-32 : top margin
+					var _yPercentage = (newY - 31)/parentHeight;  // -31 since we need to consider panel position of cell without toolbar
+
+					//setting the current offsets
+					menuBTNObj.data("TagData").xPos = _xPercentage;
+					menuBTNObj.data("TagData").yPos = _yPercentage;
+					menuBTNObj.data("TagData").NewCalculatedPos = true;
+					// Design mode
+					var onDroppedObjectData = onDropped.data("Object");
+					var parentCell = menuBTNObj.getParent().getParent();
+
+					if (parentCell.sId != onDropped.sId) {
+						if(global_isDesignTimeMode){
+							//checking if the image is existing in the onDropped content
+							if (onDroppedObjectData !== "undefined" && onDroppedObjectData != null && (onDroppedObjectData.FileType == "Content" || onDroppedObjectData.FileType == "Tags") 
+									&& onDroppedObjectData.TagDisplay == "Tags") {
+								onDropped.addContent(menuBTNObj);
+								parentCell.removeContent(menuBTNObj);
+								onDropped.data("TagArray",ObjectsDropUtils.createTagArrayForPanel(onDropped));//used to regenrate the tag objects so that they dont vanish on panel/pane change (htmlUtils.js)
+								parentCell.data("TagArray",ObjectsDropUtils.createTagArrayForPanel(parentCell));
+
+
+								//any other object is present on the onDropped have to ask for the confirmation	. populateCellContent will display live trend or displaytemplate image as needed
+							} else if (onDroppedObjectData !== "undefined" && onDroppedObjectData != null && onDroppedObjectData.FileType !== undefined && 
+									onDroppedObjectData.FileType != "Content" && onDroppedObjectData.FileType != "Tags" ) {
+								var sResult = replaceObjectWithTagAsTrend(menuBTNObj.data("TagData"), onDropped);
+								if(sResult == "YES")
+									parentCell.removeContent(menuBTNObj);
+								parentCell.data("TagArray",ObjectsDropUtils.createTagArrayForPanel(parentCell));//used to regenrate the tag objects so that they dont vanish on panel/pane change (htmlUtils.js)
+
+
+							} else {
+								//have to show as trend
+								//populateCellContent will display live trend or displaytemplate image as needed
+								if (addTagToTagTrendDisplay(onDropped, menuBTNObj.data("TagData"))) {
+									parentCell.removeContent(menuBTNObj);
+									parentCell.data("TagArray",ObjectsDropUtils.createTagArrayForPanel(parentCell));//used to regenrate the tag objects so that they dont vanish on panel/pane change (htmlUtils.js)
+								}
+							}
+
+						}else{
+							// if there is an image or if tags are already present, then add the dragged tag
+							if (onDroppedObjectData && ((onDroppedObjectData.FileType == "Content" || onDroppedObjectData.FileType == "Tags") && onDroppedObjectData.TagDisplay == "Tags")){
+								onDropped.addContent(menuBTNObj);
+								parentCell.removeContent(menuBTNObj);
+								onDropped.data("TagArray",ObjectsDropUtils.createTagArrayForPanel(onDropped));//used to regenrate the tag objects so that they dont vanish on panel/pane change (htmlUtils.js)
+								parentCell.data("TagArray",ObjectsDropUtils.createTagArrayForPanel(parentCell));
+
+							}else if(onDroppedObjectData && onDroppedObjectData.FileType != "Content" &&   onDroppedObjectData.FileType != "Tags"){
+								// Another type of object is present in the cell, ask to overwrite
+								var sResult = replaceObjectWithTagAsTrend(menuBTNObj.data("TagData"), onDropped);
+								if(sResult == "YES"){
+									parentCell.removeContent(menuBTNObj);
+									parentCell.data("TagArray",ObjectsDropUtils.createTagArrayForPanel(parentCell));
+								}
+							}else{
+								//Empty cell - show as trend
+								if (addTagToTagTrendDisplay(onDropped, menuBTNObj.data("TagData"))) {
+									parentCell.removeContent(menuBTNObj);
+									parentCell.data("TagArray",ObjectsDropUtils.createTagArrayForPanel(parentCell));
+								}
+							}
+						}
+					}
+
+					sap.ui.getCore().getEventBus().publish("mii.ui.ce.events", "change");
+
+
+					//adding menu button to the onDropped Cell
+					createMenu(onDropped, onDropped);
+
+					//destroying the parent cell contents if no object or tags are present
+					parentCellObjectData = parentCell.data("Object");
+					parentCellTagData = parentCell.data("TagArray");
+					if(parentCellObjectData.FileType == "Tags" && parentCellTagData && parentCellTagData.length == 0){
+						destroyCellContent(parentCell, 3); //passing clearType as 3 for destroying the cell content (htmlUtils.js) 
+					}else{
+						createMenu(parentCell);
+					}
+
+				},
+				opacity: 0.7,
+				revert: false,
+				disabled: false,
+				revertDurationType: 1,
+				cancel: false
+
+			});
+
+			//activateKeyPressForTag(oMenuButton);		//not implemented
+			//	if(!multiDrag){
+			//get the panel's position
+			var panelPos = jQuery("#"+panel.getId()).parent().offset();
+
+			//get x n y from tag data 
+			var _xPercent = tagData.xPos;
+			var _yPercent = tagData.yPos;
+			//Considering the toolbar height foe older version
+			var toolBarHeight = 0;
+			if(tagData.NewCalculatedPos != undefined && tagData.NewCalculatedPos) {
+				toolBarHeight = 31;
+			}
+
+			//Adding the additionalWidth, if 32px (each left and right) difference is created during  rendering layout 
+			var additionalWidth = 0;
+			if($("#main-shell-content").css("right")== "32px") {
+				var matrixWidth = $("#matrix1").width();
+				var paneAdjustment = $("#"+panel.getId()).width()/ matrixWidth;
+				additionalWidth = 64*paneAdjustment;
+			}
+			//cell's dimensions
+			var cWidth = $("#"+panel.getId()).parent().width() + additionalWidth;
+			var cHeight = ($("#"+panel.getId()).parent().height()) - toolBarHeight; // removing the toolbar height from parent height because _yPercent is wrt parent height without toolbar
+
+			//% calculation
+			var newX = cWidth*_xPercent;
+			var newY = cHeight*_yPercent + toolBarHeight; // adding the toolbar height separately so that the tag is in position
+
+			$("#"+tagContextMenuButton.getId()).css({
+				top : newY,
+				left : newX
+			});
+
+			//The Following code is commented and moved to htmlUtils.js
+			//Resize is called whenever the window is resized.
+
+			//handle window resizes too
+			//this will be called just once for all tags
+			//need to move this code to some other place.
+			/*$(window).resize(function(event) {
+				updateObjectsOnScreenChange(event);
+			 });*/
+
+			//	}
+		}
+	});
+}
+
+function replaceObjectWithTagAsTrend(tagData, onDropped , item , panel){
+	
+	var sourcePath = tagData.Namespace;
+	var targetPath = onDropped.data("Object").Namespace;
+	if(targetPath == undefined)
+		targetPath = onDropped.data("Object").Path + "/" + removeExtension(onDropped.data("Object").Name);
+	if(sourcePath != targetPath){
+		var message = oBundle.getText("MSG_CONFIRM_REPLACE_OBJECT");
+		message = message.replace("{0}", sourcePath);
+		message = message.replace("{1}", targetPath);
+		sap.ui.commons.MessageBox.show(message,
+				sap.ui.commons.MessageBox.Icon.QUESTION,
+				oBundle.getText("XTIT_ADD_CONFIRM"),
+				 [sap.ui.commons.MessageBox.Action.YES, sap.ui.commons.MessageBox.Action.NO],
+				 function(sResult){
+					if(sResult == "YES"){
+						addTagToTagTrendDisplay(onDropped, tagData );
+						if(item != null &&  panel != null){
+							item.destroy();
+							panel.data("TagArray",ObjectsDropUtils.createTagArrayForPanel(panel));
+						}
+					}
+					return sResult;
+				},
+				sap.ui.commons.MessageBox.Action.YES);
+	}else{
+		var message = oBundle.getText("XMSG_TAG_ALREADY_ADDED");
+		message = message.replace("{0}", tagData.Namespace);
+		showNotificationBarMsg(3, message);
+		return;
+	}
+}
+
+/**
+ * This function will add the tag to the cell as show as trend.
+ * If the tag is already present, then it will display and error.
+ * @return
+ */
+function addTagToTagTrendDisplay(onDropped, tagData ){
+	//a place holder to store whether the being dropped was added to the dashboard
+	var tagAddedInCell = false;
+	var currentTab = 'nav-Design-Layout';
+	tagData = jQuery.extend(true, {}, tagData);
+	pushDataInUndoQueue(currentTab);
+	var tagArray = onDropped.data("TagArray");
+	if (tagArray !== undefined && tagArray != null && typeof tagArray == "object" && tagArray.length > 0) {
+		var tagFound = false;
+		//checking if the tag already exists in the cell
+		for (var i = 0; i < tagArray.length; i++) {
+			if (tagArray[i].Namespace == tagData.Namespace) {
+				tagFound = true;
+				break;
+			}
+		}
+		// if the tag already exists then displaying an error message for the duplicate tag addition
+		if (tagFound) {
+			var message = oBundle.getText("XMSG_TAG_ALREADY_ADDED");
+			message = message.replace("{0}", tagData.Namespace);
+			showNotificationBarMsg(3, message);
+			return;
+		} else {
+			var replaceObject = false;
+			//checking if any of the previous tag is Virtual or not
+			for (var i = 0; i < tagArray.length; i++) {
+				if (tagArray[i].IsMultipleCols == "true") {
+					replaceObject = true;
+					break;
+				}
+			}
+			if(tagData.IsMultipleCols == "false" && !replaceObject)
+				tagArray.push(tagData);
+			else{
+				var tagArray = [];
+				tagArray.push(tagData);
+				onDropped.data("TagArray", tagArray);
+			}
+			tagAddedInCell = true;
+		}
+	//if there not a tag present in the cell, then create a tag Array and add it to the cell	
+	} else {
+		var tagArray = [];
+		tagArray.push(tagData);
+		onDropped.data("TagArray", tagArray);
+		tagAddedInCell = true;
+	}
+	if(tagData.IsVirtualMeter == "true" && tagData.TransactionPath != null && tagData.TransactionPath != "" && tagData.IsMultipleCols == "true")
+		tagData.TagDisplay = "QueryTable";
+	else 
+		tagData.TagDisplay = "Graph";
+	tagData.FileType = FILE_TYPE_TAGS;
+	tagData.NewCalculatedPos = true;
+	onDropped.data("Object", jQuery.extend(true, {}, tagData));
+	getDefaultListParameters(onDropped.data());
+	populateCellContent(onDropped, onDropped.data());
+	sap.ui.getCore().getEventBus().publish("mii.ui.ce.events", "change");
+	return tagAddedInCell;
+}
+
+
+function resetIntervalForPaneClose(){
+	if(currentRightPaneIntervalId != null)
+		clearInterval(currentRightPaneIntervalId);
+	
+	currentRightPaneIntervalId = setInterval(function(){
+			sap.ui.getCore().byId("main-shell").closePane();
+		}, 15000);
+}
+
+
+/**
+ * Tree Expandall handler
+ * The Header ExpandAll button click event is attached with this
+ * @return
+ */
+function expandChildNodes(){
+	if(this.getSelection() === undefined || this.getSelection() == null){
+		return;
+	}
+	var selectedNode = this.getSelection();
+	showBusyIndicator();
+	selectedNode.expand();
+	expandNodes(selectedNode);
+	hideBusyIndicator();
+	
+}
+
+function collapseChildNodes(){
+	if(this.getSelection() === undefined || this.getSelection() == null){
+		return;
+	}
+	var selectedNode = this.getSelection();
+	selectedNode.collapse(true);
+	
+}
+
+function expandNodes(oNode){
+	for(var i=0; i < oNode.getNodes().length; i++){
+		var oNodeC = oNode.getNodes()[i];
+		if(oNodeC.getExpanded() == false && oNodeC.getHasExpander()){
+			oNodeC.fireToggleOpenState({opened:true});
+			oNodeC.expand();
+			expandNodes(oNodeC);
+		}
+		
+	}
+}
+
+/**
+ * Function responsible to create and return the URL with the parameter name and value
+ */
+createFinalURLforSVG = function(parameters , url){
+	//Checking the parameter for null object
+	if(isObjectNotNull(parameters) && isArrayNotEmpty(parameters)){
+		for(var index = 0 ; index < parameters.length ; index++){
+			//if UserParameter is given
+			if(isObjectNotNull(parameters[index].UserParameter)){
+				url += "&"+parameters[index].Name+"="+window[parameters[index].UserParameter];
+			}else if(isObjectNotNull(parameters[index].Value))
+				url += "&"+parameters[index].Name+"="+parameters[index].Value;
+		}
+	}
+	return url;
+}
+
+function updateInputParameterArray(queryData ,paramLocName , objectName , changedParameters){
+	//Create the array if InputParameter is not created
+	if(isObjectNull(queryData.InputParameters)){
+		queryData.InputParameters = [];
+	}
+	//Delete all the input parameters  references for the particular paramLocName
+	for(var paramIndex = queryData.InputParameters.length - 1  ; paramIndex >= 0   ; paramIndex--){
+		if(queryData.InputParameters[paramIndex].Path.indexOf(""+objectName+">"+paramLocName+"") != -1){
+			queryData.InputParameters.splice(paramIndex,1);
+		}
+	}
+	//push all the input parameters for the paramLocName
+	var parameters = changedParameters;
+	if(isObjectNull(parameters)){
+		parameters = queryData[""+paramLocName+""];
+	}
+	for(var i = 0 ; i < parameters.length ; i++){
+		if(isObjectNotNull(parameters[i].UserParameter)){
+			var inputParamArray = {"ParamName" :  parameters[i].UserParameter, "Path" : ""+objectName+">"+paramLocName+">"+i+">UserParameter" };
+			queryData.InputParameters.push(inputParamArray);
+		}else if(isObjectNotNull(parameters[i].inputParam)){
+			var inputParamArray = {"ParamName" :  parameters[i].inputParam, "Path" : ""+objectName+">"+paramLocName+">"+i+">inputParam" };
+			queryData.InputParameters.push(inputParamArray);
+
+		}
+	}
+}
+
+function updateInputParameterArrayForKPI(oKPIData){
+
+	//Create the array if InputParameter is not created
+	if(isObjectNull(oKPIData.InputParameters)){
+		oKPIData.InputParameters = [];
+	}
+	//Delete all the input parameters  references for the particular paramLocName
+	for(var paramIndex = oKPIData.InputParameters.length - 1  ; paramIndex >= 0   ; paramIndex--){
+		if(oKPIData.InputParameters[paramIndex].Path.indexOf("Object>Config>dimensions") != -1){
+			oKPIData.InputParameters.splice(paramIndex,1);
+		}
+	}
+	//push all the input parameters for the paramLocName
+	for(var i = 0 ; i < oKPIData.Config.dimensions.length ; i++){
+		if(isObjectNotNull(oKPIData.Config.dimensions[i].inputParam)){
+			var inputParamArray = {"ParamName" :  oKPIData.Config.dimensions[i].inputParam, "Path" : "Object>Config>dimensions>"+i+">inputParam" };
+			oKPIData.InputParameters.push(inputParamArray);
+		}
+	}
+	return oKPIData.InputParameters;
+}
+/**
+ * Function responsible to get the value of Unit of Measure when value is assigned from the unit value help
+ * @param tagNamespace
+ * @param altUnit
+ * @param unitPropertySet
+ * @return
+ */
+function getUnitOfMeasure(tagNamespace , altUnit , unitPropertySet){
+	
+	var result = getPropertiesFromPIC(tagNamespace, altUnit, unitPropertySet);
+	if (result != null && result.Rowsets.Rowset[1] != undefined && result.Rowsets.Rowset[1].Row != undefined ) {
+		return result.Rowsets.Rowset[1].Row[0].PropertyValue;
+	}
+	return "";
+}
+/**
+ * This function is to check what is the type of query
+ * @param type
+ * @param objectData
+ */
+function checkForQueryType(type , objectData){
+	// if dragged object is of type, return true
+	// and if any chart or grid is dropped and its query template is of type, return true
+	if(objectData.FileType == type){
+		return true;
+	}else if(objectData.FileType == "i5Chart" || objectData.FileType == "i5SPCChart" || objectData.FileType == "i5Grid"){
+		if(isObjectNotNull(objectData.MappedQueryTemplate)){
+			var parameters = {};
+			function getLoadData(){
+				$.ajax({
+					url: XMII_CATALOG_URL,
+					type: 'POST',
+					dataType: 'xml',
+					data: {"Mode":"load","ObjectName":objectData.MappedQueryTemplate,"Content-Type":"text/xml"},
+					cache: false,
+					async: false,
+					success: function(data, textStatus, jqXHR){
+						parameters = data;
+					},
+					headers : {"Access-Control-Allow-Origin" : "*"},
+					crossDomain : true,
+					error : fnPopulateError
+
+				});
+			}
+			getLoadData();
+			if(parameters == null) return false;
+			var $xmlDoc = jQuery(parameters);
+			var queryType = $xmlDoc[0].documentElement.getAttribute("DocType"); 
+			if(queryType == type)
+				return true;
+		}
+	}else if(objectData.FileType == "Tags") return true;
+	return false;
+}
+function isValidResponse (data) {
+	if(isObjectNotNull(data) && isObjectNotNull(data.d) && isArrayNotEmpty(data.d.results) && isObjectNotNull(data.d.results[0]) && isObjectNotNull(data.d.results[0].Rowset) &&
+			isArrayNotEmpty(data.d.results[0].Rowset.results) && isObjectNotNull(data.d.results[0].Rowset.results[0]) && isObjectNotNull(data.d.results[0].Rowset.results[0].Row) &&
+			isArrayNotEmpty(data.d.results[0].Rowset.results[0].Row.results)) {
+		return true;
+	}
+	return false;
+}
+
+function isFileLocked(){
+	//Condition for Locking mechanism
+	if (lockAcquiredOnCurrentFileByUser != true && fileLockedBy != "NA") { 
+		showNotificationBarMsg(3,"File is locked by " + fileLockedBy);
+		return true;
+	}
+	return false;
+}
+function validateDateTime(date){
+	var regex = /[0-9]+-[0-1][0-9]-([0-2][0-9]|[3][0-1])T([0-1][0-9]|[2][0-4]):([0-5][0-9]|60):([0-5][0-9]|60)/g;
+	if(regex.exec(date) !== null){
+		return true;
+	}
+	return false;
+		
+}

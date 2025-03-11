@@ -1,0 +1,72 @@
+function getJSDoc() {
+	var x = '';
+
+	function getAddMethods() {
+		var addMethodStr = '';
+		var propNames = [ 'Mode', 'KPI', 'FilterExpr', 'Granularity', 'SelectedDimensions', 'Query', 'QueryParams', 'Attributes',
+				'DateColumn', 'FilterExpr',
+				'IsCached', 'AllowFuture','AdditionalTimeDimensions','IncludeTimestamp','AddKPIDetails'];
+
+		for (prop in propNames) {
+			var getStr = 'String:' + 'get' + propNames[prop] + ';';
+			var setStr = 'void:' + 'set' + propNames[prop] + '(val)' + ';';
+			addMethodStr = addMethodStr + getStr + setStr;
+		}
+
+		return addMethodStr;
+	}
+	;
+	x = x + getAddMethods();
+	return x;
+};
+/**
+ * @Namespace
+ */
+com.sap.xmii.querytemplate.query = com.sap.xmii.querytemplate.query || {};
+
+// FOR INHERITANCE
+var parentQueryObj = new com.sap.xmii.querytemplate.query.Query();
+
+/***
+ * KPIQUERY CLASS
+ * 
+ * @constructor
+ * 
+ * @param queryTemplateName
+ * @param queryMetaData
+ */
+com.sap.xmii.querytemplate.query.KPIQuery = function KPIQuery(
+		queryTemplateName, queryMetaData) {
+
+	this.setQueryMetaData(queryMetaData);
+	this.setQueryTemplateName(queryTemplateName);
+	this.addGettersAndSetters(com.sap.xmii.common.util.KPIQueryPropNames);
+
+}
+
+// Inheritance
+com.sap.xmii.querytemplate.query.KPIQuery.prototype = parentQueryObj;
+com.sap.xmii.querytemplate.query.KPIQuery.prototype.constructor = com.sap.xmii.querytemplate.query.KPIQuery;
+
+/**
+ * isTimeBasedQuery Method
+ * 
+ * @return
+ * @private
+ */
+com.sap.xmii.querytemplate.query.KPIQuery.prototype.isTimeBasedQuery = function() {
+
+	if (!com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(this.getMode())
+			&& (this.getMode() == com.sap.xmii.common.util.QueryConstants.MODE_QUERY || this.getMode() == com.sap.xmii.common.util.QueryConstants.MODE_SELECT)) {
+		if (!com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(this
+				.getDateColumn())) {
+			return true;
+		}
+		if (com.sap.xmii.common.util.MIIi5Util.containsTimeIndicators(this
+				.getFilterExpr())) {
+			return true;
+		}
+	}
+	return false;
+
+}

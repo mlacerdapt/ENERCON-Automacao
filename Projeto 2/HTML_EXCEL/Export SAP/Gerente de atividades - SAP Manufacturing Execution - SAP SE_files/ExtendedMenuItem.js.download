@@ -1,0 +1,51 @@
+
+com.sap.xmii.common.tools = com.sap.xmii.common.tools||{};
+
+jQuery.sap.require("sap.ui.commons.MenuItem");
+jQuery.sap.require("sap.ui.commons.CheckBox");
+
+sap.ui.commons.MenuItem.extend("miiHChart.menuItem", {
+	
+	metadata: {
+		aggregations: {
+			"_button" : {type : "sap.ui.commons.CheckBox", multiple : false, visibility: "hidden"}
+		}
+	},
+	
+	init: function(oEvent) {
+	this._button = new sap.ui.commons.CheckBox();
+	this.setAggregation("_button", this._button);  
+},
+
+render: function(oRenderManager, oItem, oMenu, oInfo) {
+	var rm = oRenderManager;
+	rm.write("<li ");
+	rm.writeAttribute("class", "sapUiMnuItm sapUiMnuBtnItm" + (oMenu.checkEnabled(oItem) ? "" : " sapUiMnuItmDsbl"));
+	if(oItem.getTooltip_AsString()) {
+		rm.writeAttributeEscaped("title", oItem.getTooltip_AsString());
+	}
+	rm.writeElementData(oItem);
+
+	// ARIA
+	if(oInfo.bAccessible){
+		rm.writeAttribute("role", "checkbox");
+	//	rm.writeAttribute("aria-labelledby", oMenu.getId()+" "+this.getId()+"-txt "+this.getId()+"-scuttxt");
+		rm.writeAttribute("aria-checked", this._button.getChecked());
+	/*	rm.writeAttribute("aria-disabled", !oMenu.checkEnabled(oItem));
+		rm.writeAttribute("aria-posinset", oInfo.iItemNo);
+		rm.writeAttribute("aria-setsize", oInfo.iTotalItems);*/
+	}
+	rm.write(">");
+
+	this._button.setText(this.getText()); //Ensure the correct value is rendered
+//	this._button.setEnabled(this.getEnabled() && this.getParent().getEnabled()); //Ensure the correct state is rendered
+	rm.write("<div class=\"sapUiMnuBtnItemWrppr\">");
+	rm.renderControl(this._button);
+	rm.write("</div>");
+
+	rm.write("</li>");
+}
+});
+
+
+

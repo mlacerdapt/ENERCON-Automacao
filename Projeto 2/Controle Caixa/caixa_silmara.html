@@ -1,0 +1,27 @@
+<form id="form" method="POST">
+  Data: <input type="text" id="data" name="data"><br>
+  Pagamento: <input type="text" id="pagamento" name="pagamento"><br>
+  Valor: <textarea id="text" name="valor"></textarea><br>
+  <button type="submit">Enviar</button>
+</form>
+
+<script>
+  document.getElementById("form").addEventListener("submit", function(event){
+    event.preventDefault();
+    
+    var formData = {
+      nome: document.getElementById("data").value,
+      email: document.getElementById("pagamento").value,
+      mensagem: document.getElementById("valor").value
+    };
+
+    fetch(https://script.google.com/macros/s/AKfycbyytlbMv4DLocTr6-mxv7z_RGjOhdAm0RMNs5q77VgBNcDeJqFjCJFmvnG4q_YqZKWARQ/exec, {
+      method: 'POST',
+      body: JSON.stringify(formData),
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    }).then(response => response.json())
+      .then(data => console.log(data));
+  });
+</script>

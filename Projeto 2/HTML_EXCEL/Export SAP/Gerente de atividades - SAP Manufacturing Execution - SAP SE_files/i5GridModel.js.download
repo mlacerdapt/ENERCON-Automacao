@@ -1,0 +1,59 @@
+/**
+ * GridModel which would hold a representation of the Data to be bound to the
+ * i5Grid
+ * 
+ * THIS Model holds a representation of the MII Query ResultSet Data Model
+ */
+com.sap.xmii.grid.model = com.sap.xmii.grid.model || {};
+
+com.sap.xmii.grid.model.i5GridModel = function(qryObj, modelURL) {
+
+	this.queryObject = qryObj;
+
+//	var modelURL = qryObj.buildPostData("text/json");
+
+	var dataModel = new com.sap.xmii.common.model.DataModel(modelURL, this.queryObject.overrides);
+
+	var jsonText = dataModel.getJSONText();
+
+/* Not having this check for CatalogQuery. Keeping it common across all queries	
+ * if(qryObj.getQueryType() === "CatalogQuery") {
+		//Modify the keys of each row by replacing the value of "Name" with value of "SourceName"
+		//The delimiter is used for tags in CatalogQuery...
+		jsonText = com.sap.xmii.common.util.MIIi5Util.applyDelimiterOnRowsForCatalogQuery(jsonText);
+	}
+*/	
+	dataModel.getJSONModel().setJSON(jsonText);
+
+	this.modelData = new com.sap.xmii.common.model.ModelData(dataModel.getJSONModel());
+	this.modelMetaData = new com.sap.xmii.common.model.ModelMetaData(this.modelData);
+	
+	this.getJSONModel = function(){
+		return dataModel.getJSONModel();
+	},
+	this.getModelData = function() {
+		return dataModel.getModelData();
+    },
+    this.getModelMetaData = function() {
+    	return dataModel.getModelMetaData();
+    },
+    this.getJSONModel = function() {
+    	return dataModel.getJSONModel();
+    },
+    this.update = function(input, queryObj) {
+    	return dataModel.update(input, queryObj);
+    },
+    this.updateJSONModelData = function(data) {
+    	return dataModel.updateJSONModelData(data);
+	},
+	this.getProperty = function(path) {
+		return dataModel.getProperty(path);
+	}
+}
+
+var parentChartComponent = new com.sap.xmii.common.model.DataModel();
+
+com.sap.xmii.grid.model.i5GridModel.prototype = parentChartComponent;
+com.sap.xmii.grid.model.i5GridModel.prototype.constructor = com.sap.xmii.grid.model.i5GridModel;
+
+

@@ -1,0 +1,95 @@
+function getJSDoc() {
+	var x = '';
+
+	function getAddMethods() {
+		var addMethodStr = '';
+		var propNames = [ 'EndDateMappedParam', 'StartDateMappedParam',
+				'Folder', 'MappedParamTarget', 'Transaction', 'IsCachable', 'AllowFuture'];
+
+		for (prop in propNames) {
+			var getStr = 'String:' + 'get' + propNames[prop] + ';';
+			var setStr = 'void:' + 'set' + propNames[prop] + '(val)' + ';';
+			addMethodStr = addMethodStr + getStr + setStr;
+		}
+
+		return addMethodStr;
+	}
+	;
+	x = x + getAddMethods();
+	return x;
+};
+
+
+/**
+ * @Namespace
+ */
+com.sap.xmii.querytemplate.query = com.sap.xmii.querytemplate.query || {};
+
+// FOR INHERITANCE
+var parentQueryObj = new com.sap.xmii.querytemplate.query.Query();
+
+/***
+ * XacuteQuery CLASS
+ * 
+ * @constructor
+ * 
+ * @param queryTemplateName
+ * @param queryMetaData
+ * @return
+ */
+com.sap.xmii.querytemplate.query.XacuteQuery = function(queryTemplateName,
+		queryMetaData) {
+
+	// Super is not avialble.This is a workaround
+	this.setQueryMetaData(queryMetaData);
+	this.setQueryTemplateName(queryTemplateName);
+	this.addGettersAndSetters(com.sap.xmii.common.util.XAcuteQueryPropNames);
+
+}
+
+// Inheritance
+com.sap.xmii.querytemplate.query.XacuteQuery.prototype = parentQueryObj;
+com.sap.xmii.querytemplate.query.XacuteQuery.prototype.constructor = com.sap.xmii.querytemplate.query.XacuteQuery;
+
+com.sap.xmii.querytemplate.query.XacuteQuery.prototype.isTimeBasedQuery = function() {
+	if (!com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(this
+			.getStartDateMappedParam())) {
+		return true;
+	}
+	if (!com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(this
+			.getEndDateMappedParam())) {
+		return true;
+	}
+
+	return false;
+};
+
+/**
+ * Sets the value of Param on the Query
+ * 
+ * @param index
+ * @param paramValue
+ * @return void
+ */
+com.sap.xmii.querytemplate.query.XacuteQuery.prototype.setParam = function(index, paramValue) {
+	if (paramValue != null) {
+		this.overrides[com.sap.xmii.common.util.QueryConstants.PARAM+"."+index] = paramValue;
+	} else {
+		var message = com.sap.xmii.common.util.MessageBundle.getText("XMSG_PARAM_NOT_NULL");
+		throw new com.sap.xmii.common.exception.MIIi5Exception(message);
+	}
+};
+
+/**
+ * Gets the paramValue specified at the index
+ * 
+ * @param index
+ * @return String
+ */
+com.sap.xmii.querytemplate.query.XacuteQuery.prototype.getParam = function(index) {
+	if (!com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(this.overrides[com.sap.xmii.common.util.QueryConstants.PARAM+"."+ index])) {
+		return this.overrides[com.sap.xmii.common.util.QueryConstants.PARAM+"."+ index];
+	} else {
+		return this.paramsMap[com.sap.xmii.common.util.QueryConstants.PARAM+"."+ index];
+	}
+};

@@ -1,0 +1,43 @@
+com.sap.xmii.common.model = com.sap.xmii.common.model || {};
+
+/**
+ * ModelMetaData represents the Metadata of the Model Object
+ * 
+ * @param modelData
+ */
+com.sap.xmii.common.model.ModelMetaData = function(modelData) {
+
+	this.modelData = modelData;
+
+}
+
+com.sap.xmii.common.model.ModelMetaData.prototype = {
+
+	modelData : '',
+	columns : '',
+	getColumn : function(colIndex, rowsetIndex) {
+		if(this.getColumns(rowsetIndex) != undefined) {
+			var column = this.getColumns(rowsetIndex).Column;
+			return column[colIndex];
+		} else {
+			return undefined;
+		}
+	},
+	getColumnArray : function(rowsetIndex) {
+		if(this.getColumns(rowsetIndex) != undefined)
+			return this.getColumns(rowsetIndex).Column;
+		else
+			return undefined;
+	},
+	getColumns : function(rowsetIndex) {
+		var rowset = this.modelData.getRowset(rowsetIndex);
+		if(rowset != undefined)
+			return rowset.Columns;
+		else
+			return undefined;
+	},
+	update : function(modelData) {
+		this.modelData = modelData;
+	}
+
+}

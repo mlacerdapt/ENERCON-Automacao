@@ -1,0 +1,10 @@
+[System]
+Name=ENP
+Client=009
+[User]
+Name=00082300
+Language=E
+[Function]
+Command=/ENERCON/MM_UTR
+Title=Transaction  ENERCON MM_UTR
+Type=Transaction

@@ -1,0 +1,968 @@
+com.sap.xmii.common.util = com.sap.xmii.common.util || {};
+
+com.sap.xmii.common.util.GRID_TYPES_ARRAY = "Grid,Lights,ColumnLights,MultiLights,Scoreboard,EmbeddedLights";
+com.sap.xmii.common.util.CHART_TYPES_ARRAY = "Line,Bar,Pie,StackedBar,GroupBar,Custom,HorizontalBar,HorizontalGroupBar,Scatter,Bubble,Donut,Gauge";
+com.sap.xmii.common.util.SPCCHART_TYPES_ARRAY = "XBAR,XBAR-MR,XBAR-RANGE,XBAR-SDEV,INDIVIDUALS,INDIVIDUALS-MR,MR,MEDIAN,MEDIAN-RANGE,EWMA,EWMA-RANGE,EWMA-SDEV,HISTOGRAM,INDIVIDUALS-SHORT-RUN,INDIVIDUALS-MR-SHORT-RUN,XBAR-RANGE-SHORT-RUN,MR-SHORT-RUN,P,NP,C,U";
+
+com.sap.xmii.common.util.CHART_HELP_LINK = "http://help.sap.com/saphelp_mii150sp00/helpdata/en/60/A873DDAAB34516980D111E0C2ADC43/content.htm";
+com.sap.xmii.common.util.GRID_HELP_LINK = "http://help.sap.com/saphelp_mii150sp00/helpdata/en/9A/A1A751275B1E49E10000000A445394/content.htm";
+com.sap.xmii.common.util.SPCCHART_HELP_LINK = "http://help.sap.com/saphelp_mii150sp00/helpdata/en/52/8bf80aa2b4145de10000000a421bc1/content.htm";
+
+com.sap.xmii.common.util.VALID_DATE_TIME_FORMATS = "MM/dd/yyyy HH:mm:ss,MM/dd/yy HH:mm:ss,dd/MM/yyyy HH:mm:ss,dd/MM/yy HH:mm:ss,dd-MMM-yyyy HH:mm:ss,dd-MMM-yy HH:mm:ss,yyyy-MM-dd HH:mm:ss,MM-dd-yyyy HH:mm:ss,MM-dd-yy HH:mm:ss,dd-MM-yyyy HH:mm:ss,dd-MM-yy HH:mm:ss,MM/dd/yyyy hh:mm:ss a,MM/dd/yy hh:mm:ss a,dd/MM/yyyy hh:mm:ss a,dd/MM/yy hh:mm:ss a,dd-MMM-yyyy hh:mm:ss a,dd-MMM-yy hh:mm:ss a,yyyy-MM-dd hh:mm:ss a,MM-dd-yyyy hh:mm:ss a,MM-dd-yy hh:mm:ss a,dd-MM-yyyy hh:mm:ss a,dd-MM-yy hh:mm:ss a,yyyy-MM-dd HH:mm:ss.S,MM/dd/yyyy HH:mm:ss z,MM/dd/yy HH:mm:ss z,dd/MM/yyyy HH:mm:ss z,dd/MM/yy HH:mm:ss z,dd-MMM-yyyy HH:mm:ss z,dd-MMM-yy HH:mm:ss z,yyyy-MM-dd HH:mm:ss z,MM-dd-yyyy HH:mm:ss z,MM-dd-yy HH:mm:ss z,dd-MM-yyyy HH:mm:ss z,dd-MM-yy HH:mm:ss z,MM/dd/yyyy hh:mm:ss a z,MM/dd/yy hh:mm:ss a z,dd/MM/yyyy hh:mm:ss a z,dd/MM/yy hh:mm:ss a z,dd-MMM-yyyy hh:mm:ss a z,dd-MMM-yy hh:mm:ss a z,yyyy-MM-dd hh:mm:ss a z,MM-dd-yyyy hh:mm:ss a z,MM-dd-yy hh:mm:ss a z,dd-MM-yyyy hh:mm:ss a z,dd-MM-yy hh:mm:ss a z,yyyy-MM-dd HH:mm:ss.S z,MM/dd/yyyy,MM/dd/yy,dd/MM/yyyy,dd/MM/yy,dd-MMM-yyyy,dd-MMM-yy,yyyy-MM-dd,MM-dd-yyyy,MM-dd-yy,dd-MM-yyyy,dd-MM-yy,MM/dd,dd/MM,dd-MMM,MM-dd,dd-MM,MM/yyyy,MM/yy,MMM-yyyy,MMM-yy,HH:mm:ss,hh:mm:ss a,mm:ss,mm:ss a,HH:mm,hh:mm a,HH:mm:ss.S,hh:mm:ss.S a,mm:ss.S,mm:ss.S a,HH:mm:ss z,hh:mm:ss a z,mm:ss z,mm:ss a z,HH:mm z,hh:mm a z,HH:mm:ss.S z,hh:mm:ss.S a z,mm:ss.S z,mm:ss.S a z,yyyy-MM-ddTHH:mm:ss";
+//var VALID_NUMBER_FORMATS = "0,0.0,0.00,0.000,0.0000,0.00000";
+			                             
+//var XML_DEFAULT_FORMAT='yyyy-MM-ddTHH:mm:ss';
+//var DEFAULT_DATE_FORMAT	= 'yyyy-MM-dd HH:mm:ss z';
+
+com.sap.xmii.common.util.dateFormats = {
+		XML_DEFAULT_FORMAT : "yyyy-MM-dd'T'HH:mm:ss",
+		DISPLAY_DATE_FORMAT	: "yyyy-MM-dd HH:mm:ss z",
+		XML_FORMAT_TIMEZONE_OFFSET : "yyyy-MM-dd'T'HH:mm:ssZZZ",
+		JSON_DATETIME_FORMAT : "MM/dd/yyyy HH:mm:ss.S",
+		DEFAULT_FORMAT : "MM/dd/yyyy HH:mm:ss"
+};
+
+com.sap.xmii.common.util.IsTimeZoneFormatRequired = "IsTimeZoneFormatRequired";
+
+com.sap.xmii.common.util.MonthNamesArray = "January,February,March,April,May,June,July,August,September,October,November,December";
+
+var hexCodeValidator = new RegExp(/(^#[0-9A-F]{6}$)|(^#[0-9A-F]{3}$)/i);
+
+com.sap.xmii.common.util.i5ChartTypes = {
+		CHART_TYPE_LINE : 'Line',
+		CHART_TYPE_BAR : 'Bar',
+		CHART_TYPE_COLUMN : 'Column',
+		CHART_TYPE_PIE : 'Pie',
+		CHART_TYPE_COMBINATION : 'Combination',
+		CHART_TYPE_STACKED_BAR : 'StackedBar',
+		CHART_TYPE_STACKEDCOLUMN : 'Stacked_Column',
+		CHART_TYPE_GROUP_BAR : 'GroupBar',
+		CHART_TYPE_CUSTOM : 'Custom',
+		CHART_TYPE_HORIZONTAL_BAR : 'HorizontalBar',
+		CHART_TYPE_HORIZONTAL_GROUP_BAR : 'HorizontalGroupBar',
+		CHART_TYPE_SCATTER : 'Scatter',
+		CHART_TYPE_BUBBLE : 'Bubble',
+		CHART_TYPE_DONUT : 'Donut',
+		CHART_TYPE_GAUGE : 'Gauge',
+		DUAL_COMBINATION : 'dual_Combination',
+		DUAL_LINE : 'dual_Line'
+};
+
+com.sap.xmii.common.util.i5SPCChartTypes = {
+	i5SPCCHART_TYPE_XBAR : 'XBAR',
+	i5SPCCHART_TYPE_XBAR_MR : 'XBAR-MR',
+	i5SPCCHART_TYPE_XBAR_R:'XBAR-RANGE', //Xbar & R  (XBAR-RANGE: The XBAR chart from the MII XBAR – MR) 
+	i5SPCCHART_TYPE_XBAR_S:'XBAR-SDEV',  //Xbar & S (The XBAR chart from the MII XBAR - MR)
+	i5SPCCHART_TYPE_INDIVIDUALS:'INDIVIDUALS', //Individuals
+	i5SPCCHART_TYPE_INDIVIDUALS_MR:'INDIVIDUALS-MR',//Individuals & MR
+	i5SPCCHART_TYPE_MOVING_RANGE:'MR',//Moving Range standalone chart ( The MR chart from the MII XBAR - MR chart)
+	i5SPCCHART_TYPE_MEDIAN:'MEDIAN',//Median, (MEDIAN, Subgroup median chart)
+	i5SPCCHART_TYPE_MEDIAN_RANGE:'MEDIAN-RANGE',//Median, (MEDIAN, Subgroup median chart)
+	i5SPCCHART_TYPE_MOVING_AVERAGE:'EWMA',//Moving Average, (EWMA Moving Average Chart)
+	i5SPCCHART_TYPE_MOVING_AVERAGE_RANGE:'EWMA-RANGE',//Moving Average, (EWMA Moving Average Chart)
+	i5SPCCHART_TYPE_MOVING_AVERAGE_SDEV:'EWMA-SDEV',//Moving Average, (EWMA Moving Average Chart)
+	i5SPCCHART_TYPE_HISTOGRAM_PROCESS_CAPABILITY:'HISTOGRAM',//Process Capability, (HISTOGRAM, Process Capability)	
+	i5SPCCHART_TYPE_INDIVIDUALS_SHORT_RUN:'INDIVIDUALS-SHORT-RUN', //Individuals (Short Run)
+	i5SPCCHART_TYPE_INDIVIDUALS_MR_SHORT_RUN:'INDIVIDUALS-MR-SHORT-RUN',//Individuals & MR (Short Run)
+	i5SPCCHART_TYPE_XBAR_RANGE_SHORT_RUN:'XBAR-RANGE-SHORT-RUN', //XBar & R (Short Run)
+	i5SPCCHART_TYPE_MOVING_RANGE_SHORT_RUN:'MR-SHORT-RUN',  //Moving Range standalone chart (Short Run)
+	i5SPCCHART_TYPE_P:'P',	//P type
+	i5SPCCHART_TYPE_NP:'NP', //NP type
+	i5SPCCHART_TYPE_C:'C', //C type
+	i5SPCCHART_TYPE_U:'U' //U type
+};
+
+com.sap.xmii.common.util.QueryConstants = {
+		
+		QUERY_TEMPLATE : 'QueryTemplate',
+		QUERY_TYPE_TAG : 'TagQuery',
+		QUERY_TYPE_SQL : 'SQLQuery',
+		QUERY_TYPE_XML : 'XMLQuery',
+		QUERY_TYPE_KPI : 'KPIQuery',
+		QUERY_TYPE_ALARM : 'AlarmQuery',
+		QUERY_TYPE_AGGREGATE : 'AggregateQuery',
+		QUERY_TYPE_CATALOG : 'CatalogQuery',
+		QUERY_TYPE_MDO : 'MDOQuery',
+		QUERY_TYPE_OLAP : 'OLAPQuery',
+		QUERY_TYPE_PCo : 'PCoQuery',
+		QUERY_TYPE_XACUTE : 'XacuteQuery',
+		TAG_AGGREGATE_QUERY : 'TagAggregateQuery',
+		TAG_RETRIEVE_QUERY : 'TagRetrieveQuery',
+		TAG_STORE_QUERY : 'TagStoreQuery',
+		TAG_FIXED_QUERY : 'TagFixedQuery',
+		MODE_QUERY : 'Query',
+		MODE_SELECT : 'Select',
+		MAPPED_QUERY_TEMPLATE : 'MappedQueryTemplate',
+		ALARM_HISTORY : 'AlarmHistory',
+		ALARM_STATISTICS : 'AlarmStatistics',
+		HISTORY : 'History',
+		HISTORY_EVENT : 'HistoryEvent',
+		ETC_QUERY_INFO : 'ETCQueryInfo',
+		ETC_QUERY_PROP_INFO : 'ETCQueryPropertiesInfo',
+		DB_QUERY_BUILDER : 'DBQueryBuilder',
+		DB_FIXED_QUERY : 'DBFixedQuery',
+		DB_COMMAND_QUERY : 'DBCommandQuery',
+		FIXED_QUERY : 'FixedQuery',
+		FIXED_QUERY_WITH_OUTPUT : 'FixedQueryWithOutput',
+		COMMAND : 'Command',
+		TAG_NAME : 'TagName',
+		TAG_VALUE : 'TagValue',
+		XML_URL : 'URL',
+		PARAM : 'Param',
+		MODE_PICANALYSIS : 'PICAnalysis'
+};
+com.sap.xmii.common.util.ChartPropertyConstants = {
+		I5CHART : 'i5Chart',
+		ICHART : 'iChart',		
+		WIDTH : 'Width',
+		HEIGHT : 'Height',
+		GRID_LINE_COLOR : 'GridLineColor',
+		USE_BOM_FOR_CSV: 'UseBOMForCSV',
+		HORIZONTAL_GRID_COLOR : 'HorizontalGridColor',
+		VERTICAL_GRID_COLOR : 'VerticalGridColor',
+		MARKER_SIZE : 'MarkerSize',
+		MARKER_STYLE : 'MarkerStyle',
+		LEG_DESC_LABEL : 'LegendDescriptionLabel',
+		ENABLE_ITEM_SEL : 'EnableItemSelection',
+		SHOW_VAL_MARKER : 'ShowValueByMarker',
+		ENABLE_ITEM_SELECTION : 'EnableItemSelection',
+		SHOW_GRID_LINE : 'ShowGridLine',
+		SHOW_HORIZONTAL_GRID : 'ShowHorizontalGrid',
+		SHOW_VERTICAL_GRID : 'ShowVerticalGrid',
+		SHOW_APP_TOOLBAR : 'ShowAppToolBar',
+		SHOW_TIMEBAR : 'ShowTimeBar',
+		SHOW_MESSAGE_AREA : 'ShowMessageArea',
+		ENABLE_AUTO_REFRESH : 'EnableAutoRefresh',
+		AUTO_REFRESH : 'AutoRefresh',
+		SHOW_LEGEND : 'ShowLegend',
+		SHOW_TOOLTIP : 'ShowToolTip',
+		SHOW_SPEC_LIMITS : 'ShowSpecLimits',
+		SHOW_USER_SPEC_LIMITS : 'ShowUserSpecLimits',
+		SHOW_COMMENTS : 'ShowComments',
+		SHOW_ATTRIBUTES : 'ShowAttributes',
+		REFRESH_RATE : 'RefreshRate',
+		INITIAL_UPDATE : 'InitialUpdate',
+		TITLE : 'Title',
+		TITLE_POSITION : 'TitlePosition',
+		SELECTED_FONT_STYLE : 'TitleFontStyle',
+		SHOW_TITLE : 'ShowTitle',
+		TITLE_COLOR : 'TitleColor',
+		FONT_SIZE : 'TitleFontSize',
+		FONT_FACE : 'TitleFontFace',
+		MEASURE : 'Measure', 
+		DIMENSION : 'Dimension',
+		GLOSSY : 'Glossy',
+		CHART_TYPE : 'ChartType',
+		VALUE_COLUMNS : 'ValueColumns',
+		SCALE_ALL_VALUES : 'AllValueColumns',
+		LABEL_COLUMNS : 'LabelColumns',
+		CHART_BACKGROUND_COLOR : 'ChartBackgroundColor',
+		CHART_BORDER_COLOR : 'ChartBorderColor',
+		BOLD_ITALIC : 'Bold Italic',
+		ITALIC : 'Italic',
+		BOLD : 'Bold',
+		SHOW_YAXIS_LABEL : 'ShowYAxisLabel',
+		SHOW_XAXIS_LABEL : 'ShowXAxisLabel',
+		YAXIS_LABEL_COLOR : 'YAxisLabelColor',
+		YAXIS_FONT_FACE : 'YAxisFontFace',
+		YAXIS_FONT_SIZE : 'YAxisFontSize',
+		YAXIS_FONT_STYLE : 'YAxisFontStyle',
+		YAXIS_TICK_COLOR:'YAxisTickColor',
+		SHOW_HIDE_TICKS :'YAxisShowTicks',
+		SHOW_HIDE_LABELS : 'YAxisShowLabels',
+		SHOW_YAXIS: 'ShowYAxis',
+		YAXIS_LABEL : 'YAxisLabel',
+		SHOW_XAXIS : 'ShowXAxis',
+		XAXIS_LABEL : 'XAxisLabel',
+		XAXIS_LABEL_COLOR : 'XAxisLabelColor',
+		XAXIS_FONT_FACE : 'XAxisFontFace',
+		XAXIS_FONT_SIZE : 'XAxisFontSize',
+		XAXIS_FONT_STYLE : 'XAxisFontStyle',
+		XAXIS_TICK_COLOR : 'XAxisTickColor',
+		AUTO_SCALING : 'GlobalAutoScale',
+		YAXIS_USE_SCALING : 'UseScaling',
+		YAXIS_MIN_RANGE : 'GlobalMinRange',
+		YAXIS_MAX_RANGE : 'GlobalMaxRange',
+		SHOW_YAXIS_LABEL_2 : 'ShowYAxisLabel.2',
+		YAXIS_LABEL_COLOR_2 : 'YAxisLabelColor.2',
+		YAXIS_FONT_FACE_2 : 'YAxisFontFace.2',
+		YAXIS_FONT_SIZE_2 : 'YAxisFontSize.2',
+		YAXIS_FONT_STYLE_2 : 'YAxisFontStyle.2',
+		YAXIS_TICK_COLOR_2:'YAxisTickColor.2',
+		SHOW_YAXIS_2 : 'ShowYAxis.2',
+		YAXIS_LABEL_2 : 'YAxisLabel.2',
+		AUTO_SCALING_2 : 'GlobalAutoScale.2',
+		YAXIS_USE_SCALING_2 : 'UseScaling.2',
+		YAXIS_MIN_RANGE_2 : 'GlobalMinRange.2',
+		YAXIS_MAX_RANGE_2 : 'GlobalMaxRange.2',
+		SHOW_LEGEND : 'ShowLegend',
+		MARKER_STYLE_LINE : 'Line',
+		MARKER_STYLE_MARKER : 'Marker',
+		CHART_SHAPE : 'ChartShape',
+		XAXIS_USE_SET_RANGES : 'XAxisUseSetRanges',
+		XAXIS_START : 'XAxisStart',
+		XAXIS_END : 'XAxisEnd',
+		UNIT_LABEL : 'XAxisUnitLabel',
+		MAJOR_TICKS : 'MajorTicks' ,
+		XAXIS_MAJOR_TICK_COUNT : 'XAxisMajorTickCount',
+		MINOR_TICKS : 'MinorTicks',
+		XAXIS_MINOR_TICK_COUNT : 'XAxisMinorTickCount',
+	    COLOR_INDICATOR : 'ColorIndicator' ,
+	    GAUGE_ROWS : 'HorizontalGridLineCount' ,
+	    GAUGE_COLUMNS : 'NumberofVerticalGridLines',
+	    BACKGROUND_TRANSPARENT : 'BackgroundTransparent',
+	    VERTICAL_GRID_LINE_COUNT : 'VerticalGridLineCount',
+	    TIMEOUT : 'Timeout',
+	    FORCED_UNIQUE : 'ForcedUnique',
+	    STATIC_LABEL : 'StaticLabel',
+	    FILLING : 'Filling',
+	    FILLING_COLOR :'FillingColor',
+	    USE_FILLING_COLOR :'UseFillingColor',
+	    OPACITY : 'Opacity',
+	    COMP_MODE : 'CompatibilityMode',
+	    AUTO_ROTATE_LABELS : 'XAxisLabelAutoRotation',
+	    ROTATION_ANGLE : 'XAxisRotationAngle',
+	    DUAL_YAXIS : 'DualYAxis',
+	    VALUE_COLUMNS_2 : 'ValueColumns2',
+	    TIME_SERIES : 'TimeSeries',
+	    ENABLE_ZOOMING : 'EnableZooming',
+	    ENABLE_VERTMARKER : 'EnableVerticalMarker'
+};
+
+com.sap.xmii.common.util.Modes = {
+		QT_JSON_MODE : 'text/json',
+		QT_CSV_MODE  : 'text/csv',
+		QT_XML_MODE : 'text/xml',
+		QT_HTML_MODE : 'text/html',
+		QT_RAW_MODE : 'raw/xmii'
+		
+};
+
+com.sap.xmii.common.util.DateTimeConstants = {
+		TIME : 'Time',
+		TIME_PERIOD : 'TimePeriod',
+		SCHEDULE : 'Schedule',
+		DATE_FORMAT : 'DateFormat',
+		XAXIS_DATE_FORMAT : 'XAxisDateFormat',
+		XAXIS_TIME_FORMAT : 'XAxisTimeFormat',
+		XAXIS_NUMBER_FORMAT : 'XAxisNumberFormat',
+		NUMBER_FORMAT : 'NumberFormat',
+		USE_LOCALE_FORMAT : 'UseLocaleFormat',
+		START_DATE : 'StartDate',
+		END_DATE : 'EndDate',
+		DURATION : 'Duration',
+		DURATION_UNITS : 'DurationUnits',
+		DATE_PICKER : 'datepicker',
+		DISPLAY_DATEFORMAT : 'DisplayDateFormat',
+		YAXIS_NUMBER_FORMAT : 'YAxisNumberFormat',
+};
+
+com.sap.xmii.common.util.GenericConstants = {
+		MODE : 'Mode',
+		CONTENT_TYPE : 'Content-Type',
+		VIEW : 'View',
+		STATISTICS : 'Statistics',
+		METHOD : 'Method',
+		SELECTED_AGGREGATES : 'SelectedAggregates',
+		CURRENT : 'Current',
+		XMII_ILLUMINATOR_URL : "/XMII/Illuminator",
+		TIME_PERIODS_URL : '/XMII/Illuminator?Service=SystemInfo&Mode=TimePeriodList&isDefaultRequired=true',
+		TIME_PERIOD_DETAILS : '/XMII/Illuminator?Service=SystemInfo&Mode=TimePeriodDetails&TimePeriod=',
+		COMBINE_QUERY_ROWSETS_URL : '/XMII/Illuminator?service=CombineQueryRowsets',
+		I5SPCSERVICE_URL : '/XMII/Illuminator?service=i5SPCService',
+		CATALOG_URL_PREFIX_LOADMULTIPLE :"/XMII/Catalog?mode=LoadMultipleObjects&class=Template&ObjectName=",
+		CATALOG_URL_PREFIX : '/XMII/Catalog?mode=Load&class=Template&ObjectName=',
+		CONTENT_TYPE_URL_SUFFIX : '&content-type=text/json',
+		ILLUM_URL_PREFIX : '/XMII/Illuminator?service=MIIUtilities',
+		MESSAGE_BUNDLE_URL : '/XMII/JavaScript/resources/messages.properties',
+		UI5CATALOG_URL : '/XMII/UI5Catalog',
+		CECATALOG_URL : '/XMII/CECatalog',
+		NO_VALUE : 'No Value',
+		NO_DATA : 'No data!',
+		TRUE : 'true',
+		FALSE : 'false',
+		UNDEFINED : 'undefined',
+		TOOLBAR : 'toolbar',
+		TIMEBAR : 'timebar',
+		SLIDER : 'slider',
+		TITLEBAR : 'titlebar',
+		TOOLPOPUP : 'toolPopup',
+		DEFAULT_I5SPCCHART : 'Defaults/i5SPCChart',
+		DEFAULT_CHART_HEIGHT : 400,
+		DEFAULT_CHART_WIDTH : 640,
+		DEFAULT_I5CHART : 'Defaults/i5Chart',
+		DEFAULT_I5GRID : 'Defaults/i5Grid',
+		DATASET_PATH : '/miiData/Row',
+		STRING : 'string',
+		BOOLEAN : 'boolean',
+		NUMBER : 'number',
+		POST : 'Post',
+		OBJECT : 'object',
+		XML_DATETIME_FORMAT : "yyyy-MM-dd'T'HH:mm:ss",
+		DEFAULT_NUMBER_FORMAT : '0',
+		RIGHT : 'right',
+		TYPE : 'Type',
+		DISPLAY_TEMPLATE_INDICATOR : "DisplayTemplate",
+		SHOW_SPC_RESULTS_INDICATOR : "ExportSPCResults",
+		JSESSIONID : "JSESSIONID",
+		REFRESH : 'refresh',
+		SETTINGS : 'settings',
+		WIDTH : 'width',
+		HEIGHT : 'height',
+		TOP : 'top',
+		ABSOLUTE : 'absolute',
+		MATRIX_LAYOUT_WIDTH : '200px',
+		JQUERY_ICON_POOL : 'sap.ui.core.IconPool',
+		MATRIX_LAYOUT : 'MatrixLayout',
+		DIV : 'div',
+		SHADOW : 'shadow',
+		YELLOW_COLOR : '#ffff00',
+		DEFAULT_MARKER_SIZE : 6,
+		DEFAULT_CHARTTITLE_HEIGHT : 40,
+		ADDITIONAL_ATTRIBUTE_COLUMN : "AdditionalAttributeCol",
+		DISPLAY_TYPE : "DisplayType"
+	};
+
+com.sap.xmii.common.util.ImageConstants = {
+		CLOCK : '/XMII/Images/HChartImages/clock.png',
+		SETTINGS : '/XMII/Images/HChartImages/settings_new.png',
+		REFRESH : '/XMII/Images/HChartImages/refresh_new.png',
+		SKIP_PREVIOUS_BUTTON : '/XMII/Images/HChartImages/skip_prev.gif',
+		PREVIOUS_BUTTON : '/XMII/Images/HChartImages/prev.gif',
+		NEXT_BUTTON : '/XMII/Images/HChartImages/next.gif',
+		SKIP_NEXT_BUTTON : '/XMII/Images/HChartImages/skip_next.gif',
+		END_BUTTON : '/XMII/Images/HChartImages/end.gif',
+		GO_BUTTON : '/XMII/Images/HChartImages/go_button.gif',
+		UIELEMENT_ICON: 'Images/CompositionEnvironment/InputField.png',
+		GLOBAL_PARAM_ICON: 'sap-icon://group-2'
+};
+
+com.sap.xmii.common.util.SpecLimits = {
+		UPPER_SPEC_LIMIT : 'UpperSpecificationLimit',
+		LOWER_SPEC_LIMIT : 'LowerSpecificationLimit',
+		CENTER_LINE : 'CenterLine',
+		VALUE_COLUMNS_WITH_SPEC_LIMITS : 'ValueColumnsWithSpecLimits',
+		UPPER_LIMIT_LINE_COLOR : 'UpperLimitLineColor',
+		CENTER_LINE : 'CenterLine',
+		CENTER_LIMIT_LINE_COLOR : 'CenterLimitLineColor',
+		LOWER_LIMIT_LINE_COLOR : 'LowerLimitLineColor',
+		ALLOW_SPEC_LIMIT_ALARM : 'AllowSpecificationLimitAlarm',
+		UPPER_LIMIT_COLUMN : 'UpperLimitColumn',
+		LOWER_LIMIT_COLUMN :'LowerLimitColumn',
+		CENTER_LIMIT_COLUMN : 'CenterLimitColumn',
+		UPPER_LIMIT : 'UpperLimit',
+		CENTER_LIMIT : 'CenterLimit',
+		LOWER_LIMIT : 'LowerLimit',
+		APPLY_SPEC_RULES : 'ApplySpecRules'
+};
+
+com.sap.xmii.common.util.Events = {
+		EVENT : 'Event',
+		INTERPOLATE : 'Interpolate',
+		MOUSE_EVENTS : 'MouseEvents',
+		CLICK : 'click',
+		MOUSEOVER : 'mouseover'
+};
+
+com.sap.xmii.common.util.Messages = {
+		NO_DATA_MESSAGE : 'No Data Available',
+		EMPTY_MESSAGE : '---'
+};
+
+com.sap.xmii.common.util.ui5Constants = {
+	BOLD : 'bold',
+	ITALIC : 'italic',
+	NORMAL : 'normal',
+	DIAMOND : 'Diamond',
+	CIRCLE : 'Circle',
+	TRIANGLE_LEFT : 'TriangleLeft',
+	TRIANGLE_DOWN : 'TriangleDown',
+	TRIANGLE_RIGHT : 'TriangleRight',
+	TRIANGLE_UP : 'TriangleUp',
+	CROSS : 'Cross',
+	V_ROW : '.v-row',
+	V_DATAPOINT : '.v-datapoint',
+	CENTER_ALIGN : 'Center',
+	LEFT_ALIGN : 'Left',
+	RIGHT_ALIGN:'Right',
+	MARKER_NONE:''
+};
+com.sap.xmii.common.util.i5GridTypes = {
+	GRID : 'Grid',
+	LIGHTS_GRID : 'Lights',
+	COLUMNLIGHTS_GRID : 'ColumnLights',
+	MULTILIGHTS_GRID : 'MultiLights',
+	SCROREBOARD_GRID : 'Scoreboard',
+	//VERTICAL_GRID : 'VerticalGrid',
+	//VERTICALSCOREBOARD_GRID : 'VerticalScoreboard',
+	EMBEDDEDLIGHTS_GRID : 'EmbeddedLights'
+};
+
+com.sap.xmii.common.util.GridPropertyConstants = {
+	IGRID : 'iGrid',
+	I5GRID : 'i5Grid',
+		GRID_TYPE : 'GridType',
+		TITLE : 'Title',
+		TITLE_POSITION : 'TitlePosition',
+		DATE_FORMAT : 'DateFormat',
+		NUMBER_FORMAT : 'NumberFormat',
+		USE_LOCALE_FORMAT : 'UseLocaleFormat',
+		USE_BOM_FOR_CSV: 'UseBOMForCSV',
+		REFRESH_RATE : 'RefreshRate',
+		AUTO_REFRESH : 'AutoRefresh',
+		ENABLE_AUTO_REFRESH : 'EnableAutoRefresh',
+		INITIAL_UPDATE : 'InitialUpdate',
+		SHOW_TIMEBAR : 'ShowTimeBar',
+		SHOW_MESSAGE_AREA : 'ShowMessageArea',
+		SHOW_APP_TOOLBAR : 'ShowAppToolBar',
+		SHOW_TITLE_AREA : 'ShowTitleArea',
+		ALLOW_SELECTION : 'AllowSelection',
+		ALLOW_CELL_SELECTION : 'AllowCellSelection',
+		TEXT_COLOR : 'TextColor',
+		BACKGROUND_COLOR : 'BackgroundColor',
+		ROW_SELECT_COLOR : 'RowSelectColor',
+		ROW_SELECT_BACKGROUND_COLOR : 'RowSelectBackgroundColor',
+		DISPLAY_COLUMNS : 'DisplayColumns',
+		HEADER_FONT_STYLE : 'HeaderFontStyle',
+		HEADER_TEXT_COLOR : 'HeaderTextColor',
+		HEADER_FONT_SIZE : 'HeaderFontSize',
+		HEADER_FONT_FACE : 'HeaderFontFace',
+		COLUMN_FORMATS : 'ColumnFormats',
+		TIMEOUT : 'Timeout'
+};
+
+com.sap.xmii.common.util.SPCChartConstants = {
+	DEFAULT_CHART_HEIGHT : '400',
+	DEFAULT_CHART_WIDTH : '640',
+	I5SPCCHART : 'i5SPCChart',
+	ISPCCHART : 'iSPCChart',
+	VALUE_COL_NAME : 'VALUE',
+	X_MIN : 'X min',
+	ENABLE_ITEM_SELECTION : 'EnableItemSelection',
+	XAXIS_LABEL_ATTRIBUTE : 'XAxisLabelAttribute',
+	
+	XAXIS_LABEL_UPPER : 'XAxisLabelForUpperChart',
+	XAXIS_LABEL_LOWER : 'XAxisLabelForLowerChart',
+	YAXIS_LABEL_UPPER : 'YAxisLabelForUpperChart',
+	YAXIS_LABEL_LOWER : 'YAxisLabelForLowerChart',
+	
+	XAXIS_NUMBERFORMAT : 'XAxisNumberFormat',
+	YAXIS_NUMBERFORMAT : 'YAxisNumberFormat',
+	
+	UPPER_CHART_TICKS : 'UpperShowTicks',
+	UPPER_CHART_LABELS : 'UpperShowLabels',
+	UPPER_LIMIT_LINE_THICKNESS : 'UpperSpecLimitsLineThickness',
+	UPPER_VIOLATION_COLOR  : 'UpperViolationBorderColor',
+	SHOW_UPPER_VIOLATION_COLOR : 'ShowUpperViolationBorder',
+	UPPER_VIOLATION_LINE_THICKNESS : 'UpperViolationBorderLineThickness',
+	
+	UPPER_SHOW_CONTROL_LIMITS : 'UpperShowControlLimits',
+	UPPER_SHOW_INNER_LIMITS : 'UpperShowInnerLimits',
+	UPPER_SHOW_WARNING_LIMITS : 'UpperShowWarningLimits',
+	SPC_CHART_TYPE_INDICATOR : 'ChartType',
+	UPPER_SHOW_SPEC_LIMITS : 'UpperShowSpecificationLimits',
+	LOWER_SHOW_CONTROL_LIMITS : 'LowerShowControlLimits',
+	LOWER_SHOW_INNER_LIMITS : 'LowerShowInnerLimits',
+	LOWER_SHOW_WARNING_LIMITS : 'LowerShowWarningLimits',
+	LOWER_SHOW_SPEC_LIMITS : 'LowerShowSpecificationLimits',
+	MAIN_BACKGROUND_COLOR : 'MainBackgroundColor',
+	MAIN_BORDER_COLOR : 'MainBorderColor',
+	UPPER_CHART_BACKGROUND_COLOR : 'UpperChartBackgroundColor',
+	LOWER_CHART_BACKGROUND_COLOR : 'LowerChartBackgroundColor',
+	UPPER_LINE_STYLE : 'UpperLineStyle',
+	UPPER_LINE_THICKNESS : 'UpperLineThickness',
+	LOWER_LINE_STYLE : 'LowerLineStyle',
+	LOWER_LINE_THICKNESS : 'LowerLineThickness',
+	LOWER_CHART_BG_COLOR : 'LowerChartBackgroundColor',
+	LOWER_CHART_BORDER_COLOR : 'LowerChartBorderColor',
+	UPPER_CONTROL_LIMIT_COLOR : 'UpperControlLimitColor',
+	UPPER_CENTER_LINE_COLOR : 'UpperCenterlineColor',
+	LOWER_CONTROL_LIMIT_COLOR : 'LowerControlLimitColor',
+	UPPER_SPECIFICATION_LIMIT_COLOR : 'UpperSpecificationLimitColor',
+	UPPER_TARGET_COLOR : 'UpperTargetColor',
+	LOWER_TARGET_COLOR : 'LowerTargetColor',
+	LOWER_SPECIFICATION_LIMIT_COLOR : 'LowerSpecificationLimitColor',
+	LOWER_CHART_USE_SCALING : 'LowerUseScaling',
+	LOWER_CHART_MIN_RANGE : 'LowerMinRange',
+	LOWER_CHART_MAX_RANGE : 'LowerMaxRange',
+	UPPER_CHART_USE_SCALING : 'UpperUseScaling',
+	UPPER_CHART_MIN_RANGE : 'UpperMinRange',
+	SHOW_NONVISIBLE_POINTS : 'ShowNonVisiblePoints',
+	UPPER_CHART_MAX_RANGE : 'UpperMaxRange',
+	LOWER_CENTER_LINE_COLOR : 'LowerCenterlineColor',
+	SHOW_UPPER_SPEC_LIMIT : 'UpperShowSpecificationLimits',
+	SHOW_UPPER_CONTROL_LIMITS : 'UpperShowControlLimits',
+	SHOW_LOWER_CONTROL_LIMITS : 'LowerShowControlLimits',
+	UPPER_ALARMS_COLOR : 'UpperAlarmsColor',
+	UPPER_MARKER_COLOR : 'UpperMarkerColor',
+	LOWER_ALARMS_COLOR : 'LowerAlarmsColor',
+	LOWER_MARKER_COLOR : 'LowerMarkerColor',
+	UPPER_SELECTED_MARKER_COLOR : 'UpperSelectedMarkerColor',
+	LOWER_SELECTED_MARKER_COLOR : 'LowerSelectedMarkerColor',
+	LOWER_CHART_TICKS : 'LowerShowTicks',
+	LOWER_CHART_LABELS : 'LowerShowLabels',
+	LOWER_LIMIT_LINE_THICKNESS : 'LowerSpecLimitsLineThickness',
+	LOWER_VIOLATION_COLOR  : 'LowerViolationBorderColor',
+	SHOW_LOWER_VIOLATION_COLOR : 'ShowLowerViolationBorder',
+	LOWER_VIOLATION_LINE_THICKNESS : 'LowerViolationBorderLineThickness',
+	SPC_MODE_SUPPRESS_POINT : 'SuppressPoint',
+	SPC_MODE_COMMENT : 'Comment',
+	OPERATION_INSERT : 'Insert',
+	OPERATION_UPDATE : 'Update',
+	OPERATION_DELETE : 'Delete',
+	OPERATION_GET : 'Get',
+	OPERATION_CHART_COMMENTS : 'ChartComments',
+	SPC_CONTEXT_MENU_NAME : 'contextMenu',
+	CHART_CONTEXT_MENU : 'chartContextMenu',
+	ENABLE_CONTEXT_MENU : 'EnableMenu',
+	ENABLE_COMMENTS : 'EnableComments',
+	ENABLE_POINT_SUPPRESSION : 'EnablePointSuppression',
+	UPPER_WARNING_LIMIT_COLOR:"UpperWarningLimitColor",
+	LOWER_WARNING_LIMIT_COLOR:"LowerWarningLimitColor",
+	UPPER_INNER_LIMIT_COLOR:"UpperInnerLimitColor",
+	LOWER_INNER_LIMIT_COLOR:"LowerInnerLimitColor",
+	CHART_POSITION_UPPER : "upper",
+	CHART_POSITION_LOWER : "lower",
+	SPC_DEFAULT_NUMERIC_VALUE : "5e-324",
+	SPC_COLUMN_POSITION : "POSITION",
+	SPC_COLUMN_VALUE : "VALUE",
+	DISPLAY_UPPER_WECO_RULE : 'DisplayUpperWECORuleNumbers',
+	UPPER_ALARM_TEXT_COLOR : 'UpperAlarmTextColor',
+	UPPER_ALARM_FONT_SIZE : 'UpperAlarmFontSize',
+	UPPER_ALARM_FONT_STYLE : 'UpperAlarmFontStyle',
+	UPPER_ALARM_TEXT_DELIMITER : 'UpperAlarmTextDelimiter',
+	UPPER_ALARM_TEXT : 'UpperAlarmTextAbbreviation',
+	DISPLAY_LOWER_WECO_RULE : 'DisplayLowerWECORuleNumbers',
+	LOWER_ALARM_TEXT_COLOR : 'LowerAlarmTextColor',
+	LOWER_ALARM_FONT_SIZE : 'LowerAlarmFontSize',
+	LOWER_ALARM_FONT_STYLE : 'LowerAlarmFontStyle',
+	LOWER_ALARM_TEXT_DELIMITER : 'LowerAlarmTextDelimiter',
+	LOWER_ALARM_TEXT : 'LowerAlarmTextAbbreviation',
+	FIRSTATTRIBUTE_COLUMN_INDEX : 12,
+	SHOW_UPPER_UCL_TEXT : 'ShowUpperUCLText', 
+	UPPER_UCL_FONTSIZE : 'UpperUCLFontSize', 
+	UPPER_UCL_FONTSTYLE : 'UpperUCLFontStyle',
+	SHOW_UPPER_CL_TEXT : 'ShowUpperCLText', 
+	UPPER_CL_FONTSIZE : 'UpperCLFontSize', 
+	UPPER_CL_FONTSTYLE : 'UpperCLFontStyle',
+	SHOW_UPPER_LCL_TEXT : 'ShowUpperLCLText', 
+	UPPER_LCL_FONTSIZE : 'UpperLCLFontSize', 
+	UPPER_LCL_FONTSTYLE :'UpperLCLFontStyle',
+	SHOW_UPPER_USL_TEXT : 'ShowUpperUSLText', 
+	UPPER_USL_FONTSIZE : 'UpperUSLFontSize', 
+	UPPER_USL_FONTSTYLE : 'UpperUSLFontStyle',
+	SHOW_UPPER_TARGET_TEXT : 'ShowUpperTargetText', 
+	UPPER_TARGET_FONTSIZE : 'UpperTargetFontSize', 
+	UPPER_TARGET_FONTSTYLE :'UpperTargetFontStyle',
+	SHOW_UPPER_LSL_TEXT : 'ShowUpperLSLText', 
+	UPPER_LSL_FONTSIZE : 'UpperLSLFontSize', 
+	UPPER_LSL_FONTSTYLE : 'UpperLSLFontStyle',
+	SHOW_LOWER_UCL_TEXT : 'ShowLowerUCLText', 
+	LOWER_UCL_FONTSIZE : 'LowerUCLFontSize', 
+	LOWER_UCL_FONTSTYLE : 'LowerUCLFontStyle',
+	SHOW_LOWER_CL_TEXT : 'ShowLowerCLText', 
+	LOWER_CL_FONTSIZE : 'LowerCLFontSize', 
+	LOWER_CL_FONTSTYLE : 'LowerCLFontStyle',
+	SHOW_LOWER_LCL_TEXT : 'ShowLowerLCLText', 
+	LOWER_LCL_FONTSIZE : 'LowerLCLFontSize', 
+	LOWER_LCL_FONTSTYLE :'LowerLCLFontStyle',
+	SHOW_LOWER_USL_TEXT : 'ShowLowerUSLText', 
+	LOWER_USL_FONTSIZE : 'LowerUSLFontSize', 
+	LOWER_USL_FONTSTYLE : 'LowerUSLFontStyle',
+	SHOW_LOWER_TARGET_TEXT : 'ShowLowerTargetText', 
+	LOWER_TARGET_FONTSIZE : 'LowerTargetFontSize', 
+	LOWER_TARGET_FONTSTYLE :'LowerTargetFontStyle',
+	SHOW_LOWER_LSL_TEXT : 'ShowLowerLSLText', 
+	LOWER_LSL_FONTSIZE : 'LowerLSLFontSize', 
+	LOWER_LSL_FONTSTYLE : 'LowerLSLFontStyle',
+	SHOW_COMMENT_FLAG : 'ShowCommentFlag',
+	LEGEND_BACKGROUND_COLOR : 'LegendBackgroundColor',
+	LEGEND_BORDER_COLOR : 'LegendBorderColor',
+	LEGEND_FONT_FACE : 'LegendFontFace',
+	LEGEND_FONT_SIZE : 'LegendFontSize',
+	LEGEND_FONT_STYLE : 'LegendFontStyle',
+	SHOW_LIMIT_TRANSITIONS : 'ShowLimitTransitions',
+	ENABLE_CONTROL_LIMIT_TRANSITIONS : 'EnableControlLimitTransitions',
+	UPPER_CHART_BORDER_COLOR : 'UpperChartBorderColor',
+	LOWER_CHART_BORDER_COLOR : 'LowerChartBorderColor',
+	UPPER_SHOW_SL : 'UpperShowUserSpecificationLimits',
+	UPPER_USER_USL : 'UpperUserUSL',
+	UPPER_USER_LSL : 'UpperUserLSL',
+	UPPER_USER_SL_COLOR : 'UpperUserSpecificationLimitColor',
+	UPPER_SHOW_USER_TARGET : 'UpperShowUserTarget',
+	UPPER_USER_TARGET : 'UpperUserTarget',
+	UPPER_USER_TARGET_COLOR : 'UpperUserTargetColor',
+	LOWER_SHOW_SL : 'LowerShowUserSpecificationLimits',
+	LOWER_USER_USL : 'LowerUserUSL',
+	LOWER_USER_LSL : 'LowerUserLSL',
+	LOWER_USER_SL_COLOR : 'LowerUserSpecificationLimitColor',
+	LOWER_SHOW_USER_TARGET : 'LowerShowUserTarget',
+	LOWER_USER_TARGET : 'LowerUserTarget',
+	LOWER_USER_TARGET_COLOR : 'LowerUserTargetColor',
+	UPPER_LINE_COLOR : 'UpperLineColor',
+	LOWER_LINE_COLOR : 'LowerLineColor',
+	UPPER_SL_PARAM : 'SpecificationLimitParam',
+	UPPER_CL_PARAM : 'UpperControlLimitParam',
+	LOWER_CL_PARAM : 'LowerControlLimitParam',
+	STROKE : 'stroke',
+	LOWER_AUTOSCALE : 'LowerAutoScale',
+	UPPER_AUTOSCALE : 'UpperAutoScale',
+	SHOW_ADDITIONAL_X_AXIS : 'ShowAdditionalXAxis',
+	ATTRIBUTE_COLUMNS : 'AttributeColumns',
+	AUTOSCALING_CONSTANT : 0.15,
+	UPPER_SHOW_REGIONS : 'UpperShowRegions',
+	LOWER_SHOW_REGIONS : 'LowerShowRegions',
+	COMP_MODE : 'CompatibilityMode',
+	HIGHLIGHT_ATTR_NAME : 'HighlightAttributeName',
+	HIGHLIGHT_ATTR_VALUE : 'HighlightAttributeValue',
+	UPPER_HIGHLIGHT_MARKER_COLOR : 'UpperHighlightedMarkerColor',
+	LOWER_HIGHLIGHT_MARKER_COLOR : 'LowerHighlightedMarkerColor'
+	
+};
+
+com.sap.xmii.common.util.SPCChartWECORULE = {
+	WECO_RULE_1 : "Western Electric Rule #1",
+    WECO_RULE_2 : "Western Electric Rule #2",
+    WECO_RULE_3 : "Western Electric Rule #3",
+    WECO_RULE_4 : "Western Electric Rule #4",
+    WECO_RULE_5 : "Western Electric Rule #5",
+    WECO_RULE_6 : "Western Electric Rule #6",
+    WECO_RULE_7 : "Western Electric Rule #7",
+    WECO_RULE_8 : "Western Electric Rule #8",
+    WECO_RULE_9 : "Specification limits",
+    WECO_RULE_10 : "Western Electric Rule #10",
+    WECO_RULE_20 : "Western Electric Rule #20",
+    WECO_RULE_21 : "Western Electric Rule #21",
+    WECO_RULE_22 : "Western Electric Rule #22",
+    WECO_RULE_23 : "Western Electric Rule #23",
+    WECO_RULE_24 : "Western Electric Rule #24",
+    WECO_RULE_25 : "Western Electric Rule #25",
+    WECO_RULE_26 : "Western Electric Rule #26",
+    WECO_RULE_27 : "Western Electric Rule #27",
+    WECO_RULE_28 : "Western Electric Rule #28",
+    WECO_RULE_29 : "Western Electric Rule #29",
+    WECO_RULE_30 : "Western Electric Rule #30",
+    WECO_RULE_31 : "Western Electric Rule #31",
+    WECO_RULE_32 : "Western Electric Rule #32",
+    WECO_RULE_33 : "Western Electric Rule #33",
+    WECO_RULE_34 : "Western Electric Rule #34",
+    WECO_RULE_35 : "Western Electric Rule #35",
+    WECO_RULE_36 : "Western Electric Rule #36",
+    WECO_RULE_37 : "Western Electric Rule #37",
+    WECO_RULE_38 : "Western Electric Rule #38",
+    WECO_RULE_39 : "Western Electric Rule #39",
+    WECO_RULE_40 : "Western Electric Rule #40",
+    WECO_RULE_41 : "Western Electric Rule #41",
+    WECO_RULE_42 : "Western Electric Rule #42",
+    WECO_RULE_43 : "Western Electric Rule #43",
+    WECO_RULE_44 : "Western Electric Rule #44",
+    WECO_RULE_45 : "Western Electric Rule #45",
+    WECO_RULE_46 : "Western Electric Rule #46",
+    WECO_RULE_47 : "Western Electric Rule #47",
+    WECO_RULE_48 : "Western Electric Rule #48",
+    WECO_RULE_49 : "Western Electric Rule #49"
+};
+com.sap.xmii.common.util.SPCChartWECO_RULES = ["UNDEFINED", 
+    com.sap.xmii.common.util.SPCChartWECORULE.WECO_RULE_1, com.sap.xmii.common.util.SPCChartWECORULE.WECO_RULE_2, com.sap.xmii.common.util.SPCChartWECORULE.WECO_RULE_3, 
+    com.sap.xmii.common.util.SPCChartWECORULE.WECO_RULE_4, com.sap.xmii.common.util.SPCChartWECORULE.WECO_RULE_5, com.sap.xmii.common.util.SPCChartWECORULE.WECO_RULE_6, 
+    com.sap.xmii.common.util.SPCChartWECORULE.WECO_RULE_7, com.sap.xmii.common.util.SPCChartWECORULE.WECO_RULE_8, com.sap.xmii.common.util.SPCChartWECORULE.WECO_RULE_9,
+    com.sap.xmii.common.util.SPCChartWECORULE.WECO_RULE_10,
+    "UNDEFINED","UNDEFINED","UNDEFINED","UNDEFINED","UNDEFINED","UNDEFINED","UNDEFINED","UNDEFINED","UNDEFINED",    
+    com.sap.xmii.common.util.SPCChartWECORULE.WECO_RULE_20, com.sap.xmii.common.util.SPCChartWECORULE.WECO_RULE_21, com.sap.xmii.common.util.SPCChartWECORULE.WECO_RULE_22,
+    com.sap.xmii.common.util.SPCChartWECORULE.WECO_RULE_23, com.sap.xmii.common.util.SPCChartWECORULE.WECO_RULE_24, com.sap.xmii.common.util.SPCChartWECORULE.WECO_RULE_25,
+    com.sap.xmii.common.util.SPCChartWECORULE.WECO_RULE_26, com.sap.xmii.common.util.SPCChartWECORULE.WECO_RULE_27, com.sap.xmii.common.util.SPCChartWECORULE.WECO_RULE_28,
+    com.sap.xmii.common.util.SPCChartWECORULE.WECO_RULE_29,
+    com.sap.xmii.common.util.SPCChartWECORULE.WECO_RULE_30, com.sap.xmii.common.util.SPCChartWECORULE.WECO_RULE_31, com.sap.xmii.common.util.SPCChartWECORULE.WECO_RULE_32,
+    com.sap.xmii.common.util.SPCChartWECORULE.WECO_RULE_33, com.sap.xmii.common.util.SPCChartWECORULE.WECO_RULE_34, com.sap.xmii.common.util.SPCChartWECORULE.WECO_RULE_35,
+    com.sap.xmii.common.util.SPCChartWECORULE.WECO_RULE_36, com.sap.xmii.common.util.SPCChartWECORULE.WECO_RULE_37, com.sap.xmii.common.util.SPCChartWECORULE.WECO_RULE_38,
+    com.sap.xmii.common.util.SPCChartWECORULE.WECO_RULE_39,
+    com.sap.xmii.common.util.SPCChartWECORULE.WECO_RULE_40, com.sap.xmii.common.util.SPCChartWECORULE.WECO_RULE_41, com.sap.xmii.common.util.SPCChartWECORULE.WECO_RULE_42,
+    com.sap.xmii.common.util.SPCChartWECORULE.WECO_RULE_43, com.sap.xmii.common.util.SPCChartWECORULE.WECO_RULE_44, com.sap.xmii.common.util.SPCChartWECORULE.WECO_RULE_45,
+    com.sap.xmii.common.util.SPCChartWECORULE.WECO_RULE_46, com.sap.xmii.common.util.SPCChartWECORULE.WECO_RULE_47, com.sap.xmii.common.util.SPCChartWECORULE.WECO_RULE_48,
+    com.sap.xmii.common.util.SPCChartWECORULE.WECO_RULE_49];
+
+com.sap.xmii.common.util.NullString = '<null>';
+com.sap.xmii.common.util.ExportDataURL = "/XMII/OutputStorageServlet/View/";
+com.sap.xmii.common.util.DataTypes = {
+		NUMERIC : 2,
+		DECIMAL : 3,
+		INTEGER : 4,
+		FLOAT : 6,
+		REAL : 7,
+		DOUBLE : 8,
+		DATE : 91,
+		TIME : 92,
+		TIMESTAMP : 93
+};
+
+
+//I5Command related constants
+com.sap.xmii.common.util.IllumLoginName="IllumLoginName";
+com.sap.xmii.common.util.IllumLoginPassword="IllumLoginPassword";
+com.sap.xmii.common.util.UserName="UserName";
+com.sap.xmii.common.util.Password="Password";
+
+com.sap.xmii.common.util.i5Command = {
+		//OKBUTTON : 'okButton',
+		CANCELBUTTON : 'cancelButton',
+		CREATEDIALOGID : 'createDialogId',
+		INPUTPASSWORD : 'inputPassword',
+		CHECKBOXID : 'checkBoxId',
+		USERNAMEFIELD : 'userNameField',
+		ACTION : 'Action',
+		COMMANDGUID : 'CommandGUID',
+		COMMANDMODE : 'CommandMode',
+		ROLE : 'Role',
+		FULLNAME : 'FullName',
+		USERID : 'UserID',
+		GUID : 'guid',
+		COMMANDMACHINE : 'CommandMachine',
+		COMMANDCATEGORY : 'CommandCategory',
+		COMMANDTEXT : 'CommandText',
+		QUERYTEMPLATE : 'QueryTemplate',
+		AUDIT_SERVICE_WRITER : 'Predefined/AuditServiceWriter',
+		AUDIT_SERVICE_VERIFY : 'Predefined/AuditServiceVerify',
+		ILLUM_URL : '/XMII/Illuminator?QueryTemplate=',
+		ILLUM_LOGIN_NAME : 'IllumLoginName=',
+		ILLUM_LOGIN_PWD : 'IllumLoginPassword=',
+		URL_CMD_CATEGORY : '&CommandCategory=',
+		URL_CMD_MODE : '&CommandMode=',
+		URL_JSON_TYPE : '&content-type=text/json',
+		URL_CMD_GUID : '&CommandGUID=',
+		URL_GUID : '&guid=',
+		URL_QRY_TMP : '&QueryTemplate=',
+		URL_ROLE : '&Role=',
+		URL_CMD_TXT : '&CommandText=',
+		URL_ACTION : '&Action=',
+		URL_FULLNAME : '&FullName=',
+		URL_USERID : '&UserID=',
+		URL_CMDMACHINE : '&CommandMachine='
+		
+};
+var XMII_PIC_ODATA_URL = window.location.protocol + "//" +  window.location.host + "/XMII/IlluminatorOData/Catalog";
+
+//contexts
+com.sap.xmii.common.util.PARAM_CONTEXT = {};
+com.sap.xmii.common.util.PARAM_CONTEXT.STRING_NONE = "0";
+com.sap.xmii.common.util.PARAM_CONTEXT.FONT_STYLE = "1";
+com.sap.xmii.common.util.PARAM_CONTEXT.FONT_FACE = "2";
+com.sap.xmii.common.util.PARAM_CONTEXT.CHART_TYPE = "3";
+com.sap.xmii.common.util.PARAM_CONTEXT.GRID_TYPES = "4";
+com.sap.xmii.common.util.PARAM_CONTEXT.MARKER_STYLE = "5";
+com.sap.xmii.common.util.PARAM_CONTEXT.ITEM_SELECTION = "6";
+com.sap.xmii.common.util.PARAM_CONTEXT.DATE_FORMAT = "7";
+com.sap.xmii.common.util.PARAM_CONTEXT.TIME_FORMAT = "8";
+com.sap.xmii.common.util.PARAM_CONTEXT.NUMBER_FORMAT = "9";
+com.sap.xmii.common.util.PARAM_CONTEXT.ALIGNMENT = "10";
+com.sap.xmii.common.util.PARAM_CONTEXT.DATE_TIME_FORMAT = "11";
+com.sap.xmii.common.util.PARAM_CONTEXT.QUERY_COLUMNS = "12";
+com.sap.xmii.common.util.PARAM_CONTEXT.COLOR = "13";
+com.sap.xmii.common.util.PARAM_CONTEXT.TEXT_ORIENTATION = "14";
+com.sap.xmii.common.util.PARAM_CONTEXT.LEGEND_ORIENTATION = "15";
+com.sap.xmii.common.util.PARAM_CONTEXT.ROTATION_ANGLE = "16";
+com.sap.xmii.common.util.PARAM_CONTEXT.LINE_STYLE = "17";
+com.sap.xmii.common.util.PARAM_CONTEXT.VERTICAL_MARKER_LINE_STYLE = "18";
+com.sap.xmii.common.util.PARAM_CONTEXT.PEN_TYPE_1 = "19";
+com.sap.xmii.common.util.PARAM_CONTEXT.TIME_POSITION = "20";
+com.sap.xmii.common.util.PARAM_CONTEXT.AVAILABLE_SERVER = "21";
+com.sap.xmii.common.util.PARAM_CONTEXT.MODE = "22";
+com.sap.xmii.common.util.PARAM_CONTEXT.CACHE_DURATION = "24";
+com.sap.xmii.common.util.PARAM_CONTEXT.GRANULARITY = "27";
+com.sap.xmii.common.util.PARAM_CONTEXT.PCO_VIEW = "30";
+com.sap.xmii.common.util.PARAM_CONTEXT.VERTICAL_TEXT_ALIGNMENT = "31";
+com.sap.xmii.common.util.PARAM_CONTEXT.LIMIT_COLUMN = "32";
+com.sap.xmii.common.util.PARAM_CONTEXT.HORIZONTAL_TEXT_ALIGNMENT = "33";
+com.sap.xmii.common.util.PARAM_CONTEXT.QUERYTEMPLATE = "34";
+com.sap.xmii.common.util.PARAM_CONTEXT.DATA_SERIES = "35";
+com.sap.xmii.common.util.PARAM_CONTEXT.PEN_TYPE = "36";
+com.sap.xmii.common.util.PARAM_CONTEXT.COLOR_CONTEXT = "38";
+com.sap.xmii.common.util.PARAM_CONTEXT.COLOR_INDICATOR = "39";
+com.sap.xmii.common.util.PARAM_CONTEXT.SESSION_PARAMETER = "40";
+com.sap.xmii.common.util.PARAM_CONTEXT.TAG_SELECTION= "41";
+com.sap.xmii.common.util.PARAM_CONTEXT.SELECTED_GROUP_CATE= "42";
+com.sap.xmii.common.util.PARAM_CONTEXT.SCOPE_PROP_EXP = "43";
+com.sap.xmii.common.util.PARAM_CONTEXT.SEL_GROUP_BY_PROP = "44";
+com.sap.xmii.common.util.PARAM_CONTEXT.AGGREGATION_MODE = "45";
+com.sap.xmii.common.util.PARAM_CONTEXT.NODE_SEL_EXP = "46";
+com.sap.xmii.common.util.PARAM_CONTEXT.SELECTED_NODES = "47";
+com.sap.xmii.common.util.PARAM_CONTEXT.OPACITY = "48";
+com.sap.xmii.common.util.PARAM_CONTEXT.SCOPE_PE_EXP = "49";
+com.sap.xmii.common.util.PARAM_CONTEXT.I5CHART_ROTATION_ANGLE = "50";
+com.sap.xmii.common.util.PARAM_CONTEXT.SCOPE_KPI_DIM_EXP = "51"
+
+//dataTypes
+com.sap.xmii.common.util.PARAM_DATA_TYPE = {};
+com.sap.xmii.common.util.PARAM_DATA_TYPE.STRING = "1";
+com.sap.xmii.common.util.PARAM_DATA_TYPE.BOOLEAN = "2";
+com.sap.xmii.common.util.PARAM_DATA_TYPE.TIMESTAMP = "3";
+com.sap.xmii.common.util.PARAM_DATA_TYPE.NUMERIC = "4";
+com.sap.xmii.common.util.PARAM_DATA_TYPE.DECIMAL = "5";
+com.sap.xmii.common.util.UI5_FONT_FACE = "Andale Mono,Arial,Arial Black,Comic Sans MS,Courier New,Georgia,Impact,Lucida Console,Lucida Sans Unicode,Marlett,Minion Web,Symbol,Times New Roman,Tahoma,Trebuchet MS,Verdana,Webdings";
+com.sap.xmii.common.util.FONT_STYLE = "Plain,Bold,Italic,Bold Italic";
+com.sap.xmii.common.util.FONT_FACE =  "Dialog,SansSerif,Serif,Monospaced,DialogInput";
+com.sap.xmii.common.util.MARKER_STYLE = ["0 (None)","1 (Diamond)","2 (Circle)","3 (TriangleLeft)","4 (TriangleDown)","5 (TriangleRight)","6 (Cross)","7 (TriangleUp)"];
+com.sap.xmii.common.util.ITEM_SELECTION = "0 (None),1 (Single),2 (Multiple)";
+com.sap.xmii.common.util.DATE_FORMATS = "MM/dd/yyyy,MM/dd/yy,dd/MM/yyyy,dd/MM/yy,dd-MMM-yyyy,dd-MMM-yy,yyyy-MM-dd,MM-dd-yyyy,MM-dd-yy,dd-MM-yyyy,dd-MM-yy,MM/dd,dd/MM,dd-MMM,MM-dd,dd-MM,MM/yyyy,MM/yy,MMM-yyyy,MMM-yy";
+com.sap.xmii.common.util.TIME_FORMATS = "HH:mm:ss,hh:mm:ss a,mm:ss,mm:ss a,HH:mm,hh:mm a,HH:mm:ss.S,hh:mm:ss.S a,mm:ss.S,mm:ss.S a,HH:mm:ss z,hh:mm:ss a z,mm:ss z,mm:ss a z,HH:mm z,hh:mm a z,HH:mm:ss.S z,hh:mm:ss.S a z,mm:ss.S z,mm:ss.S a z";
+com.sap.xmii.common.util.NUMBER_FORMATS = "0,0.0,0.00,0.000,0.0000,0.00000";
+com.sap.xmii.common.util.ALIGNMENT = ["Center","Left","Right"];
+com.sap.xmii.common.util.VALID_DATE_TIME_FORMATS = "MM/dd/yyyy HH:mm:ss,MM/dd/yy HH:mm:ss,dd/MM/yyyy HH:mm:ss,dd/MM/yy HH:mm:ss,dd-MMM-yyyy HH:mm:ss,dd-MMM-yy HH:mm:ss,yyyy-MM-dd HH:mm:ss,MM-dd-yyyy HH:mm:ss,MM-dd-yy HH:mm:ss,dd-MM-yyyy HH:mm:ss,dd-MM-yy HH:mm:ss,MM/dd/yyyy hh:mm:ss a,MM/dd/yy hh:mm:ss a,dd/MM/yyyy hh:mm:ss a,dd/MM/yy hh:mm:ss a,dd-MMM-yyyy hh:mm:ss a,dd-MMM-yy hh:mm:ss a,yyyy-MM-dd hh:mm:ss a,MM-dd-yyyy hh:mm:ss a,MM-dd-yy hh:mm:ss a,dd-MM-yyyy hh:mm:ss a,dd-MM-yy hh:mm:ss a,yyyy-MM-dd HH:mm:ss.S,MM/dd/yyyy HH:mm:ss z,MM/dd/yy HH:mm:ss z,dd/MM/yyyy HH:mm:ss z,dd/MM/yy HH:mm:ss z,dd-MMM-yyyy HH:mm:ss z,dd-MMM-yy HH:mm:ss z,yyyy-MM-dd HH:mm:ss z,MM-dd-yyyy HH:mm:ss z,MM-dd-yy HH:mm:ss z,dd-MM-yyyy HH:mm:ss z,dd-MM-yy HH:mm:ss z,MM/dd/yyyy hh:mm:ss a z,MM/dd/yy hh:mm:ss a z,dd/MM/yyyy hh:mm:ss a z,dd/MM/yy hh:mm:ss a z,dd-MMM-yyyy hh:mm:ss a z,dd-MMM-yy hh:mm:ss a z,yyyy-MM-dd hh:mm:ss a z,MM-dd-yyyy hh:mm:ss a z,MM-dd-yy hh:mm:ss a z,dd-MM-yyyy hh:mm:ss a z,dd-MM-yy hh:mm:ss a z,yyyy-MM-dd HH:mm:ss.S z,MM/dd/yyyy,MM/dd/yy,dd/MM/yyyy,dd/MM/yy,dd-MMM-yyyy,dd-MMM-yy,yyyy-MM-dd,MM-dd-yyyy,MM-dd-yy,dd-MM-yyyy,dd-MM-yy,MM/dd,dd/MM,dd-MMM,MM-dd,dd-MM,MM/yyyy,MM/yy,MMM-yyyy,MMM-yy,HH:mm:ss,hh:mm:ss a,mm:ss,mm:ss a,HH:mm,hh:mm a,HH:mm:ss.S,hh:mm:ss.S a,mm:ss.S,mm:ss.S a,HH:mm:ss z,hh:mm:ss a z,mm:ss z,mm:ss a z,HH:mm z,hh:mm a z,HH:mm:ss.S z,hh:mm:ss.S a z,mm:ss.S z,mm:ss.S a z,yyyy-MM-ddTHH:mm:ss";
+com.sap.xmii.common.util.TEXT_ORIENTATION = ""; 
+com.sap.xmii.common.util.LEGEND_ORIENTATION = "Auto,Horizontal,Vertical"; 
+com.sap.xmii.common.util.ROTATION_ANGLE = "0,-45,45,-90,90";
+com.sap.xmii.common.util.I5CHART_ROTATION_ANGLE = "0,30,45,60,90";
+com.sap.xmii.common.util.LINE_STYLES = ["Solid","Dashed","Dotted"];
+com.sap.xmii.common.util.VERTICAL_MARKER_LINE_TYPE = "Solid,Dashed"; 
+com.sap.xmii.common.util.PEN_TYPE = ["Line","Marker","Bar"];
+com.sap.xmii.common.util.TIME_POSITION = "Top,Bottom";
+com.sap.xmii.common.util.PCO_VIEW = "Current,Event,Interpolate";
+com.sap.xmii.common.util.VERTICAL_TEXT_ALIGNMENT = "Auto,Top,Down";
+com.sap.xmii.common.util.HORIZONTAL_TEXT_ALIGNMENT = "Left,Center,Right";
+com.sap.xmii.common.util.MATCH_MODE = ["String","Regex","Double","Integer","Long"];
+com.sap.xmii.common.util.STRING_MATCH_TYPES_STRING = ["Exact Match","Substring"];
+com.sap.xmii.common.util.STRING_MATCH_TYPES = ["Exact Match","<",">","In Between"];
+com.sap.xmii.common.util.AGGREGATION_LOGIC = ["SUM"];
+com.sap.xmii.common.util.AGGREGATION_LOGIC_ALL = ["SUM", "AVG", "MIN", "MAX", "RANGE"];
+com.sap.xmii.common.util.PIC_ANALYSIS_GRANULARITY = ["None","5 Minutes","10 Minutes","15 Minutes","20 Minutes","30 Minutes","Hour","Shift","Day","Week","Month","Quarter","Year"];
+
+com.sap.xmii.common.util.colorAndCodes =[
+	{color:"Red",code:"#FF0000"},
+    {color:"Green",code:"#008000"},
+    {color:"Blue",code:"#0000FF"},
+    {color:"White",code:"#FFFFFF"},
+    {color:"Black",code:"#000000"},
+    {color:"Yellow",code:"#FFFF00"},
+    {color:"Cyan",code:"#00FFFF"},
+    {color:"Purple",code:"#800080"},
+    {color:"Violet",code:"#EE82EE"},
+    {color:"Orange",code:"#FFA500"},
+    {color:"Gray",code:"#808080"},
+    {color:"Pink",code:"#FFC0CB"},						
+    {color:"Tan",code:"#D2B48C"},
+    {color:"Teal",code:"#008080"},
+    {color:"Gold",code:"#FFD700"},
+    {color:"Navy",code:"#000080"},
+    {color:"Lime",code:"#00FF00"},
+    {color:"Turquoise",code:"#40E0D0"},
+    {color:"Silver",code:"#C0C0C0"},
+    {color:"Olive",code:"#808000"},
+    {color:"SkyBlue",code:"#00CCFF"},
+    {color:"Sienna",code:"#A0522D"},
+    {color:"Maroon",code:"#800000"},
+    {color:"Orchid",code:"#DA70D6"},
+    {color:"Wheat",code:"#F5DEB3"},
+    {color:"Magenta",code:"#FF00FF"},
+    {color:"Brown",code:"#A52A2A"},
+    {color:"Indigo",code:"#4B0082"},
+    {color:"Ivory",code:"#FFFFF0"},
+    {color:"Aliceblue",code:"#F0F8FF"},
+    {color:"AntiqueWhite",code:"#FAEBD7"},
+    {color:"Aquamarine",code:"#7FFFD4"},
+    {color:"Azure",code:"#F0FFFF"},
+    {color:"Beige",code:"#F5F5DC"},
+    {color:"BlanchedAlmond",code:"#FFEBCD"},
+    {color:"BlueViolet",code:"#8A2BE2"},
+    {color:"BrickRed",code:"#CC3300"},
+    {color:"BurlyWood",code:"#DEB887"},
+    {color:"CadetBlue",code:"#5F9EA0"},
+     {color:"Chocolate",code:"#D2691E"},
+    {color:"Coral",code:"#FF7F50"},
+    {color:"CornflowerBlue",code:"#6495ED"},
+    {color:"Cornsilk",code:"#FFF8DC"},
+    {color:"Crimson",code:"#DC143C"},
+    {color:"DarkBlue",code:"#00008B"},
+    {color:"DarkGoldenRod",code:"#B8860B"},
+    {color:"DarkGreen",code:"#006400"},
+    {color:"DarkCyan",code:"#008B8B"},
+    {color:"DarkKhaki",code:"#BDB76B"},
+    {color:"DarkMagenta",code:"#8B008B"},
+    {color:"DarkOliveGreen",code:"#556B2F"},
+    {color:"DarkOrchid",code:"#9932CC"},
+    {color:"DarkRed",code:"#8B0000"},
+    {color:"DarkSalmon",code:"#E9967A"},
+    {color:"DarkSeaGreen",code:"#8FBC8F"},
+    {color:"DarkSlateBlue",code:"#483D8B"},
+    {color:"DarkSlateGray",code:"#2F4F4F"},
+    {color:"DarkViolet",code:"#9400D3"},
+    {color:"DeepSkyBlue",code:"#00BFFF"},
+    {color:"DodgerBlue",code:"#1E90FF"},
+    {color:"DimGray",code:"#696969"},
+    {color:"Feldspar",code:"#D19275"},
+    {color:"FireBrick",code:"#B22222"},
+    {color:"FloralWhite",code:"#FFFAF0"},
+    {color:"ForestGreen",code:"#228B22"},
+    {color:"GhostWhite",code:"#F8F8FF"},
+    {color:"GreenYellow",code:"#ADFF2F"},
+    {color:"HoneyDew",code:"#F0FFF0"},
+    {color:"HotPink",code:"#FF3399"},
+    {color:"IndianRed",code:"#CD5C5C"},
+    {color:"Khaki",code:"#F0E68C"},
+    {color:"LemonChiffon",code:"#FFFACD"},
+    {color:"LightBlue",code:"#ADD8E6"},
+    {color:"LightCoral",code:"#F08080"},
+    {color:"LightCyan",code:"#E0FFFF"},
+    {color:"LightGoldenRodYellow",code:"#FAFAD2"},
+    {color:"lightGray",code:"#D3D3D3"},
+    {color:"LightGreen",code:"#90EE90"},
+    {color:"lightGreen",code:"#33CC66"},
+    {color:"LightPink",code:"#FFB6C1"},
+    {color:"LightSalmon",code:"#FFA07A"},
+    {color:"LightSeaGreen",code:"#20B2AA"},
+    {color:"LightSkyBlue",code:"#87CEFA"},
+    {color:"LightSlateBlue",code:"#8470FF"},
+    {color:"LightSlateGray",code:"#778899"},
+    {color:"LightSteelBlue",code:"#B0C4DE"},
+    {color:"LightYellow",code:"#FFFFE0"},
+    {color:"LimeGreen",code:"#32CD32"},
+    {color:"Linen",code:"#FAF0E6"},
+    {color:"MediumAquaMarine",code:"#66CDAA"},
+    {color:"MediumBlue",code:"#0000CD"},
+    {color:"MediumSeaGreen",code:"#00FA9A"},
+    {color:"MidnightBlue",code:"#191970"},
+    {color:"MistyRose",code:"#FFE4E1"},
+    {color:"NavajoWhite",code:"#FFDEAD"},
+    {color:"OldLace",code:"#FDF5E6"},
+    {color:"OrangeRed",code:"#FF4500"},
+    {color:"PaleGreen",code:"#98FB98"},
+    {color:"PaleTurquoise",code:"#AFEEEE"},
+    {color:"PaleVioletRed",code:"#D87093"},
+    {color:"PaleYellow",code:"#FFFF66"},
+    {color:"PapayaWhip",code:"#FFEFD5"},
+    {color:"PeachPuff",code:"#FFDAB9"},
+    {color:"Plum",code:"#DDA0DD"},
+    {color:"PowderBlue",code:"#B0E0E6"},
+    {color:"Pumpkin",code:"#FF9900"},
+    {color:"RosyBrown",code:"#BC8F8F"},
+    {color:"RoyalBlue",code:"#4169E1"},
+    {color:"SaddleBrown",code:"#8B4513"},
+    {color:"Salmon",code:"#FA8072"},
+    {color:"SandyBrown",code:"#F4A460"},
+    {color:"SeaGreen",code:"#33CC99"},
+    {color:"SeaShell",code:"#FFF5EE"},
+    {color:"SlateBlue",code:"#6A5ACD"},
+    {color:"Snow",code:"#FFFAFA"},
+    {color:"SpringGreen",code:"#00FF7F"},
+    {color:"SteelBlue",code:"#4682B4"},
+    {color:"Thistle",code:"#D8BFD8"},
+    {color:"Tomato",code:"#FF6347"},
+    {color:"VioletRed",code:"#D02090"},
+    {color:"WhiteSmoke",code:"#F5F5F5"},
+    {color:"YellowGreen",code:"#9ACD32"}
+];
+com.sap.xmii.common.util.dataStatus = {
+	TYPE_STRING : -3,
+	TYPE_NULL : -2,
+	FATAL_ERROR : -1,
+	UNKNOWN : 0,
+	VALID_WITH_ROW : 1,
+	VALID_WITHOUT_ROW : 2
+};
+com.sap.xmii.common.util.TimeseriesChartTypes = {
+		
+		TIMESERIES_LINE : 'timeseries_line',
+		TIMESERIES_COLUMN :'timeseries_column',
+		TIMESERIES_BUBBLE:'timeseries_bubble',
+		TIMESERIES_SCATTER:'timeseries_scatter',
+		TIMESERIES_COMBINATION:'timeseries_combination',
+		TIMESERIES_DUAL_COMBINATION : 'dual_timeseries_combination'
+};

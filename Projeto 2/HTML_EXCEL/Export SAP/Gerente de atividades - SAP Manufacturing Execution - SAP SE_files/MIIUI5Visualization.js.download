@@ -1,0 +1,534 @@
+/**
+ * MIIUI5Visualization -Interface for all Display Elements using UI5 to display
+ * such as I5Chart,I5Grid
+ */
+
+com = {
+	sap : {
+		xmii : {
+			common : {
+				init : {
+					// Constructor
+					MIIUI5Visualization : function() {
+					}
+				}
+			}
+		}
+	}
+};
+
+// MIIUI5Visualization Definition
+com.sap.xmii.common.init.MIIUI5Visualization.prototype = {
+
+	chartTemplateName : 'c1',
+	queryTemplateName : 'q1',
+	chart : '',
+	grid : '',
+	spcChart : '',
+	chartTemplate : '',
+	queryTemplate : '',
+	getChartTemplate : function() {
+		return this.chartTemplate;
+	},
+	/**
+	 * Returns the name of the configured Query Template
+	 * 
+	 * @return String
+	 */
+	getQueryTemplate : function() {
+		return this.queryTemplateName;
+	},
+
+	/**
+	 * Sets the Query Template for the chart
+	 * 
+	 * @param queryTemplateName
+	 * @return
+	 */
+	setQueryTemplate : function(queryTemplateName) {
+		this.queryTemplateName = queryTemplateName;
+		if (this.queryTemplate.queryTemplateName != this.queryTemplateName) {
+			//Initialise QueryTemplate alone
+			this.initTemplates(null, queryTemplateName, null, null, null, 'Query'); 
+		}
+	},
+
+	/**
+	 * Sets the Display Template for the chart
+	 */
+	setDisplayTemplate : function(dispTemplateName) {
+		this.chartTemplateName = dispTemplateName;
+		//Initialise DisplayTemplate alone
+		this.initTemplates(dispTemplateName, null, null, this.jsonTemplateProps, null, 'Display');
+    	if (!com.sap.xmii.common.util.MIIi5Util.isEmpty(this.getChartObject()) 
+    			&& (this.getChartTemplateObject().chartConfig.Type === com.sap.xmii.common.util.ChartPropertyConstants.I5CHART
+    					|| this.getChartTemplateObject().chartConfig.Type === com.sap.xmii.common.util.ChartPropertyConstants.ICHART)) {
+    		this.getChartObject().chartPropertyConfig = this.chartTemplate.chartPropertyConfig;
+    	} else if(!com.sap.xmii.common.util.MIIi5Util.isEmpty(this.getGridObject()) 
+    			&& (this.getChartTemplateObject().chartConfig.Type === com.sap.xmii.common.util.GridPropertyConstants.I5GRID
+    					|| this.getChartTemplateObject().chartConfig.Type === com.sap.xmii.common.util.GridPropertyConstants.IGRID)) {
+    		this.getGridObject().gridPropertyConfig = this.chartTemplate.chartPropertyConfig;
+    	}else if (!com.sap.xmii.common.util.MIIi5Util.isEmpty(this.getChartObject()) 
+    			&& (this.getChartTemplateObject().chartConfig.Type === com.sap.xmii.common.util.SPCChartConstants.I5SPCCHART
+    					|| this.getChartTemplateObject().chartConfig.Type === com.sap.xmii.common.util.SPCChartConstants.ISPCCHART)) {
+    		this.getChartObject().chartPropertyConfig = this.chartTemplate.chartPropertyConfig;
+		this.getChartObject().ChartType = this.chartTemplate.ChartType;
+    	}
+	},
+	
+	/**
+	 * Initialises QueryTemplate and DisplayTemplate objects (Args - updateTempFlag is used only in case of setQueryTemplate(QT) and setDisplayTemplate(DT) so that either the QT or DT alone is initialised)
+	 * @private
+	 * @return
+	 */
+	initTemplates : function(chartTemplateName, queryTemplateName, queryDataUrl, jsonTemplateProps, chartType, updateTempFlag) {
+		
+		function initQueryTemplate() {
+			jQuery.sap.log.info("In init of query template");
+			if(com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(queryTemplateName) && !com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(queryDataUrl)){
+				var qTemp = new com.sap.xmii.querytemplate.QueryTemplate(queryTemplateName, queryDataUrl);
+				// object is Query, hence set queryDataUrl
+			    qTemp.getQueryObject().setQueryResultUrl(queryDataUrl);
+			} else {
+				var qTemp = new com.sap.xmii.querytemplate.QueryTemplate(queryTemplateName);
+			}
+			/*if (com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(queryTemplateName)) {
+			    // object is Query, hence set queryDataUrl
+			    qTemp.getQueryObject().setQueryResultUrl(queryDataUrl);
+			}*/
+			jQuery.sap.log.info("initQueryTemplate: queryTemplate:" + JSON.stringify(qTemp));
+			return qTemp;
+    	};
+		
+		function initChartTemplate(jsonTemplateProps) {
+    		jQuery.sap.log.info("In init of chart template");
+    		var chrtTemp = new com.sap.xmii.charttemplate.ChartTemplate(chartTemplateName);
+    		jQuery.sap.log.info("initChartTemplate: chartTemplate:" + JSON.stringify(chrtTemp));
+    		// Check if jsonProps exists and load it
+    		if (typeof jsonTemplateProps === com.sap.xmii.common.util.GenericConstants.UNDEFINED
+    			|| com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(jsonTemplateProps)) {
+    		} else {
+    		    jQuery.sap.log.info("jsonTemplateProps to be set.." + jsonTemplateProps);
+    		    //chrtTemp.chartPropertyConfig.setAdditionalProps(jsonTemplateProps);
+    		    chrtTemp.chartPropertyConfig.setJSONProps(jsonTemplateProps, chrtTemp);
+    		    jQuery.sap.log.info("initChartTemplate: After updating chartTemplate with jsonTemplateProps:"
+    			    + JSON.stringify(chrtTemp));
+    		}
+    		return chrtTemp;
+        };
+        
+        function initializeValues(output) {
+        	Object.keys(output.Output).map(function(value, index) {
+        		var objInArr = output.Output[index];
+        		Object.keys(objInArr).map(function(value, index) {
+        			switch(value) {
+        				case "Display" : com.sap.xmii.common.util.chartConfig = objInArr;
+        								 break;
+        				case "Query" : com.sap.xmii.common.util.queryConfig = objInArr;
+        								 break;
+        				case "DatetimePattern" : com.sap.xmii.common.util.datetimePatterForLocale = objInArr.DatetimePattern;
+        										 break;
+        				case "NumberformatPattern" : com.sap.xmii.common.util.numberformatPatternForLocale = objInArr.NumberformatPattern;
+        											 break;
+        				case "Userlocale" : com.sap.xmii.common.util.loggedInUserLocale = objInArr.Userlocale;
+        									break;
+        			}
+        		});
+        	});
+        };
+		
+		if(updateTempFlag != undefined) {
+			var tempUrl = com.sap.xmii.common.util.GenericConstants.CATALOG_URL_PREFIX;
+			if(updateTempFlag === "Query") {
+				tempUrl = tempUrl +queryTemplateName + com.sap.xmii.common.util.GenericConstants.CONTENT_TYPE_URL_SUFFIX;
+				var jsonStr = com.sap.xmii.common.util.MIIi5Util.getOData(tempUrl);
+				var output = com.sap.xmii.common.util.MIIi5Util.evalJSONStr(jsonStr);
+				com.sap.xmii.common.util.queryConfig = output;
+				this.queryTemplateName = queryTemplateName;
+				this.queryTemplate = initQueryTemplate(queryTemplateName);
+			} else if(updateTempFlag === "Display") {
+				tempUrl = tempUrl +chartTemplateName + com.sap.xmii.common.util.GenericConstants.CONTENT_TYPE_URL_SUFFIX;
+				var jsonStr = com.sap.xmii.common.util.MIIi5Util.getOData(tempUrl);
+				var output = com.sap.xmii.common.util.MIIi5Util.evalJSONStr(jsonStr);
+				com.sap.xmii.common.util.chartConfig = output;
+				this.chartTemplate = initChartTemplate(jsonTemplateProps);
+			}
+		} else {
+			this.jsonTemplateProps = jsonTemplateProps;
+			this.chartTemplateName = chartTemplateName;
+			this.queryTemplateName = queryTemplateName;
+			
+			var compositeUrl ;
+			if(queryTemplateName){
+				compositeUrl = com.sap.xmii.common.util.GenericConstants.CATALOG_URL_PREFIX_LOADMULTIPLE +chartTemplateName+","+queryTemplateName+com.sap.xmii.common.util.GenericConstants.CONTENT_TYPE_URL_SUFFIX;
+			}
+			else
+			{
+				compositeUrl = com.sap.xmii.common.util.GenericConstants.CATALOG_URL_PREFIX_LOADMULTIPLE +chartTemplateName+com.sap.xmii.common.util.GenericConstants.CONTENT_TYPE_URL_SUFFIX;
+			}
+			
+			var jsonStr = com.sap.xmii.common.util.MIIi5Util.getOData(compositeUrl);
+			var output = com.sap.xmii.common.util.MIIi5Util.evalJSONStr(jsonStr);
+			
+			if (output.hasOwnProperty('Output') && output.Output[0].hasOwnProperty('Display') && output.Output[0].Display.hasOwnProperty('invalid') && output.Output[0].Display.invalid == 'true') {
+				var msg = "Invalid DisplayTemplate path " + chartTemplateName;
+			    jQuery.sap.log.error(msg);
+			    throw new com.sap.xmii.common.exception.MIIi5Exception(msg);
+			}
+			
+			if (output.hasOwnProperty('Output') && output.Output[1].hasOwnProperty('Query') && output.Output[1].Query.hasOwnProperty('invalid') && output.Output[1].Query.invalid == 'true') {
+				var msg = "Invalid QueryTemplate path " + queryTemplateName;
+			    jQuery.sap.log.error(msg);
+			    throw new com.sap.xmii.common.exception.MIIi5Exception(msg);
+			}
+			
+			initializeValues(output);
+			if(!(typeof output.Output[0].Display == "object")){
+				com.sap.xmii.common.util.FCCHART = true;
+				if (!com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(queryTemplateName)) {
+				if(!(typeof output.Output[1].Query == "object")){
+					com.sap.xmii.common.util.FCQUERY = true;
+			}}}else if (!com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(queryTemplateName)) {
+				if(!(typeof output.Output[1].Query == "object")){
+					com.sap.xmii.common.util.FCQUERY = true;
+				}
+			} 
+			if(!com.sap.xmii.common.util.FCCHART &&  !com.sap.xmii.common.util.FCQUERY){
+				//initialise Display Template
+				this.chartTemplate = initChartTemplate(jsonTemplateProps);
+
+				if (!com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(chartType)) {
+					if (output.Output[0].Display.Type === com.sap.xmii.common.util.GridPropertyConstants.I5GRID
+							|| output.Output[0].Display.Type === com.sap.xmii.common.util.GridPropertyConstants.IGRID) //i5Grid
+						this.chartTemplate.chartPropertyConfig.setProperty(com.sap.xmii.common.util.GridPropertyConstants.GRID_TYPE, chartType);
+					else //For i5SPC and i5Chart, in case of i5SPCChart, query result depends even on display template parameters(Query visualization as i5SPCChart) 
+						//this.chartTemplate.chartPropertyConfig.setProperty(com.sap.xmii.common.util.ChartPropertyConstants.CHART_TYPE, chartType);
+						this.getChartObject().setChartType(chartType);
+				}
+
+				//initialise Query Template
+				if (com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(queryTemplateName)) {
+					this.queryTemplateName = this.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.QueryConstants.MAPPED_QUERY_TEMPLATE);
+				}
+				this.queryTemplate = initQueryTemplate();
+				//Added so that CombineQueryRowsets is aware of the vizType
+				var vizType = this.chartTemplate.chartPropertyConfig.chartConfig.Type;
+				this.queryTemplate.getQueryObject().displayType = vizType;
+			}
+		}
+	},
+	/**
+	 * Returns the underlying chart component
+	 * @private
+	 * @return
+	 */
+	setChartObject : function(hchart) {
+		this.chart = hchart;
+		//Also set template properties set on ChartTemplate on the chart object
+		this.chart.overrides = this.chartTemplate.overrides;
+	},
+
+	/**
+	 * Sets the underlying grid component
+	 * @private
+	 * @return
+	 */
+	setGridObject : function(i5Grid) {
+		this.grid = i5Grid;
+	},
+	
+	/**
+	 * Sets the underlying spcChart component
+	 * @private
+	 * @return
+	 */
+	setSPCChartObject : function(i5SPCChart) {
+		this.spcChart = i5SPCChart;
+	},
+
+	/**
+	 * Returns the name of the configured Display Template
+	 * 
+	 * @return String
+	 */
+	getDisplayTemplate : function() {
+		return this.chartTemplateName;
+	},
+
+	/**
+	 * Returns the underlying chart component after the Chart
+	 * is rendered and returns the ChartTemplate before the Chart
+	 * is rendered.
+	 * 
+	 * @return com.sap.xmii.chart.ui5.ChartComponent
+	 */
+	getChartObject : function() {
+	    	var chartObject = this.chart;
+	    	var chartTemplateObject = this.chartTemplate;
+	    	
+	    	if((chartObject === null)||(typeof chartObject === "undefined")||(chartObject === ''))
+	    	    return chartTemplateObject;
+	    	else
+	    	    return chartObject;
+	    //return this.chart;
+	},
+
+	/**
+	 * Returns the underlying grid component
+	 * 
+	 * @return com.sap.xmii.grid.ui5.BaseComponent
+	 */
+	getGridObject : function() {
+		return this.grid;
+	},
+	
+	/**
+	 * Returns the name of user logged in
+	 * @return String
+	 */
+	getUserName : function() {
+		return com.sap.xmii.common.util.loggedInUser;
+	},
+
+	/**
+	 * Saves the Data as a HTML File
+	 */
+	saveAsHTMLFile : function() {
+        var overrides = com.sap.xmii.common.util.MIIi5Util.initializeCommonPropertiesForDataExport(this, false);
+        com.sap.xmii.common.util.MIIi5Util.formatOverrideParams(overrides, com.sap.xmii.common.util.Modes.QT_HTML_MODE);
+        //check if QueryTemplate not defined, then get the URL mapped to the query object and fetch data
+        var QT = overrides[com.sap.xmii.common.util.QueryConstants.QUERY_TEMPLATE];
+        if(QT != undefined && QT != "") {
+        	com.sap.xmii.common.util.MIIi5Util.exportData(com.sap.xmii.common.util.GenericConstants.COMBINE_QUERY_ROWSETS_URL, overrides);
+        } else {//This will work only for Illuminator URL or any URL which returns data in MII XML format
+        	var exportOption = {};
+        	exportOption[com.sap.xmii.common.util.GenericConstants.CONTENT_TYPE] = com.sap.xmii.common.util.Modes.QT_HTML_MODE;
+        	var queryUrl = this.getQueryObject().getQueryResultUrl(); 
+        	com.sap.xmii.common.util.MIIi5Util.exportData(queryUrl, exportOption);
+        }
+	},
+
+	/**
+	 * Saves the Data as a CSV File
+	 */
+	saveAsCSVFile : function() {
+        var overrides = com.sap.xmii.common.util.MIIi5Util.initializeCommonPropertiesForDataExport(this, false);
+        com.sap.xmii.common.util.MIIi5Util.formatOverrideParams(overrides, com.sap.xmii.common.util.Modes.QT_CSV_MODE);
+        //check if QueryTemplate not defined, then get the URL mapped to the query object and fetch data
+        var QT = overrides[com.sap.xmii.common.util.QueryConstants.QUERY_TEMPLATE];
+        if(QT != undefined && QT != "") {
+        	com.sap.xmii.common.util.MIIi5Util.exportData(com.sap.xmii.common.util.GenericConstants.COMBINE_QUERY_ROWSETS_URL, overrides);
+        } else {//This will work only for Illuminator URL or any URL which returns data in MII XML format
+        	var exportOption = {};
+        	exportOption[com.sap.xmii.common.util.GenericConstants.CONTENT_TYPE] = com.sap.xmii.common.util.Modes.QT_CSV_MODE;
+        	var queryUrl = this.getQueryObject().getQueryResultUrl(); 
+        	com.sap.xmii.common.util.MIIi5Util.exportData(queryUrl, exportOption);
+        }
+	},
+
+	/**
+	 * Saves the Data as a XML File
+	 */
+	saveAsXMLFile : function() {
+        var overrides = com.sap.xmii.common.util.MIIi5Util.initializeCommonPropertiesForDataExport(this, false);
+        com.sap.xmii.common.util.MIIi5Util.formatOverrideParams(overrides, com.sap.xmii.common.util.Modes.QT_XML_MODE);
+        //check if QueryTemplate not defined, then get the URL mapped to the query object and fetch data
+        var QT = overrides[com.sap.xmii.common.util.QueryConstants.QUERY_TEMPLATE];
+        if(QT != undefined && QT != "") {
+        	com.sap.xmii.common.util.MIIi5Util.exportData(com.sap.xmii.common.util.GenericConstants.COMBINE_QUERY_ROWSETS_URL, overrides);
+        } else {//This will work only for Illuminator URL or any URL which returns data in MII XML format
+        	var exportOption = {};
+        	exportOption[com.sap.xmii.common.util.GenericConstants.CONTENT_TYPE] = com.sap.xmii.common.util.Modes.QT_XML_MODE;
+        	var queryUrl = this.getQueryObject().getQueryResultUrl(); 
+        	com.sap.xmii.common.util.MIIi5Util.exportData(queryUrl, exportOption);
+        }
+	},
+	
+	/**
+	 * Saves SPC Results
+	 */
+	saveSPCResults : function(contentType) {
+		var overrides = com.sap.xmii.common.util.MIIi5Util.initializeCommonPropertiesForDataExport(this, true);
+		if(com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(this.getChartObject().getNumberFormat()))
+			overrides[com.sap.xmii.common.util.DateTimeConstants.NUMBER_FORMAT] = "0.00";
+		else
+			overrides[com.sap.xmii.common.util.DateTimeConstants.NUMBER_FORMAT] = this.getChartObject().getNumberFormat();
+		var url = com.sap.xmii.common.util.GenericConstants.I5SPCSERVICE_URL + "&" + com.sap.xmii.common.util.QueryConstants.QUERY_TEMPLATE + "=" + 
+				  this.queryTemplate.getQueryObject().getQueryTemplateName() + "&" + com.sap.xmii.common.util.GenericConstants.DISPLAY_TEMPLATE_INDICATOR +
+				  "=" + this.getDisplayTemplate() + "&" + com.sap.xmii.common.util.GenericConstants.SHOW_SPC_RESULTS_INDICATOR +
+				  "=true&" + com.sap.xmii.common.util.GenericConstants.CONTENT_TYPE + "=" + contentType;
+		url = encodeURI(url);
+		com.sap.xmii.common.util.MIIi5Util.exportSPCData(url, overrides, contentType);
+	},
+	
+	/**
+	 * Export the Statistical Data as HTML
+	 */
+	exportStatistics : function() {
+
+		var queryTemplateName = this.getQueryTemplate();
+		var sliderObj = this.getTimeBar().slider;
+		var queryMetaData = this.queryTemplate.getQueryObject()
+				.getQueryMetaData();
+
+		var overrides = new Object();
+		overrides[com.sap.xmii.common.util.QueryConstants.QUERY_TEMPLATE] = queryTemplateName;
+
+		if(queryMetaData.Type === com.sap.xmii.common.util.QueryConstants.QUERY_TYPE_PCo){
+			overrides[com.sap.xmii.common.util.GenericConstants.MODE] = com.sap.xmii.common.util.QueryConstants.TAG_AGGREGATE_QUERY;
+			overrides[com.sap.xmii.common.util.GenericConstants.SELECTED_AGGREGATES] = "Min,Max,AverageTW";
+			
+		} else if(queryMetaData.Type === com.sap.xmii.common.util.QueryConstants.QUERY_TYPE_CATALOG){
+			overrides[com.sap.xmii.common.util.GenericConstants.MODE] = com.sap.xmii.common.util.GenericConstants.STATISTICS;
+			overrides[com.sap.xmii.common.util.GenericConstants.METHOD] = "MIN,MAX,AverageTW";
+			
+		} else{
+			overrides[com.sap.xmii.common.util.GenericConstants.MODE] = com.sap.xmii.common.util.GenericConstants.STATISTICS;
+			overrides[com.sap.xmii.common.util.GenericConstants.METHOD] = "MIN,MAX,TWA";
+		}
+			
+		// pass empty values for Time, Time Period and Schedule because if any
+		// of these is configured in the query,
+		// then the overridden SD and ED are ignored if not set to empty in the
+		// URL
+		overrides[com.sap.xmii.common.util.DateTimeConstants.TIME] = "";
+		overrides[com.sap.xmii.common.util.DateTimeConstants.TIME_PERIOD] = "";
+		overrides[com.sap.xmii.common.util.DateTimeConstants.SCHEDULE] = "";
+		overrides[com.sap.xmii.common.util.GenericConstants.CONTENT_TYPE] =  com.sap.xmii.common.util.Modes.QT_HTML_MODE;
+
+		com.sap.xmii.common.util.MIIi5Util.exportData("/XMII/Illuminator?", overrides); //s not supported with this server or content type
+	},
+	
+	/**
+	 * Export the Current Data as HTML
+	 */
+	exportCurrent : function() {
+
+		var queryTemplateName = this.getQueryTemplate();
+		var sliderObj = this.getTimeBar().slider;
+		var queryMetaData = this.queryTemplate.getQueryObject()
+				.getQueryMetaData();
+
+		var SDFromMeta = queryMetaData.StartDate;
+		var EDFromMeta = queryMetaData.EndDate;
+		
+		var overrides = new Object();
+		overrides[com.sap.xmii.common.util.QueryConstants.QUERY_TEMPLATE] = queryTemplateName;
+		overrides[com.sap.xmii.common.util.DateTimeConstants.START_DATE] = SDFromMeta; // the SD and ED should be
+		// initialised inside the functions..
+		overrides[com.sap.xmii.common.util.DateTimeConstants.END_DATE] = EDFromMeta; // so that latest dates set in
+		// the model are retrieved
+		overrides[com.sap.xmii.common.util.DateTimeConstants.DATE_FORMAT] = queryMetaData.DateFormat;
+		
+		if(queryMetaData.Type === com.sap.xmii.common.util.QueryConstants.QUERY_TYPE_PCo){
+			overrides[com.sap.xmii.common.util.GenericConstants.MODE] = com.sap.xmii.common.util.QueryConstants.TAG_RETRIEVE_QUERY;
+			overrides[com.sap.xmii.common.util.GenericConstants.VIEW] = com.sap.xmii.common.util.GenericConstants.CURRENT;
+			
+		}else{
+			overrides[com.sap.xmii.common.util.GenericConstants.MODE] = com.sap.xmii.common.util.GenericConstants.CURRENT;
+		}
+		
+		// pass empty values for Time, Time Period and Schedule because if any
+		// of these is configured in the query,
+		// then the overridden SD and ED are ignored if not set to empty in the
+		// URL
+		overrides[com.sap.xmii.common.util.DateTimeConstants.TIME] = "";
+		overrides[com.sap.xmii.common.util.DateTimeConstants.TIME_PERIOD] = "";
+		overrides[com.sap.xmii.common.util.DateTimeConstants.SCHEDULE] = "";
+		overrides[com.sap.xmii.common.util.GenericConstants.CONTENT_TYPE] = com.sap.xmii.common.util.Modes.QT_HTML_MODE;
+
+		com.sap.xmii.common.util.MIIi5Util.exportData(com.sap.xmii.common.util.GenericConstants.COMBINE_QUERY_ROWSETS_URL, overrides);
+	},
+
+	/**
+	 * Returns the value of the Session Property
+	 * @param propertyName
+	 * @return String
+	 */
+	getPropertyValue : function(propertyName) {
+		return com.sap.xmii.common.util.MIIi5Util.getPropertyFromSession(propertyName);
+	},
+
+	/**
+	 * Sets the value of the Session Property
+	 * @param propertyName
+	 * @param propertyValue
+	 */
+	setPropertyValue : function(propertyName, propertyValue) {
+		com.sap.xmii.common.util.MIIi5Util.setPropertyOnSession(propertyName,propertyValue);
+	},
+	
+	/**
+	 * this function is for events API
+	 * @param handlerName
+	 * @param parameters
+	 * @return
+	 */
+	executeHandler : function(handlerName, parameters) {
+		if (handlerName === "refresh") {
+			var queryObject = this.getQueryObject();
+			var templateObject = this.getChartTemplateObject();
+			var displayRequired = false;
+			for (index in parameters.QueryParameters) {
+				queryObject.setParameter(index, parameters.QueryParameters[index]);
+			}
+			for (index in parameters.DisplayParameters) {
+				type = typeof templateObject.getProperty(index);
+				templateObject.setProperty(index, com.sap.xmii.common.util.MIIi5Util.dataTransfer(parameters.DisplayParameters[index], type));
+				queryObject.setParameter(index, parameters.DisplayParameters[index]);
+				displayRequired = true;
+			}
+			if (displayRequired) {
+				this.refresh();
+			}
+			this.refreshData();
+		}
+	},
+
+	/**
+	 * Returns true if any error occurred during execution of the Query Template
+	 */
+	hasErrorMessage : function() {
+		return this.hasErrMessage();
+	},
+
+    /**
+     * Gets the Error Message if any
+     */
+    getErrorMessage : function() {
+    	return this.getErrMessage();
+    },
+	
+    /**
+     * destroys all the dependent components.
+     * @private
+     */
+	destroy: function() { 	
+    	if(this.getChartLayout != undefined  && this.getChartLayout() != undefined){
+    		var sId = this.getChartLayout().sId;
+    		var object = sap.ui.getCore().byId(sId);
+    		if(object != undefined) {
+    			object.destroyDependents();
+    			object.destroy();
+    		}
+    	}
+    },
+
+    /**
+	 * Updates UI5 object with new modelData
+	 * @private
+	 */
+    refreshChart: function() {
+    	var vizType = this.getChartTemplateObject().chartConfig.Type;
+    	var url = this.getQueryObject().buildPostData(com.sap.xmii.common.util.Modes.QT_JSON_MODE).url;
+    
+    	if(vizType === 'i5Grid' || vizType === 'iGrid') {
+			this.refreshTableData(url);
+		} else {
+			var jsonObj = JSON.parse(com.sap.xmii.common.util.MIIi5Util.getOData(url));
+			//update model, create new data set for updated data of slider & jsonModel bound to the ui5Chart is set explicitly with the new model for the new dataSet
+			this.updateUI5ModelAndDataset(jsonObj);
+		}
+    }
+
+}

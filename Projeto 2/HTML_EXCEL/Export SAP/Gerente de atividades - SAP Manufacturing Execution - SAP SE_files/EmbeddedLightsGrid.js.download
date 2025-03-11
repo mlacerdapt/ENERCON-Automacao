@@ -1,0 +1,142 @@
+//document.write('<scr' + 'ipt type="text/javascript" src="/XMII/JavaScript/com/sap/xmii/grid/expression/Expression.js?version='	+ Math.random() + '"></scr' + 'ipt>');
+
+com.sap.xmii.grid.ui5 = com.sap.xmii.grid.ui5 || {};
+
+var parentGridComponent = new com.sap.xmii.grid.ui5.BaseComponent();
+
+/**
+ * EmbeddedLightsGrid CONSTRUCTOR
+ * 
+ * @param gridConfig
+ * @param gridModel
+ */
+com.sap.xmii.grid.ui5.EmbeddedLightsGrid = function(gridConfig, gridModel, i5GridObj) {
+
+	this.populateData(gridConfig, gridModel, i5GridObj);
+}
+
+com.sap.xmii.grid.ui5.EmbeddedLightsGrid.prototype = parentGridComponent;
+com.sap.xmii.grid.ui5.EmbeddedLightsGrid.prototype.constructor = com.sap.xmii.grid.ui5.EmbeddedLightsGrid;
+
+/**
+ * EmbeddedLightsGrid Create Method
+ * 
+ * @return
+ */
+com.sap.xmii.grid.ui5.EmbeddedLightsGrid.prototype.create = function() {
+
+	var columns = this.getMatchColumns().split(",");
+	var columnTemplateArray = this.gridTypeInitialization(columns);
+	//if(this.gridPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.INITIAL_UPDATE)) {
+	if(this.gridModel != undefined && columnTemplateArray != undefined) {
+		//var rowHeadings = this.gridPropertyConfig.getProperty('RowHeadings').split(',');
+		var colorContextColumns = this.getMatchColumns().split(",");
+		
+		//create default style
+		this.createDefaultStyle();
+
+		//prepare formatters for column (date and number formatters)
+		this.prepareForCellFormatting();
+		
+		if(this.rows != undefined){
+
+			//Iterating over all the data rows
+			for(var index=0; index < this.rows.length; index++){
+				//Row heading for rows
+				this.applyRowheadings(index);
+
+				// Iterating over all the Table columns
+				for(var columnIndex =1 ; columnIndex < this.columnArray.length ; columnIndex++){
+					var columnName = this.columnArray[columnIndex].Name;
+					var columnNameStyle = columnName+"Style";
+					// Applying formatting
+					this.rows[index][columnName] = this.formatCellValue(columnName, this.columnArray[columnIndex].SQLDataType,	this.rows[index][columnName]);
+					// Applying default style
+					this.rows[index][columnNameStyle] = this.defaultStyle;
+					
+					// Creating check box columns if specified
+					if(this.columnBoolean[columnIndex] == 'true'){
+						//Traffic light should take precedence over check box, if column is configured with both
+						if(colorContextColumns.indexOf(columnName) == -1){
+							this.createCheckBoxColumn(columnTemplateArray,columnIndex,columnName);
+						}
+					}
+				}			
+
+				// Applying Color Context
+				if (this.isColorContextDefined()) {
+					this.applyColorContext(index);
+				}
+			}
+		}
+
+		if (this.isColorContextDefined())
+			this.createBaseComponent(columnTemplateArray,true);
+		else
+			this.createBaseComponent(columnTemplateArray,false);
+	} else {
+		this.ui5TableElement = this.oTable;
+		//this.gridPropertyConfig.setProperty(com.sap.xmii.common.util.ChartPropertyConstants.INITIAL_UPDATE,true);
+	}
+
+};
+com.sap.xmii.grid.ui5.EmbeddedLightsGrid.prototype.applyColorContext = function(index) {
+	var colors = this.getMatchColors().split(",");
+	var icons = this.getMatchIcons().split(",");
+	var columns = this.getMatchColumns().split(",");
+	var colorContextRow = this.getMatchValues().split(";");
+	var defaultColor = this.getTextColor();
+	var defaultLightColor = '#000000';
+	var expColor='',columnNameStyle;
+	//For a particular Row iterating over all the columns
+	for(var columnIndex =1 ; columnIndex < this.columnArray.length ; columnIndex++){
+		var colName = this.columnArray[columnIndex].Name;
+		var conditions = [];
+		//Iterating over color context rows
+		for(var i = 0; i < colors.length; i++){
+			conditions[i] = {};
+			conditions[i].Color = colors[i];
+			conditions[i].Icon = icons[i];
+			var conditionColumns = [];
+			var colorContextRowExpression = colorContextRow[i].split(",");
+			var foundColumn = false;
+			//Iterating over color context columns
+			for(var j = 0; j < columns.length; j++){
+				if(colName == columns[j]){
+					foundColumn = true;
+					conditionColumns[0] = {};
+					conditionColumns[0].ColumnName = columns[j];
+					conditionColumns[0].ColumnValue = this.rows[index][columns[j]];
+					conditionColumns[0].ColumnExpression = colorContextRowExpression[j];
+				}
+			}
+			if(foundColumn)
+				conditions[i].Columns =  conditionColumns;
+		}
+		//Call the expression evaluator only for columns which are present in color context
+		if(foundColumn){
+			//expColor =  new com.sap.xmii.grid.expression.Expression(conditions, defaultLightColor, true).evaluate();
+			if(this.isColorContextEligible())
+				expColor =  new com.sap.xmii.grid.expression.Expression(conditions, defaultLightColor, true).evaluate();
+			else 
+				expColor =  new com.sap.xmii.grid.expression.Expression(conditions, defaultLightColor, true, undefined, true).evaluate();
+		}else{
+			expColor = defaultColor;
+		}
+		columnNameStyle = this.columnArray[columnIndex].Name+"Style";
+		//check if the result of expression evaluation is color or icon
+		var resIsColor = expColor.indexOf("#")===0 ? true : false;
+		if(resIsColor) { //is Color
+			this.rows[index][columnNameStyle] = this.defaultStyle + ';light-color:' + expColor;
+		} else { //is Icon
+			this.rows[index][columnNameStyle] = expColor;
+		}
+	}
+};
+com.sap.xmii.grid.ui5.EmbeddedLightsGrid.prototype.applyRowheadings = function(index) {
+	var rowHeadings = this.getRowHeadings().toString().split(',');
+	//Row heading for rows
+	if(rowHeadings[index] != null){
+		this.rows[index].RowHeading = rowHeadings[index];
+	}
+};

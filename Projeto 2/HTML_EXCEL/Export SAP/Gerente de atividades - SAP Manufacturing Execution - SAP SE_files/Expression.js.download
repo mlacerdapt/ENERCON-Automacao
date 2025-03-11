@@ -1,0 +1,199 @@
+/*
+ * @author I064174
+ * This Javascript class is responsible for evaluating the expressions according to the Values provided
+ */
+
+//defining the packages if they are not defined previously
+//com.sap.xmii.chart = com.sap.xmii.chart ||{};
+com.sap.xmii.grid.expression = com.sap.xmii.grid.expression || {};
+
+/**
+ * Adding the constructor for the initialising the Expression sample structure
+ * of the input JSON arguments in JSON is: 
+ * conditions = [ { 
+ * 					Columns: [	{ColumnName : "", ColumnExpression: "", ColumnValue: ""}, 
+ * 								{ColumnName : "", ColumnExpression: "", ColumnValue: ""}... ], 
+ * 					Color: "",
+ * 					Icon: ""
+ * 				  }, 
+ * 				  { 
+ * 					Columns: [  {ColumnName : "", ColumnExpression: "", ColumnValue: ""}, 
+ * 								{ColumnName: " ", ColumnExpression: "", ColumnValue: ""}... ], 
+ * 					Color: "",
+ * 					Icon: "" 
+ * 				  }
+ * 	]
+ */
+
+com.sap.xmii.grid.expression = {
+
+	Expression : function(conditions, defaultColor, getFirstTrueCondition, returnIndexOfCondition, ignoreFormattingForSSCE) {
+
+		this.conditions = conditions;
+		this.defaultColor = defaultColor;
+		this.getFirstTrueCondition = getFirstTrueCondition;
+		this.returnIndexOfCondition = returnIndexOfCondition;
+		this.ignoreFormatting = ignoreFormattingForSSCE;
+	}
+};
+
+// declaring visible functions for this object
+com.sap.xmii.grid.expression.Expression.prototype = {
+
+	// evaluate the specified conditions and returns true or false
+	evaluate : function() {
+
+		// getFirstTrueCondition is used to determines which color to be displayed when the condition matches
+		// getFirstTrueCondition == true : check for the first true condition and send the associated color
+		// getFirstTrueCondition == false : if two conditions are getting true then send the default color
+		if (this.getFirstTrueCondition != null && this.getFirstTrueCondition !== undefined)
+			var getFirstTrueCondition = this.getFirstTrueCondition;
+		else
+			var getFirstTrueCondition = false;
+
+		// initialising the result object with black color
+		if (this.defaultColor != null && this.defaultColor !== undefined)
+			var defaultColor = this.defaultColor;
+		else
+			var defaultColor = "#000000";
+
+		var resultColor = defaultColor;
+		var alreadyMatched = false;
+		var indexOfCondition = -1;
+		// checking every condition
+		if (this.conditions != null && this.conditions !== undefined) {
+			//find groupingSeparator & decimalSeparator
+			var pattern = com.sap.xmii.common.util.numberformatPatternForLocale;
+			var locale = com.sap.xmii.common.util.loggedInUserLocale;
+			
+			var numberFormatter = null;
+			var groupingSeparator = null;
+			var decimalSeparator = null;
+			if (!this.ignoreFormatting) {
+				numberFormatter = com.sap.xmii.common.util.MIIi5Util.getNumberFormatterForLocale(pattern,locale);
+				//find groupingSeparator
+				groupingSeparator = numberFormatter.oFormatOptions.groupingSeparator;
+				//find decimalSeparator
+				decimalSeparator = numberFormatter.oFormatOptions.decimalSeparator;
+			}
+		
+			for ( var i = 0; i < this.conditions.length; i++) {
+
+				var expression = "";
+				var condition = this.conditions[i];
+				var columns = condition.Columns;
+
+				// building expression for each and every expression for Column
+				for ( var j = 0; j < columns.length; j++) {
+
+					var columnExpression = columns[j].ColumnExpression
+							.split(":");
+					var matchMode = columnExpression[0];
+
+					// if Matching mode is String
+					if (matchMode == "String") {
+						var matchType = columnExpression[1];
+						//since value can contain character ':', which has been used for splitting the expression
+						//below logic is used to fetch the string expression value
+						var columnExp = columns[j].ColumnExpression.substring(columns[j].ColumnExpression.indexOf(":")+1);
+						var columnExpValue = columnExp.substring(columnExp.indexOf(":")+1);
+						// if the value is * means anything then we simply add
+						// true to the expression
+						if (columnExpValue == "*") {
+							expression = expression + "true" + " && ";
+							// else checking the matching type for substring or
+							// exactly matching the String object
+						} else {
+							var tableValue = columns[j].ColumnValue+"";
+							if (matchType == "EXACT_MATCH") {
+								// building the expression for exactly matching
+								// using == operator
+								expression = expression + "\"" + columnExpValue.toLowerCase() + "\"" + " == " + "\"" + tableValue.toLowerCase() + "\""	+ " && ";
+							} else if (matchType == "SUBSTRING_MATCH") {
+								// building the expression for substring match
+								// using indexOf operator for string
+								expression = expression + "\"" + tableValue.toLowerCase() + "\"" + ".indexOf(\"" + columnExpValue.toLowerCase()	+ "\") != -1" + " && ";
+							}
+						}
+					} else if (matchMode == "Regex") {
+						// building expression for Regular Expression using RegExp.test()
+						expression = expression + "new RegExp(\"" + columnExpression[1] + "\").test(\""	+ columns[j].ColumnValue + "\")" + " && ";
+					} else if (matchMode == "Boolean") {
+						// building expression using == for boolean type values
+						expression = expression + columnExpression[1] + " == " + columns[j].ColumnValue + " && ";
+					} else if (matchMode == "Between") {
+						expression = expression + columns[j].ColumnValue + " >= " + columnExpression[1] + " && " + columns[j].ColumnValue + " <= " + columnExpression[2] + " && ";
+					} else {
+						// building expression for all other things like Double, Integer and Long
+						if(columnExpression[2] == null || columnExpression[2] == undefined){
+							// when value is send as Integer:0, below expression would be used
+							expression = expression + columns[j].ColumnValue + " " + "==" + " " + columnExpression[1] + " && ";
+						}else{
+							// Below logic is used for expression Integer:IN_BETWEEN:0-2 or Integer:<:2
+							var operator = columnExpression[1] != null && columnExpression[1] !== undefined	&& columnExpression[1] != "" ? columnExpression[1]	: "==";
+							var userInpValue = columnExpression[2];
+							var colValue = columns[j].ColumnValue;
+							if (!this.ignoreFormatting) {
+								if(colValue.indexOf(groupingSeparator) != -1)
+									colValue = (columns[j].ColumnValue).replace(groupingSeparator,"");
+								
+								if(colValue.indexOf(decimalSeparator) != -1)
+									colValue = colValue.replace(decimalSeparator,".");
+								
+								if(userInpValue.indexOf(groupingSeparator) != -1)
+									userInpValue = userInpValue.replace(groupingSeparator,"");
+								if(userInpValue.indexOf(decimalSeparator) != -1)
+									userInpValue = userInpValue.replace(decimalSeparator,".");
+							}
+							
+							if(columnExpression[1] == "IN_BETWEEN"){
+								var valueSplit = userInpValue.split("-");
+								expression = expression + colValue + " >= " + valueSplit[0] + " && " + colValue + " <= " + valueSplit[1] + " && ";
+							}else if(columnExpression[1] == "EXACT_MATCH"){
+								expression = expression + colValue + " " + "==" + " " + userInpValue + " && ";
+							}else{
+								expression = expression + colValue + " " + operator + " " + userInpValue + " && ";
+							}
+						}
+					}
+				}
+				expression = expression.substring(0, expression.length - 4);
+				try {
+					//Replacing eval code
+					//if (eval("(" + expression + ")"))
+					if (Function("return "+expression)())
+						//end of code
+					{
+						var iconURL = condition.Icon;
+						//if(iconURL === "<null>") { //icon is not specified
+						if(iconURL === com.sap.xmii.common.util.NullString || iconURL == undefined || iconURL == "") { //icon is not specified
+							resultColor = condition.Color;
+						} else {
+							resultColor = condition.Icon;
+						}
+						indexOfCondition = i;
+						//If user wants the color for the first true condition
+						if(getFirstTrueCondition){
+							break;
+						}else{
+							//If two rows are evaluated as true then default color is returned
+							if(alreadyMatched){
+								resultColor = defaultColor;
+								break;
+							}
+							alreadyMatched = true;
+							// since getFirstTrueCondition is false, continue further to evaluate the other conditions
+							continue;
+						}
+					}
+				} catch (Exception) {
+					break;
+				}
+			}
+		}
+		if(this.returnIndexOfCondition == true)
+			return indexOfCondition;
+		return resultColor;
+	}
+
+};

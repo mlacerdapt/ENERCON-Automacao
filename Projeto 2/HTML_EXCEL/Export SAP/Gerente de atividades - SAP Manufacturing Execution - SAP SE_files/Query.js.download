@@ -1,0 +1,412 @@
+
+/**
+ * @Namespace 
+ */
+com.sap.xmii.querytemplate = com.sap.xmii.querytemplate || {};
+
+/***
+ * PARENT Query Class representing the Query Object
+ * 
+ * @constructor
+ */
+com.sap.xmii.querytemplate.query = {
+
+	Query : function() {
+		this.queryResultUrl;
+		this.paramsMap = {};
+		this.overrides = {};
+	}
+};
+
+com.sap.xmii.querytemplate.query.Query.prototype = {
+	queryTemplateName : '',
+	queryMetaData : '',
+	paramsMap : '', // new Object(), Map of all query properties; gets set
+	// in setQueryMetaData
+	overrides : '', // Map of overridden query properties; set manually by
+	// the user by calling setters
+	queryResult : '',
+	queryResultUrl : '',
+	validResult : false,
+	lastErrorMessage : '',
+	statusMessage : '',
+	statusCode : 0,
+	queryType : '',
+	dateFormat : '',
+	xAxisNumberFormat : '',
+	xAxisDateFormat : '',
+	displayType : '',
+
+	/**
+	 * Gets the Query Type
+	 * 
+	 * @return queryType
+	 */
+	getQueryType : function() {
+		return this.queryMetaData.Type;
+	},
+
+	/**
+	 * Returns the QueryMetadta associated with the Query
+	 * 
+	 * @return queryMetadata
+	 */
+	getQueryMetaData : function() {
+		return this.queryMetaData;
+	},
+
+	/**
+	 * Sets the QueryMetadata.It is called from the Child Query Object
+	 * 
+	 * @param qryMetaData
+	 * @return void
+	 */
+	setQueryMetaData : function(qryMetaData) {
+		this.queryMetaData = qryMetaData;
+		// Iterating over qryMetaData JSON and setting the query properties
+		// in paramsMap
+		var keys = Object.keys(qryMetaData);
+		for ( var i = 0; i < keys.length; i++) {
+			var key = keys[i];
+			var value = qryMetaData[key];
+			this.paramsMap[key] = value;
+		}
+	},
+
+	/**
+	 * Sets the QueryTemplateName. It is called from the Child Query Object
+	 * 
+	 * @param queryTemplateName
+	 * @return void
+	 */
+	setQueryTemplateName : function(queryTemplateName) {
+		this.queryTemplateName = queryTemplateName;
+		
+		this.queryResultUrl = com.sap.xmii.common.util.GenericConstants.COMBINE_QUERY_ROWSETS_URL;
+	},
+
+	/**
+	 * Converts the call to the Illuminator service for a query along with
+	 * content type passed (xml, html, csv, json)
+	 * 
+	 * @param contentType
+	 * @return  void 
+	 */
+	buildPostData : function(contentType) {
+		var queryMetaData = this.getQueryMetaData();
+		if (com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(contentType)) {
+			contentType = com.sap.xmii.common.util.Modes.QT_RAW_MODE;
+		}
+
+		if (this.isTimeBasedQuery()) {
+			var lStartDate, lEndDate;
+			if (!com.sap.xmii.common.util.MIIi5Util
+					.isNullOrEmpty(queryMetaData.StartDate)
+					&& queryMetaData.StartDate != "0"
+					&& queryMetaData.DateFormat != null) {
+				lStartDate = com.sap.xmii.common.util.MIIi5Util
+						.dateToSeconds(queryMetaData.StartDate,
+								queryMetaData.DateFormat);
+			} else {
+				lStartDate = 0;
+			}
+
+			if (!com.sap.xmii.common.util.MIIi5Util
+					.isNullOrEmpty(queryMetaData.EndDate)
+					&& queryMetaData.EndDate != "0"
+					&& queryMetaData.DateFormat != null) {
+				lEndDate = com.sap.xmii.common.util.MIIi5Util.dateToSeconds(
+						queryMetaData.EndDate, queryMetaData.DateFormat);
+			} else {
+				lEndDate = 0;
+			}
+
+			if (lStartDate > 0
+					&& !com.sap.xmii.common.util.MIIi5Util
+							.isNullOrEmpty(queryMetaData.StartDate)) {
+				var formattedSD = com.sap.xmii.common.util.MIIi5Util
+						.dateFromSeconds(lStartDate, queryMetaData.DateFormat);
+				queryMetaData.StartDate = formattedSD;
+			}
+			if (lEndDate > 0
+					&& !com.sap.xmii.common.util.MIIi5Util
+							.isNullOrEmpty(queryMetaData.EndDate)) {
+				var formattedED = com.sap.xmii.common.util.MIIi5Util
+						.dateFromSeconds(lEndDate, queryMetaData.DateFormat);
+				queryMetaData.EndDate = formattedED;
+			}
+		}
+
+		this.overrides[com.sap.xmii.common.util.QueryConstants.QUERY_TEMPLATE] = this.queryTemplateName;
+		
+		//If overrides doesn't have SD/ED already set, then take the SD/ED from Query metadata and apply it to overrides else do nothing
+		if(this.overrides[com.sap.xmii.common.util.DateTimeConstants.START_DATE] === undefined && !com.sap.xmii.common.util.MIIi5Util
+				.isNullOrEmpty(queryMetaData.StartDate) && queryMetaData.allowDatesAddition === undefined) {
+			this.overrides[com.sap.xmii.common.util.DateTimeConstants.START_DATE] = queryMetaData.StartDate;
+		}
+		
+		if(this.overrides[com.sap.xmii.common.util.DateTimeConstants.END_DATE] === undefined && !com.sap.xmii.common.util.MIIi5Util
+				.isNullOrEmpty(queryMetaData.EndDate) && queryMetaData.allowDatesAddition === undefined) {
+			this.overrides[com.sap.xmii.common.util.DateTimeConstants.END_DATE] = queryMetaData.EndDate;
+		}
+		
+		//This parameter decides if the DateFormat to be shown in output should include timezone offset
+		this.overrides[com.sap.xmii.common.util.IsTimeZoneFormatRequired] = true;
+		
+		if(!com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(this.xAxisNumberFormat)){
+			this.overrides[com.sap.xmii.common.util.DateTimeConstants.NUMBER_FORMAT] = this.xAxisNumberFormat;
+			}
+		
+		this.overrides[com.sap.xmii.common.util.GenericConstants.CONTENT_TYPE] = contentType;
+		
+		this.overrides[com.sap.xmii.common.util.GenericConstants.DISPLAY_TYPE] = this.displayType;
+
+		return com.sap.xmii.common.util.MIIi5Util.buildPostData(this.queryResultUrl, this.overrides);
+	},
+
+	setQueryResult : function(result) {
+		this.queryResult = result;
+		this.handleError();
+	},
+
+	getQueryResult : function() {
+		return this.queryResult;
+	},
+
+	/**
+	 * Checks for Errors if any and handles
+	 * 
+	 * @param mode
+	 * @return
+	 * @private
+	 */
+	handleError : function() {
+
+		if (null == this.queryResult) {
+			var message = com.sap.xmii.common.util.MessageBundle
+					.getText("XMSG_QRY_RESULT_EMPTY");
+			throw new com.sap.xmii.common.exception.MIIi5Exception(message);
+
+		} else {
+
+			var qryFatalError = this.queryResult.Rowsets.FatalError;
+			if (qryFatalError) {
+				// Check for Query Execution Fatal Errors if any
+				var isError = qryFatalError != undefined
+				if (isError) {
+
+					this.lastErrorMessage = qryFatalError;
+					this.statusMessage = com.sap.xmii.common.util.Messages.NO_DATA_MESSAGE;
+					var message = com.sap.xmii.common.util.MessageBundle.getText("XMSG_QT_EXECUTION_ERROR");
+					// Append Query Error Message
+					message = message + qryFatalError;
+					this.statusCode = -1;
+					throw new com.sap.xmii.common.exception.MIIi5Exception(
+							message);
+				}
+			} else {
+				this.validResult = true;
+			}
+		}
+
+	},
+
+	getQueryResultUrl : function() {
+		return this.queryResultUrl;
+	},
+
+	setQueryResultUrl : function(queryResultUrl) {
+		this.queryResultUrl = queryResultUrl;
+	},
+
+	/**
+	 * Checks if it is a TimeBased Query
+	 * @return boolean
+	 */
+	isTimeBasedQuery : function() {
+		var timeBasedOverride = this.getParameter("TimeBasedQuery");
+		if(timeBasedOverride != undefined && timeBasedOverride != null)
+			if(timeBasedOverride.toLowerCase() === "true" || timeBasedOverride === true)
+				return true;
+		return false;
+	},
+
+	/**
+	 * Method Checks if the Query is marked for Caching and returns the
+	 * corresponding status value
+	 * 
+	 * @return boolean
+	 */
+
+	isCached : function() {
+		try {
+			var cache = this.getIsCachable();
+		} catch (e) {
+			// TypeError: Object #<XXXQuery> has no method 'getIsCachable', if
+			// so return false
+			return false;
+		}
+		if (cache === '') {
+			return false;
+		} else {
+			if (cache == com.sap.xmii.common.util.GenericConstants.TRUE) {
+				return Boolean(true);
+			} else if (cache == com.sap.xmii.common.util.GenericConstants.FALSE) {
+				return Boolean(false);
+			}
+
+		}
+	},
+
+	/**
+	 * Returns the last error message
+	 * @return errorMessage
+	 */
+	getLastErrorMessage : function() {
+		return this.lastErrorMessage;
+	},
+	/**
+	 * Returns the status message
+	 * @return String
+	 */
+	getStatusMessage : function() {
+		return this.statusMessage;
+	},
+	/**
+	 * Returns the status code
+	 * @return int
+	 */
+	getLastStatusCode : function() {
+		return this.statusCode;
+	},
+	/**
+	 * Returns true if status of the query is not fatalError
+	 * @return boolean
+	 */
+	isDataValid : function() {
+		return this.validResult;
+	},
+	/**
+	 * Returns the QueryTemplate name
+	 * @return String
+	 */
+	getQueryTemplateName : function() {
+		return this.queryTemplateName;
+	},
+
+	
+	addGettersAndSetters : function(propNames) {
+		this.overrides = {};
+		for (prop in propNames) {
+			var propName = propNames[prop];
+			var propValue = this.queryMetaData[propName];	
+			com.sap.xmii.common.util.MIIi5Util.defineProperty(this, propName,
+					propValue);
+			/*var ls = 'this' + '.' + propName;
+			var rs = 'this.queryMetaData' + '.' + propName;
+			// Check if the QueryMetadata Value would be null and set a
+			// empty value for the same if so
+			//var rsVal = eval(rs);
+			if (rsVal == null || rsVal == undefined) {
+				rs = '\"\"';
+			}
+			//eval(ls + '=' + rs);*/
+			// Create and Assign the getPropName function with this.propName
+			// ex.this.getTitle = this.Title so as to
+			// call as a function
+			var getFnName = 'this.get' + propName;
+			var funcnSynt = 'function(){ ';
+			var returnSynt = 'return ';
+			var getterFnToAssign = 'this.' + propName;
+			var closingSyntax = '}';
+			//Replacing eval code
+			//eval(getFnName + '=' + funcnSynt + returnSynt + getterFnToAssign + closingSyntax);
+			const actionToCall =  new Function("return "+ funcnSynt + returnSynt + getterFnToAssign + closingSyntax);
+			   this["get"+propName]  = actionToCall();
+			//end of code
+			// Create the Setter Function and assign with this.setTitle
+			var setFnName = 'this.set' + propName;
+			var setFuncnSynt = 'function(val){ ';
+			var overrideProps = 'this.overrides["' + propName + '"] = val;';
+			var setterFnToAssign = 'this.' + propName + '=' + 'val;';
+			//Replacing eval code
+			//eval(setFnName + '=' + setFuncnSynt + overrideProps + setterFnToAssign + closingSyntax);
+			const actionToCall2 =  new Function("return "+ setFuncnSynt + overrideProps + setterFnToAssign + closingSyntax);
+			   this["set"+propName]  = actionToCall2();
+			//end of code
+		}
+	},
+
+	/**
+	 * Returns the Time when query was cached
+	 * 
+	 * @return TODO
+	 */
+	getCachedTime : function() {
+		var cachedTime = this.queryResult.Rowsets.CachedTime;
+		var xmlDateFormat = com.sap.xmii.common.util.GenericConstants.XML_DATETIME_FORMAT;
+		if (!com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(cachedTime)) {
+			var destDateFormat = "";
+			var queryMetaData = this.getQueryMetaData();
+			if (com.sap.xmii.common.util.MIIi5Util
+					.isNullOrEmpty(queryMetaData.DateFormat)) {
+				destDateFormat = "yyyy-MM-dd HH:mm:ss z";
+			} else {
+				destDateFormat = queryMetaData.DateFormat;
+			}
+			return com.sap.xmii.common.util.MIIi5Util.formatDate(cachedTime,
+					xmlDateFormat, destDateFormat);
+		} else {
+			return com.sap.xmii.common.util.MessageBundle.getText("XMSG_QUERY_NOT_CACHED");
+		}
+	},
+	/**
+	 * Setter function for setting Query URL Parameter given the name & value
+	 * @param name
+	 * @param value
+	 * @return void
+	 */
+	setParameter : function(name, value) {
+		this.overrides[name] = value;
+		if (this.paramsMap.Type == "CatalogQuery" && this.paramsMap.Mode == "PICAnalysis"){
+//			eval("this.set" + name + "('" + escape(value) + "')");
+		}
+	},
+	/**
+	 * Getter function for returning the value of Query URL parameter given the
+	 * name
+	 * 
+	 * @param name
+	 * @return String
+	 */
+	getParameter : function(name) {
+		if(this.overrides[name] != undefined)
+			return this.overrides[name];
+		else
+			return this.paramsMap[name];
+			
+	},
+	
+	removeFromOverrides : function(name){
+		if(this.overrides[name] != undefined)
+			delete this.overrides[name];
+	},
+	
+	/**
+	 * Returns the TimePeriod
+	 * @return String
+	 */
+	getTimePeriod : function() {
+		return this.getParameter("TimePeriod");
+	},
+	
+	/**
+	 * Setter function for TimePeriod
+	 * 
+	 * @param timePeriod
+	 */
+	setTimePeriod : function(timePeriod) {
+		this.overrides["TimePeriod"] = timePeriod;
+	}		
+
+};

@@ -1,0 +1,128 @@
+var ssceSpecificUserLocale = "";
+var oBundle = getMessageResourceBundle();
+
+//for Localization
+function getMessageResourceBundle(){
+	determineSSCELocale();
+	jQuery.sap.require("jquery.sap.resources");
+	var oBundle = jQuery.sap.resources({url : "/XMII/message_bundle/messages.properties", locale: ssceSpecificUserLocale});
+	return oBundle;
+}
+/*
+ * msgType 0-Success, 1-Information, 2-Warning, 3-Error
+ */
+function showNotificationBarMsg(severity, msgText){
+	
+	var shell = sap.ui.getCore().byId("main-shell");
+	if (shell != null && shell !== "undefined") {
+		var oNotiBar3 = new sap.ui.ux3.NotificationBar({
+			//display : displayListener,
+			//visibleStatus : "None"
+		});
+		var oMessageNotifier = new sap.ui.ux3.Notifier({
+			title : "Messages"
+		});
+		var now = (new Date()).toUTCString();
+		var oMessage = new sap.ui.core.Message({
+			text : msgText,
+			timestamp : now
+		});
+		switch (severity) {
+		case 0:
+			oMessage.setLevel(sap.ui.core.MessageType.Success);
+			oNotiBar3.addStyleClass("UiNotificationBarSuccess");
+			break;
+		case 1:
+			oMessage.setLevel(sap.ui.core.MessageType.Information);
+			oNotiBar3.addStyleClass("UiNotificationBarInformation");
+			break;
+		case 2:
+			oMessage.setLevel(sap.ui.core.MessageType.Warning);
+			oNotiBar3.addStyleClass("UiNotificationBarWarning");
+			break;
+		case 3:
+		default:
+			oMessage.setLevel(sap.ui.core.MessageType.Error);
+			oNotiBar3.addStyleClass("UiNotificationBarError");
+			break;
+
+		}
+
+		oMessageNotifier.addMessage(oMessage);
+		oNotiBar3.addStyleClass("sapUiNotificationBarDemokit");
+		
+		oNotiBar3.setMessageNotifier(oMessageNotifier);
+		oNotiBar3.setVisibleStatus(sap.ui.ux3.NotificationBarStatus.Default);
+		shell.setNotificationBar(oNotiBar3);
+		parent.window.setTimeout('hideNotificationBar()', 7000);
+	} else {
+		jQuery.sap.byId("errorMessages").text(msgText);
+	}
+}
+
+/**
+ * This function is responsible for hiding the notification bar in shell
+ * @return
+ */
+function hideNotificationBar(){
+	var notifBar = sap.ui.getCore().byId("main-shell").getNotificationBar();
+	if(notifBar != null){
+		notifBar.setVisibleStatus(sap.ui.ux3.NotificationBarStatus.None);
+	}
+}
+
+/**
+ * This function is responsible for fetching the locale from the server as the Locale has to be set according
+ * to the MII preferences and not according to the UI5 Preferences
+ * @return
+ */
+function determineSSCELocale() {
+	$.ajax({
+		type: 'POST',
+		url: "/XMII/PropertyAccessServlet",
+		data : {Mode : "List", "Content-Type" : "text/json"},
+		dataType: 'json',
+		cache: false,
+		async: false,
+		crossDomain : true
+	}).done(function (data, textStatus, jqXHR) {
+		var language = "en"; // Setting the default language
+		var country = "";
+		if (data.Rowsets !== undefined && data.Rowsets.Rowset !== undefined && data.Rowsets.Rowset[0] !== undefined &&
+				data.Rowsets.Rowset[0].Row !== undefined && data.Rowsets.Rowset[0].Row.length > 0) {
+			var rows = data.Rowsets.Rowset[0].Row;
+			for (var i = 0; i < rows.length; i++) {
+				if (rows[i].Name == "Language") {
+					language = rows[i].Value; 
+				} else if (rows[i].Name == "Country") {
+					country = rows[i].Value;
+				}
+			}
+		} else {
+			ssceSpecificUserLocale = sap.ui.getCore().getConfiguration().getLocale().getLanguage();
+		}
+		//if the language is chinese then need to take care of the region as well
+		if (language == "zh") {
+			if(country == "")
+				country = "CN";
+			ssceSpecificUserLocale = language + "_" + country;
+		} else {
+			ssceSpecificUserLocale = language;
+		}
+		//Set the locale to UI5 core language to show all UI5 given text in the selected language
+		sap.ui.getCore().getConfiguration().setLanguage(ssceSpecificUserLocale);
+	}).fail(function(data, textStatus, jqXHR){
+		ssceSpecificUserLocale = sap.ui.getCore().getConfiguration().getLocale().getLanguage();
+	});
+}
+jQuery.sap.require("sap.m.MessageBox");
+function showMessageBox(message, icon, title){
+	if(message instanceof Object){
+		message = message.message;
+	}else{
+		message = message;
+	}
+	var msgBox = sap.m.MessageBox.show(message, icon, title);
+	
+	return msgBox;
+}

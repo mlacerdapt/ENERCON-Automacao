@@ -1,0 +1,1469 @@
+/**
+ * Loading of Required JS Files
+ * @loading
+ */
+
+var jsScriptFiles = ['BaseComponent.js','Grid.js','Expression.js','LightsGrid.js','ColumnLightsGrid.js','ScoreBoardGrid.js','MultiLightsGrid.js','EmbeddedLightsGrid.js',
+                     'MIIi5Exception.js','i5GridModel.js'];
+
+for(kjs in jsScriptFiles){
+	var ss = '<scr' + 'ipt type="text/javascript" src="/XMII/JavaScript/' + (miiModePath || 'minified')+ '/'+jsScriptFiles[kjs]+'"'+'></scr' + 'ipt>';
+	document.write(ss);
+}	
+
+/*document.write('<scr' + 'ipt type="text/javascript" src="/XMII/JavaScript/BaseComponent.js"></scr' + 'ipt>');
+document.write('<scr' + 'ipt type="text/javascript" src="/XMII/JavaScript/Grid.js"></scr' + 'ipt>');
+document.write('<scr' + 'ipt type="text/javascript" src="/XMII/JavaScript/Expression.js"></scr' + 'ipt>');
+document.write('<scr' + 'ipt type="text/javascript" src="/XMII/JavaScript/LightsGrid.js"></scr' + 'ipt>');
+document.write('<scr' + 'ipt type="text/javascript" src="/XMII/JavaScript/ColumnLightsGrid.js"></scr' + 'ipt>');
+document.write('<scr' + 'ipt type="text/javascript" src="/XMII/JavaScript/ScoreBoardGrid.js"></scr' + 'ipt>');
+document.write('<scr' + 'ipt type="text/javascript" src="/XMII/JavaScript/MultiLightsGrid.js"></scr' + 'ipt>');
+document.write('<scr' + 'ipt type="text/javascript" src="/XMII/JavaScript/EmbeddedLightsGrid.js"></scr' + 'ipt>');
+document.write('<scr' + 'ipt type="text/javascript" src="/XMII/JavaScript/MIIi5Exception.js"></scr' + 'ipt>');
+document.write('<scr' + 'ipt type="text/javascript" src="/XMII/JavaScript/i5GridModel.js"></scr' + 'ipt>');*/
+//document.write('<link rel="stylesheet" type="text/css" href="/XMII/JavaScript/resources/default.css">');
+
+if (!window.console) {
+	console = {};
+	console.log = function() {
+	};
+	console.info = function() {
+	};
+	console.warn = function() {
+	};
+	console.error = function() {
+	};
+}
+
+com.sap.xmii.grid = com.sap.xmii.grid || {};
+
+var parentObj = new com.sap.xmii.common.init.MIIUI5Visualization();
+
+/**
+ * @Namespace com.sap.xmii.grid 
+ */
+com.sap.xmii.grid.init = {
+		i5Grid : function(displayTemplate, queryTemplate, setUI5TableProperties) {
+	try{
+
+		this.chartTemplateName = displayTemplate;
+		this.queryTemplateName = queryTemplate;
+		this.setUI5TableProperties = setUI5TableProperties;
+
+		/*
+		 * Setting the arguments for the constructor to a private variable, gridArgs
+		 */
+		var selectedColumn;
+		var gridArgs = arguments;
+		var errorMessage = '';
+		var titleBar, messageArea, toolBar, timeBar = {}, refreshIntervalId = 0, oGridLayout,timeAware = true;
+
+		// **PRIVATE FUNCTIONS**
+
+		/*
+		 * Method checks for the Grid Type and creates the Grid Object
+		 */
+		var createGrid = function(gridPropertyConfig, model, i5GridObj) {
+			//check the type of the grid and call the respective js file
+			var ui5Obj = '';
+			var type = gridPropertyConfig.getProperty(com.sap.xmii.common.util.GridPropertyConstants.GRID_TYPE);
+			switch (type) {
+			case com.sap.xmii.common.util.i5GridTypes.GRID: {
+				var grid = new com.sap.xmii.grid.ui5.Grid(
+						gridPropertyConfig, model, i5GridObj);
+				grid.create();
+				ui5Obj = grid;
+				break;
+			}
+
+			case com.sap.xmii.common.util.i5GridTypes.LIGHTS_GRID: {
+				var lights = new com.sap.xmii.grid.ui5.LightsGrid(
+						gridPropertyConfig, model, i5GridObj);
+				lights.create();
+				ui5Obj = lights;
+				break;
+			}
+
+			case com.sap.xmii.common.util.i5GridTypes.COLUMNLIGHTS_GRID: {
+				var columnLights = new com.sap.xmii.grid.ui5.ColumnLightsGrid(
+						gridPropertyConfig, model, i5GridObj);
+				columnLights.create();
+				ui5Obj = columnLights;
+				break;
+			}
+
+			case com.sap.xmii.common.util.i5GridTypes.MULTILIGHTS_GRID: {
+				var multiLights = new com.sap.xmii.grid.ui5.MultiLightsGrid(
+						gridPropertyConfig, model, i5GridObj);
+				multiLights.create();
+				ui5Obj = multiLights;
+				break;
+			}
+
+			case com.sap.xmii.common.util.i5GridTypes.SCROREBOARD_GRID: {
+				var scoreBoard = new com.sap.xmii.grid.ui5.ScoreBoardGrid(
+						gridPropertyConfig, model, i5GridObj);
+				scoreBoard.create();
+				ui5Obj = scoreBoard;
+				break;
+			}
+
+			case com.sap.xmii.common.util.i5GridTypes.VERTICAL_GRID: {
+				var verticalGrid = new com.sap.xmii.grid.ui5.VerticalGrid(
+						gridPropertyConfig, model, i5GridObj);
+				verticalGrid.create();
+				ui5Obj = verticalGrid;
+				break;
+			}
+
+			case com.sap.xmii.common.util.i5GridTypes.VERTICALSCOREBOARD_GRID: {
+				var verticalScoreBoard = new com.sap.xmii.grid.ui5.VerticalScoreBoardGrid(
+						gridPropertyConfig, model, i5GridObj);
+				verticalScoreBoard.create();
+				ui5Obj = verticalScoreBoard;
+				break;
+			}
+
+			case com.sap.xmii.common.util.i5GridTypes.EMBEDDEDLIGHTS_GRID: {
+				var embeddedLights = new com.sap.xmii.grid.ui5.EmbeddedLightsGrid(
+						gridPropertyConfig, model, i5GridObj);
+				embeddedLights.create();
+				ui5Obj = embeddedLights;
+				break;
+			}
+			}
+			return ui5Obj;
+
+		};
+
+		var initGrid = function(gridPropertyConfig, model, i5GridObj) {
+			console.info("In init of Grid");
+			return createGrid(gridPropertyConfig, model, i5GridObj);
+		};
+
+		/*
+		 * Gets the DisplayTemplate details as a GridTemplate Object
+		 */
+		var initGridTemplate = function(gridTemplateName, jsonTemplateProps) {
+			console.info("In init of grid template");
+			var gridTemplate = new com.sap.xmii.charttemplate.ChartTemplate(
+					gridTemplateName);
+			console.log("initGridTemplate: gridTemplate:"
+					+ JSON.stringify(gridTemplate));
+			// Check if jsonProps exists and load it
+			if (typeof jsonTemplateProps === 'undefined' || com.sap.xmii.common.util.MIIi5Util
+					.isNullOrEmpty(jsonTemplateProps)) {
+				return gridTemplate;
+			} else {
+				console.log("jsonTemplateProps to be set.."+jsonTemplateProps);
+				gridTemplate.chartPropertyConfig
+				.setAdditionalProps(jsonTemplateProps);
+				console.log("initGridTemplate: After updating gridTemplate with jsonTemplateProps:"
+						+ JSON.stringify(gridTemplate));
+				return gridTemplate;
+			}
+
+		};
+
+		/*
+		 * Gets the QueryTemplate details as a ChartTemplate Object
+		 */
+		var initQueryTemplate = function(queryTemplateName) {
+			console.info("In init of query template");
+			var qTemp = new com.sap.xmii.querytemplate.QueryTemplate(
+					queryTemplateName);
+			if (com.sap.xmii.common.util.MIIi5Util
+					.isNullOrEmpty(queryTemplateName)) {
+				// object is Query, hence set queryDataUrl
+				qTemp.getQueryObject().setQueryResultUrl(queryDataUrl);
+			}
+			console.log("initQueryTemplate: queryTemplate:"
+					+ JSON.stringify(qTemp));
+			return qTemp;
+		};
+
+		/*
+		 * Creates a Title object and instantiates the toolbar
+		 */
+		var initTitleBar = function(thisObj) {
+			console.info("Initiliazing title bar");
+			var titleBar = new com.sap.xmii.common.tools.TitleBar(thisObj);
+			return titleBar.titleBar;
+		};
+
+		/*
+		 * Creates a Message Area
+		 */
+		var initMessageArea = function(width,chartBackgroundColor) {
+			console.info("Initiliazing message bar");
+			var messageArea = new com.sap.xmii.common.tools.MessageArea(
+					width,chartBackgroundColor);
+			return messageArea.messageArea;
+		};
+
+		/*
+		 * Creates a ToolBar
+		 */
+		var initToolBar = function(width, queryTemplateName) {
+			console.info("Initiliazing tool bar");
+			var toolBar = new com.sap.xmii.common.tools.ToolBar(width, queryTemplateName);
+			// this.toolBar = toolBar.toolBarObj;
+			return toolBar.toolBarObj;
+		};
+
+		/*
+		 * Creates a TimeBar object
+		 */
+		var initTimeBar = function(width, thisObj) {
+			console.info("Initiliazing time bar");
+			var timeBar = new com.sap.xmii.common.tools.TimeBar(width,
+					thisObj);
+			//return timeBar.timeBarObj;
+			return timeBar;
+		};
+
+		/*
+		 * Places the Grid under the specified element(by id) of the HTML Pages
+		 * 
+		 */
+		var placeGrid = function(thisObj) {
+			var gridConfig;
+			console.log("thisObj.getGridObject() -->"+thisObj.getGridObject());
+			//if(!com.sap.xmii.common.util.MIIi5Util.isEmpty(thisObj.getGridObject())) {
+			if(thisObj.getGridObject() != "") {
+				gridConfig = thisObj.getGridObject().gridPropertyConfig;
+			} else {
+				gridConfig = thisObj.chartTemplate.chartPropertyConfig;
+			}
+			thisObj.setGridObject(initGrid(
+					gridConfig, thisObj.model, thisObj));
+			oGridLayout = new sap.ui.commons.layout.MatrixLayout();
+			oGridLayout.setWidth(thisObj.chartWidth);
+			oGridLayout.setHeight(thisObj.chartHeight);
+			if (thisObj.setUI5TableProperties == true)
+				oGridLayout.setHeight("100%");
+			var oLayoutCell;
+			var titleBarAdded = false;
+			var messageAreaAdded = false;
+			var toolBarObjAdded = false;
+			var ui5ChartTypeObjAdded = false;
+			var timeBarObjAdded = false;
+			var id = thisObj.chartPosId;
+			var chartTemplate = thisObj.chartTemplate;
+			var gridObj = thisObj.getGridObject();
+			var fnToBeCalledColSelect = thisObj.functionToBeCalledOnColumnSelect;
+			var fnToBeCalledRowSelect = thisObj.functionToBeCalledOnRowSelect;
+			var cellSelect = thisObj.functionToBeCalledOnCellSelect;
+			var doubleClick = thisObj.functionToBeCalledOnDoubleClick;
+			gridObj.getUI5TableElement().addEventDelegate({
+				onAfterRendering : function () {
+				sap.ui.core.BusyIndicator.hide();
+				$('#'+id).find('.sapUiMltCell.sapUiMltPadNone').css({'vertical-align':'top'})
+			}
+			});
+			//horizontalDivider.setWidth("75%");
+			for ( var i = 0; i < 4; i++) {
+
+				if ((true === thisObj.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.GridPropertyConstants.SHOW_TITLE_AREA) || true == thisObj.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.GridPropertyConstants.SHOW_APP_TOOLBAR)) && titleBarAdded == false) {
+					oLayoutCell = thisObj.createTableRow(oGridLayout, "28px");
+					oLayoutCell.addContent(titleBar);
+					titleBarAdded = true;
+
+				} else if (true === thisObj.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.GridPropertyConstants.SHOW_MESSAGE_AREA) && messageAreaAdded == false) {
+					oLayoutCell = thisObj.createTableRow(oGridLayout, "15px");
+					oLayoutCell.addContent(messageArea);
+					messageAreaAdded = true;
+
+				} else if (ui5ChartTypeObjAdded === false) {
+					oLayoutCell = thisObj.createTableRow(oGridLayout);
+					oLayoutCell.setVAlign("Top");
+					oLayoutCell.addContent(gridObj.getUI5TableElement());
+					gridObj.getUI5TableElement().attachColumnSelect(fnToBeCalledColSelect,thisObj);
+					gridObj.getUI5TableElement().attachRowSelectionChange(fnToBeCalledRowSelect,thisObj);
+					/*gridObj.oTable.attachBrowserEvent("dblclick", doubleClick, thisObj);
+
+					//TODO :  Below code commented since UI5 doesnt support CellSelection. Removed this property from Workbench
+					if(thisObj.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.GridPropertyConstants.ALLOW_CELL_SELECTION) == true){
+						gridObj.oTable.attachBrowserEvent("click", cellSelect, thisObj);
+					}*/
+
+					ui5ChartTypeObjAdded = true;
+
+				} else if (thisObj.getQueryObject().isTimeBasedQuery() === true && thisObj.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.GridPropertyConstants.SHOW_TIMEBAR) === true && timeBarObjAdded == false) {
+					oLayoutCell = thisObj.createTableRow(oGridLayout, "28px");
+					oLayoutCell.addContent(timeBar.timeBarLayout);
+					timeBarObjAdded = true;
+				}
+			}
+
+			oGridLayout.placeAt(id, 'only');
+		};
+
+		var compare = function (a,b) {
+			var x = a.__data__.x;
+			var y = b.__data__.x;
+			if (x < y)
+				return -1;
+			if (x > y)
+				return 1;
+			return 0;
+		};
+
+		/**
+		 * @private
+		 */
+		var getTimeBar = function() {
+			return timeBar;
+		};
+
+		/**
+		 * @private
+		 */
+		var isTimeAware = function(){
+			return timeAware;
+		};
+
+		/**
+		 * @private
+		 */
+		var getToolBar = function() {
+			return toolBar;
+		};
+
+		/**
+		 * @private
+		 */
+		var getMessageArea = function() {
+			return messageArea;
+		};
+
+		/**
+		 * @private
+		 */
+		var getTitleBar = function() {
+			return titleBar;
+		};
+
+		/**
+		 * @private
+		 */
+		var setErrorMessage = function(errMsg) {
+			errorMessage = errMsg;
+		};
+
+		/**
+		 * @private
+		 */
+		var getErrorMessage = function() {
+			return errorMessage;
+		};
+
+		/**
+		 * @private
+		 */
+		var getChartLayout = function() {
+			return oGridLayout;
+		};
+
+		var hasErrorMessage = function() {
+			if (com.sap.xmii.common.util.MIIi5Util
+					.isNullOrEmpty(getErrorMessage())) {
+				return false;
+			} else {
+				return true;
+			}
+		};
+
+		var buildURLParamsForGrid = function(thisObj) {
+			var overrides = {};
+			for (var key in thisObj.queryTemplate.queryObject.overrides ){
+				overrides[key] = thisObj.queryTemplate.queryObject.overrides[key];
+			}
+			overrides["QueryTemplate"] = thisObj.getQueryTemplate();
+			overrides["Content-Type"] = "text/json";
+			overrides["NumberFormat"] = "0.000000"; // full length number format
+			overrides["DateFormat"] = com.sap.xmii.common.util.dateFormats.XML_FORMAT_TIMEZONE_OFFSET; // XML date format with Timezone Offset
+			overrides[com.sap.xmii.common.util.IsTimeZoneFormatRequired] = true;
+			overrides["UseBOMForCSV"] = false;
+			
+			return overrides;
+		};
+
+		var initTitleDetails = function(thisObj) {
+			var width = thisObj.chartWidth;
+			width = width.substring(0, width.length - 2);
+
+			titleBar = initTitleBar(thisObj);
+
+			messageArea = initMessageArea(width,"#DFDFDF");
+
+			// TODO:This needs to be moved into one check point
+			if (thisObj.getQueryObject().isTimeBasedQuery() == true) {
+				timeBar = initTimeBar(width, thisObj); // To be changed
+				// based on inputs needed for TimeBar
+			}
+		};
+
+		/*
+		 * Setup for arguments, The function is needed to set the arguments that
+		 * the user passes for i5Grid constructors to the appropriate variables
+		 * that will be used to create,render the grid
+		 */
+		var queryTemplateName, gridTemplateName, jsonTemplateProps, gridType, queryDataUrl;
+		var setUpGridArguments = function() {
+			//re-initialize the flags for the new grid instance
+			com.sap.xmii.common.util.MIIi5Util.reInitializeUtilVariables();
+			if (gridArgs.length >= 2) {
+				var gridTypeNumber = gridArgs[0];
+				if (!isNaN(gridTypeNumber)) {// will accept numbers passed as number/string
+					var gridTypesArray = com.sap.xmii.common.util.MIIi5Util.stringToArray(com.sap.xmii.common.util.GRID_TYPES_ARRAY, ",");
+					// check if the chartType provided by the user is one of the MII defined chart types then do the following
+					gridType = gridTypesArray[gridTypeNumber];
+					if (typeof gridType != com.sap.xmii.common.util.GenericConstants.UNDEFINED) {
+						queryTemplateName = gridArgs[1];
+						gridTemplateName = com.sap.xmii.common.util.GenericConstants.DEFAULT_I5GRID;
+					} else {
+						// gridType provided is not supported
+						var msg = com.sap.xmii.common.util.MessageBundle.getText("XMSG_CHARTTYPE_NOT_SUPPORTED");
+						console.error(msg);
+						throw new com.sap.xmii.common.exception.MIIi5Exception(msg);
+					}
+				}else {
+					// if arg[0] not a chartType, then arg[0] = gridtemplatename
+					gridTemplateName = gridArgs[0];
+					queryTemplateName = gridArgs[1];
+				}
+				if (gridArgs[2] != true && gridArgs[2] != false) //this will be true/false when the constructor is called from CE
+					jsonTemplateProps = gridArgs[2];
+			} else {
+				// Insufficient number of arguments
+				var msg = com.sap.xmii.common.util.MessageBundle
+				.getText("XMSG_INSUFFICIENT_NUMBER_OF_PARAMETERS");
+				console.error(msg);
+				throw new com.sap.xmii.common.exception.MIIi5Exception(msg);
+			}
+		};
+		setUpGridArguments();
+
+		//Fire creation event
+		var fireCreationEvent = function(thisObj) {
+			if (typeof thisObj.fnOnCreateEvent != 'undefined') {
+				thisObj.fnOnCreateEvent();
+			}
+		};
+
+		var fireUpdateEvent = function(thisObj) {
+			if (typeof thisObj.fnOnUpdateEvent != com.sap.xmii.common.util.GenericConstants.UNDEFINED) {
+				thisObj.fnOnUpdateEvent();
+			}
+			if(thisObj.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.GridPropertyConstants.SHOW_MESSAGE_AREA) === true) {
+				com.sap.xmii.common.util.MIIi5Util.updateMessageAreaText(thisObj);
+			}
+			thisObj.applyGridPropertiesOnReady();
+		};
+		
+		var fireReadyEvent = function(thisObj) {
+			if (typeof thisObj.fnOnReadyEvent != 'undefined') {
+				thisObj.fnOnReadyEvent();
+			}
+		};
+		
+		//moving initialization of chart and query to another function   
+		var initTemplates = function(thisObj, jsonTemplateProps ){
+			thisObj.initTemplates(gridTemplateName, queryTemplateName, queryDataUrl, jsonTemplateProps, gridType); 
+			//thisObj.initTemplates(gridTemplateName, queryTemplateName, jsonTemplateProps, gridType);
+			thisObj.dateFormat = com.sap.xmii.common.util.MIIi5Util.getDateTimeFormatForMIII5Viz(thisObj.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.GridPropertyConstants.USE_LOCALE_FORMAT), thisObj.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.GridPropertyConstants.DATE_FORMAT), thisObj.queryTemplate.getQueryObject().getQueryMetaData().DateFormat);
+			/*try{
+	    		thisObj.chartTemplate = initGridTemplate(thisObj.gridTemplateName,
+	    				jsonTemplateProps);
+
+	    		if (!com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(gridType)) {
+	    			thisObj.chartTemplate.chartPropertyConfig.setProperty('GridType',
+	    					gridType);
+	    		}
+
+	    		thisObj.queryTemplateName = queryTemplateName;
+	    		if (com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(queryTemplateName)) {
+	    			thisObj.queryTemplateName = thisObj.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.QueryConstants.MAPPED_QUERY_TEMPLATE);
+	    		}
+
+	    		thisObj.queryTemplate = initQueryTemplate(thisObj.queryTemplateName);
+
+	    		thisObj.dateFormat = com.sap.xmii.common.util.MIIi5Util.getDateTimeFormatForMIII5Viz(thisObj.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.GridPropertyConstants.USE_LOCALE_FORMAT), thisObj.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.GridPropertyConstants.DATE_FORMAT), thisObj.queryTemplate.getQueryObject().getQueryMetaData().DateFormat);
+
+
+	    	} catch (err){
+
+	    	}*/
+		};
+
+		var defaultHeight = com.sap.xmii.common.util.GenericConstants.DEFAULT_CHART_HEIGHT;
+
+		// **EOF PRIVATE FUNCTIONS**
+
+		// CLASS MEMBER ELEMNTS
+		this.chartPosId = '';
+		this.firstUpdateFired = false;
+
+		this.jsonTemplateProperties = '';
+		this.gridTemplateName = gridTemplateName;
+		this.queryTemplateName = queryTemplateName;
+		//	var that = this;
+
+		if(jsonTemplateProps != undefined) {
+			var jsonObj = com.sap.xmii.common.util.MIIi5Util.evalJSONStr(jsonTemplateProps);
+			//var keys = Object.keys(jsonObj);
+			if ('Width' in jsonObj) { 
+				this.chartWidth = jsonObj["Width"]+"px";
+			} /*else {
+		    	this.chartWidth = "640px";
+		    }*/
+
+			if ('Height' in jsonObj) { 
+				this.chartHeight = jsonObj["Height"]+"px";
+				defaultHeight = this.chartHeight;
+			} /*else {
+		    	this.chartHeight = "400px";
+		    }*/
+		}
+
+		this.overrides = new Object();
+		this.modelURL = '';
+		this.chartTemplate;
+
+		initTemplates(this, jsonTemplateProps);
+
+		//	this.dateFormat = com.sap.xmii.common.util.MIIi5Util.getDateTimeFormatForMIII5Viz(this.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.GridPropertyConstants.USE_LOCALE_FORMAT), this.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.GridPropertyConstants.DATE_FORMAT), this.queryTemplate.getQueryObject().getQueryMetaData().DateFormat);
+		// Initialize the MODELObject here
+		/*try{
+			// Taking into account i5Grid's Properties -- UserLocaleFormat, DateAndTimeFormat, NumberFormat 
+			this.overrides["QueryTemplate"] = queryTemplateName;
+			this.overrides["Content-Type"] = "text/json";
+			var useLocaleFormat = this.chartTemplate.chartPropertyConfig.getProperty("UseLocaleFormat");
+			var columnFormats = this.chartTemplate.chartPropertyConfig.getProperty('ColumnFormats').split(',');
+			if (useLocaleFormat == "true") {
+				this.overrides["NumberFormat"] = "0.000000";
+				this.overrides["DateFormat"] = com.sap.xmii.common.util.MIIi5Util.getDateTimePatternForLocale();
+			} else {
+				this.overrides["NumberFormat"] = "0.000000"; // full length number format
+				this.overrides["DateFormat"] = "yyyy-MM-dd'T'HH:mm:ss"; // XML date format
+			}
+
+	        this.modelURL = com.sap.xmii.common.util.MIIi5Util.buildPostData("/XMII/Illuminator?service=CombineQueryRowsets", this.overrides);
+			this.model = new com.sap.xmii.grid.model.i5GridModel(this.queryTemplate.getQueryObject(), this.modelURL);
+
+			this.model.modelData.DateFormatPattern = 
+				getDateFormatPattern(this.chartTemplate.chartPropertyConfig.getProperty("DateFormat"), 
+						this.queryTemplate.getQueryObject().getQueryMetaData().DateFormat);
+			this.model.modelData.NumberFormatPattern = 
+				getNumberFormatPattern(this.chartTemplate.chartPropertyConfig.getProperty("NumberFormat"), 
+						this.queryTemplate.getQueryObject().getQueryMetaData().NumberFormat);
+
+			//console.log("get json data "+this.model.getJSONModel());
+			// Set the Query result on the object
+			this.queryTemplate.getQueryObject().setQueryResult(
+					this.model.getJSONModel().getData());
+		}catch(err){
+			var message = err.message;
+			setErrorMessage(message);
+			console.error(message);
+			throw new com.sap.xmii.common.exception.MIIi5Exception(message);
+		}*/
+
+		/*function getDateFormatPattern(chartTemplateDateFormat, queryTemplateDateFormat) {
+			// Date format
+			if (!com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(chartTemplateDateFormat))
+				return chartTemplateDateFormat;
+			else {
+			    if (!com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(queryTemplateDateFormat))
+			    	return queryTemplateDateFormat;
+			    else
+			    	return "yyyy-MM-dd HH:mm:ss z";	//default format for display
+			}
+		};*/
+
+		/*	function getNumberFormatPattern(chartTemplateNumberFormat, queryTemplateNumberFormat) {
+			// Number format
+			if (!com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(chartTemplateNumberFormat))
+				return chartTemplateNumberFormat;
+			else {
+			    if (!com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(queryTemplateNumberFormat))
+			    	return queryTemplateNumberFormat;
+			    else
+			    	return "0.000";	//default format for display (in sync with what is displayed on applets)
+			}
+		};*/
+
+		/**
+		 * Refresh
+		 */
+		this.refresh = function() {
+
+			// update(true) does the same as refresh()
+			this.update(true);
+
+		};
+
+		/**
+		 * Update the Grid
+		 * 
+		 * @param isQueryTemplateExecRequired
+		 *            if query needs to be rexecuted
+		 */
+		this.update = function(isQueryTemplateExecRequired) {
+			//destroying dependents - popups
+			if(this.getChartLayout() !=  undefined)
+				sap.ui.getCore().byId(this.getChartLayout().sId).destroyDependents();
+			if (this.queryTemplate) {
+				if (isQueryTemplateExecRequired == true) {
+
+					try {
+						var overrides = buildURLParamsForGrid(this);
+						var queryParams = this.queryTemplate.getQueryObject().overrides;
+						paramOverrides = queryParams;
+						for(var key in queryParams){
+							if (queryParams.hasOwnProperty(key)) {
+								overrides[key] = queryParams[key];
+							} 
+						}
+
+
+						var timeout = this.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.GridPropertyConstants.TIMEOUT);
+						if(!isNaN(timeout) && timeout > 0){
+							overrides[com.sap.xmii.common.util.GridPropertyConstants.TIMEOUT] = timeout;
+						}
+						this.modelURL = com.sap.xmii.common.util.MIIi5Util.buildPostData(com.sap.xmii.common.util.GenericConstants.COMBINE_QUERY_ROWSETS_URL, overrides).url;
+						this.model = new com.sap.xmii.grid.model.i5GridModel(this.queryTemplate.getQueryObject(), this.modelURL);
+						if (this.model != null && this.model.getJSONModel().oData.Rowsets.Rowset != undefined
+								&& this.model.getJSONModel().oData.Rowsets.Rowset[0].Row != undefined)
+							this.originalRows = jQuery.extend(true, new Array(), this.model.getJSONModel().oData.Rowsets.Rowset[0].Row);
+
+						this.model.modelData.DateFormatPattern = com.sap.xmii.common.util.MIIi5Util.getDateFormatPattern(this.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.GridPropertyConstants.DATE_FORMAT), 
+								this.queryTemplate.getQueryObject().getQueryMetaData().DateFormat);
+						this.model.modelData.NumberFormatPattern = com.sap.xmii.common.util.MIIi5Util.getNumberFormatPattern(this.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.GridPropertyConstants.NUMBER_FORMAT), 
+								this.queryTemplate.getQueryObject().getQueryMetaData().NumberFormat);
+						this.model.modelData.UseBOMForCSV = this.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.GridPropertyConstants.USE_BOM_FOR_CSV);
+						this.queryTemplate.getQueryObject().setQueryResult(this.model.getJSONModel().getData());
+						
+					} catch (err) {
+						var message = err.message;
+						setErrorMessage(message);
+						console.error(message);
+						throw new com.sap.xmii.common.exception.MIIi5Exception(message);
+					}
+
+					//initTitleDetails(this);
+
+					if (this.firstUpdateFired === false) {
+
+						if (typeof this.fnOnFirstUpdateEvent != com.sap.xmii.common.util.GenericConstants.UNDEFINED) {
+							// fire firstupdate event
+							this.fnOnFirstUpdateEvent();
+							this.firstUpdateFired = true;
+						} else {
+							this.autoRefreshChart();
+							this.firstUpdateFired = true;
+						} 
+					} else {
+						this.autoRefreshChart();
+					}
+
+					// fire update event --- Moved it after placeGrid
+					//fireUpdateEvent(this);
+
+					// chart initialisation has already
+					// happened hence just placing the grid
+					//placeGrid(this);
+
+				} else {
+					if(this.model != null && this.model.getJSONModel().oData.Rowsets.Rowset != undefined
+							&& this.model.getJSONModel().oData.Rowsets.Rowset[0].Row != undefined) {
+						this.model.getJSONModel().oData.Rowsets.Rowset[0].Row = jQuery.extend(true, new Array(), this.originalRows);
+					}
+				}
+
+				//do modifications to grid height BEFORE placing the grid
+				if(this.chartHeight != undefined) {
+					//if height string endsWidth "px", then remove "px" 
+					if(typeof defaultHeight === "string" && com.sap.xmii.common.util.MIIi5Util.endsWith(defaultHeight+"", "px")) {
+						defaultHeight = Number(defaultHeight.substring(0, defaultHeight.length-2));
+					}	
+					this.chartHeight = defaultHeight;
+					//check if height ends with "px"
+					if(!com.sap.xmii.common.util.MIIi5Util.endsWith(this.chartHeight+"", "px") && !com.sap.xmii.common.util.MIIi5Util.endsWith(this.chartHeight+"", "%")) {
+						this.chartHeight = this.chartHeight + "px";
+					}
+				} else {
+					this.chartHeight = com.sap.xmii.common.util.GenericConstants.DEFAULT_CHART_HEIGHT + "px";
+				}
+
+				if(this.chartWidth == undefined) {
+					this.chartWidth = "100%";
+				}
+
+				initTitleDetails(this);
+				placeGrid(this);
+				//Moved fireUpdateEvent after placeChart i.e after chart initialisation 
+				if (isQueryTemplateExecRequired == true) { 
+					// fire update event
+					fireUpdateEvent(this);
+				}else {
+					if(this.getChartObject().getShowMessageArea() === true) {
+						com.sap.xmii.common.util.MIIi5Util.updateMessageAreaText(this);
+					}
+					this.applyGridPropertiesOnReady();
+				}
+			} else {
+				alert(com.sap.xmii.common.util.MessageBundle
+						.getText("XMSG_QT_INITIALIZATION_ERROR"));
+				throw new com.sap.xmii.common.exception.MIIi5Exception(
+						com.sap.xmii.common.util.MessageBundle
+						.getText("XMSG_QT_INITIALIZATION_ERROR"));
+			}
+		};
+
+		/**
+		 * @private
+		 */
+		this.applyGridPropertiesOnReady = function() {
+			var that = this;
+			$('#'+this.chartPosId).ready(function(){
+				var thisObj = that;
+				setTimeout(function() {
+					var ui5Obj = thisObj.getGridObject();
+					ui5Obj.gridReady();
+					fireReadyEvent(thisObj);
+				},500); //arbitrary value of 400ms
+			});
+		};
+
+		/**
+		 * Register the handler for CreattionEvent on the chart
+		 */
+		this.registerCreationEventHandler = function(myhandler) {
+			console.info("Registering CreattionEvent");
+			this.fnOnCreateEvent = myhandler;
+		};
+		
+		/**
+		 * Register the handler for Ready on the chart
+		 */
+		this.registerReadyEventHandler = function(myhandler) {
+			console.info("Registering ReadyEvent");
+			this.fnOnReadyEvent = myhandler;
+		};
+
+
+		/**
+		 * Register the handler for FirstUpdateEvent on the chart
+		 */
+		this.registerFirstUpdateEventHandler = function(myhandler) {
+			console.info("Registering FirstUpdateEvent");
+			this.fnOnFirstUpdateEvent = myhandler;
+		};
+
+		/**
+		 * Register the handler for UpdateEvent on the chart
+		 */
+		this.registerUpdateEventHandler = function(myhandler) {
+			console.info("Registering UpdateEvent");
+			this.fnOnUpdateEvent = myhandler;
+		};
+
+		/**
+		 * Register the handler for ColumnSelectionEvent on the grid
+		 */
+		this.registerColumnSelectionEventHandler = function(myhandler){
+			console.info("Registering ColumnSelectionEvent");
+			this.fnOnColumnSelect = myhandler;
+		};
+
+		/**
+		 * Register the handler for RowSelectionEvent on the grid
+		 */
+		this.registerRowSelectionEventHandler = function(myhandler){
+			console.info("Registering RowSelectionEvent");
+			this.fnOnRowSelect = myhandler;
+		};
+
+		/**
+		 * Register the handler for CellSelectionEvent on the grid
+		 */
+		this.registerCellSelectionEventHandler = function(myhandler){
+			console.info("Registering CellSelectionEvent");
+			this.cellSelect = myhandler;
+		};
+
+		/**
+		 * Register the handler for DoubleClickEvent on the grid
+		 */
+		this.registerDoubleClickEventHandler =  function(myHandler){
+			console.info("Registering DoubleClickEvent");
+			this.doubleClick = myHandler;
+		};
+
+
+		/**
+		 * Deregister the handler for CreattionEvent
+		 */
+		this.deregisterCreationEventHandler = function() {
+			console.info("Deregistering CreattionEvent");
+			this.fnOnCreateEvent = undefined;
+		};
+
+		/**
+		 * Deregister the handler for FirstUpdateEvent
+		 */
+		this.deregisterFirstUpdateEventHandler = function() {
+			console.info("Deregistering FirstUpdateEvent");
+			this.fnOnFirstUpdateEvent = undefined;
+		};
+
+		/**
+		 * Deregister the handler for UpdateEvent
+		 */
+		this.deregisterUpdateEventHandler = function() {
+			console.info("Deregistering UpdateEvent");
+			this.fnOnUpdateEvent = undefined;
+		};
+
+		/**
+		 * Deregister the handler for ColumnSelectionEvent on the grid 
+		 */
+		this.deregisterColumnSelectionEventHandler = function() {
+			console.info("Deregistering ColumnSelectionEvent");
+			this.fnOnColumnSelect = undefined;
+		};
+
+		/**
+		 * Deregister the handler for RowSelectionEvent on the grid
+		 */
+		this.deregisterRowSelectionEventHandler = function() {
+			console.info("Deregistering RowSelectionEvent");
+			this.fnOnRowSelect = undefined;
+		};
+
+		/**
+		 * Register the handler for CellSelectionEvent on the grid
+		 */
+		this.deregisterCellSelectionEventHandler = function(){
+			console.info("Registering CellSelectionEvent");
+			this.cellSelect = undefined;
+		};
+
+		/**
+		 * Register the handler for DoubleClickEvent on the grid
+		 */
+		this.deregisterDoubleClickEventHandler =  function(){
+			console.info("Registering DoubleClickEvent");
+			this.doubleClick = undefined;
+		};
+
+		/**
+		 * @private
+		 */
+		this.functionToBeCalledOnColumnSelect = function(oControlEvent){
+			if(this.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.GridPropertyConstants.ALLOW_SELECTION).toString() == "true"){
+				this.getGridObject().setSelectedCol(oControlEvent.mParameters.column);
+				if(this.fnOnColumnSelect != undefined)
+					this.fnOnColumnSelect(oControlEvent);
+			}
+		};
+
+		/**
+		 * @private
+		 */
+		this.functionToBeCalledOnRowSelect = function(oControlEvent){
+			if(this.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.GridPropertyConstants.ALLOW_SELECTION).toString() == "true" && this.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.GridPropertyConstants.ALLOW_CELL_SELECTION).toString() == "false"){
+				if(this.fnOnRowSelect != undefined) {	
+					try{
+						var sPath = oControlEvent.mParameters.rowContext.sPath;
+						//var index = oControlEvent.mParameters.rowIndex;
+						//itemContextPath.substring(itemContextPath.lastIndexOf("/")+1, itemContextPath.length)
+						var index =  parseInt(sPath.substring(sPath.lastIndexOf("/")+1, sPath.length));
+						oControlEvent.mParameters.rowData = oControlEvent.mParameters.rowContext.oModel.oData.modelData[index];
+					} catch (err) {}
+					this.fnOnRowSelect(oControlEvent);
+				}
+			}
+		};
+
+		/**
+		 * @private
+		 */
+		this.functionToBeCalledOnDoubleClick = function(oEvent){
+			if(this.doubleClick != undefined){ 
+				this.doubleClick();
+			}
+		};
+
+		/**
+		 * @private
+		 */
+		this.functionToBeCalledOnCellSelect = function(oEvent){
+			if(this.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.GridPropertyConstants.ALLOW_SELECTION).toString() == "true" && this.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.GridPropertyConstants.ALLOW_CELL_SELECTION).toString() == "true"){
+				var cellId = oEvent.target.offsetParent.id;
+				var tableRowIndex = cellId.substring(cellId.indexOf("-rows-row") + 9, cellId.lastIndexOf("-"));
+				var rowIndex = this.getGridObject().oTable.getFirstVisibleRow() + Number(tableRowIndex) + 1;
+				var colIndex = -1;
+				if(cellId.indexOf("-col") != -1)  
+					colIndex = Number(cellId.substring(cellId.lastIndexOf("-col") + 4)) + 1;
+				this.getGridObject().setSelectedCellRowIndex(rowIndex);
+				this.getGridObject().setSelectedCellColumnIndex(colIndex);
+				if(!($(".sapUiTableColHdrCnt")[0] === $(oEvent.target.offsetParent.offsetParent.firstChild)[0])){
+
+					//if prev selection is don
+					var divID = this.getGridObject().getSelectedCellId();
+					var cellID = this.getGridObject().getSelectedCellLabelId();
+					var prevSelectedRow = this.getGridObject().getSelectedCellRow();
+					/*if (cellID != '') {
+						var prevSelectedRow = this.getGridObject().getSelectedCellRow();
+						var prevSelectedCol = this.getGridObject().getSelectedCellColumn();
+						var prevSelectedColColor = this.getGridObject().columnArray[prevSelectedCol].Name + 'Color';
+						var prevColor = this.getGridObject().rows[prevSelectedRow - 1][prevSelectedColColor];
+						if (prevColor == undefined)
+							prevColor = this.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.GridPropertyConstants.TEXT_COLOR);
+
+					 	// UI Behavior property -- Color of Selected Row 
+					 	$('#'+(cellID)).css({color : prevColor});
+
+
+					 	// UI Behavior property -- Background Color of Selected Row
+					 	$('#'+(divID)).css({'background-color' : this.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.GridPropertyConstants.BACKGROUND_COLOR)});
+					}*/
+
+
+					this.getGridObject().setSelectedCellId(oEvent.target.offsetParent.id);
+					this.getGridObject().setSelectedCellLabelId(oEvent.target.id);
+					//				this.getGridObject().setSelectedColor(oEvent.srcElement.offsetParent.id);
+					//				this.getGridObject().setSelectedBGColor(oEvent.srcElement.offsetParent.id);
+					//				this.getGridObject().setSelectedFontStyle(oEvent.srcElement.offsetParent.id);
+
+
+					// UI Behavior property -- Color of Selected Row 
+					// 	$('#'+(oEvent.srcElement.id)).css({color : this.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.GridPropertyConstants.ROW_SELECT_COLOR)});
+
+					// UI Behavior property -- Background Color of Selected Row
+					// 	$('#'+(oEvent.srcElement.offsetParent.id)).css({'background-color' : this.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.GridPropertyConstants.ROW_SELECT_BACKGROUND_COLOR)});
+
+					if(this.cellSelect != undefined){ 
+						var gridObj = this.getGridObject();
+						oEvent.mParameters = oEvent.mParameters || {};
+						oEvent.mParameters.rowIndex = rowIndex;
+						oEvent.mParameters.colIndex = colIndex;
+						if (gridObj.getRowHeadings().toString().split(',')[0] || gridObj.columnArray[0].Name !== "RowHeading") {
+							colIndex--;
+						}
+						oEvent.mParameters.cellValue = this.getGridObject().getCellValue(rowIndex, colIndex);
+						this.cellSelect(oEvent);
+					}
+				}
+			}
+		};
+
+
+
+		this.getRowCount = function() {
+			if (this.model !== undefined) {
+				return this.model.getModelData().getRows().length;
+			} else {
+				return 0;
+			}
+		};
+
+		/**
+		 * @private
+		 */
+		var getItemFromArray = function(dataArray, idx) {
+			var ret = [];
+			for ( var k = 0, klen = dataArray.length; k < klen; k++) {
+				var item = dataArray[k];
+				ret.push(item.name + "-->" + item.values[idx]);
+			}
+			return ret;
+		};
+
+		/**
+		 * Sets the additional Props as a JSON Text
+		 * @return void
+		 * @private
+		 */
+		this.setJSONTemplateProperties = function(jsonTemplateProperties) {
+			this.jsonTemplateProperties = jsonTemplateProperties;
+			var jsonTempPropsStr = new String(jsonTemplateProperties);
+			this.chartTemplate.chartPropertyConfig
+			.setAdditionalProps(jsonTempPropsStr);
+		};
+
+		/**
+		 * Gets the Chart Template Object
+		 * @private
+		 */
+		this.getChartTemplateObject = function() {
+			return this.chartTemplate.getChartTemplateObject();
+		};
+
+		/**
+		 * Gets the Query Object
+		 */
+		this.getQueryObject = function() {
+			return this.queryTemplate.getQueryObject(); 
+		};
+
+		/**
+		 * Renders the created Chart Object under the element specified
+		 */
+		this.draw = function(id) {
+			console.info("chart draw - start");
+			// If DT/QT is wrong then a blank chart is created
+			if(com.sap.xmii.common.util.FCCHART == true || com.sap.xmii.common.util.FCQUERY == true){
+
+				var message = com.sap.xmii.common.util.ERRORMESSAGE;
+
+				this.drawErrorMessageArea(id,this.chartWidth, message);
+				throw new com.sap.xmii.common.exception.MIIi5Exception(message);
+			}
+
+			// Call initGrid with existing data
+			if (!this.hasErrMessage()) {
+				this.chartPosId = id;
+				console.log("chart position Id: " + id);
+				//Fire creation event
+				fireCreationEvent(this);
+				//update grid
+				var initialUpdate = this.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.GridPropertyConstants.INITIAL_UPDATE);
+				if(initialUpdate) {
+					this.update(true);
+				} else {
+					this.update(false);
+				}
+				console.info("chart draw - end");
+			}
+		};
+
+		/**
+		 * @private
+		 */
+		this.autoRefreshChart = function() {
+			var refreshRate = this.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.GridPropertyConstants.REFRESH_RATE);
+			if (this.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.GridPropertyConstants.AUTO_REFRESH) == true &&
+					this.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.GridPropertyConstants.ENABLE_AUTO_REFRESH) != false) {
+				if (refreshIntervalId > 0) {
+					clearInterval(refreshIntervalId);
+					refreshIntervalId = 0;
+				}
+				if (refreshRate > 0) {
+					refreshIntervalId = setInterval.call(this, this.refreshData, refreshRate * 1000);
+				}
+			} else {
+				if (refreshIntervalId > 0) {
+					clearInterval(refreshIntervalId);
+					refreshIntervalId = 0;
+				}
+			}
+		};
+
+		/**
+		 * @private
+		 */
+		this.refreshData = function() {
+			//If the Grid is not present in the html DOM, Do nothing.
+			if(jQuery.sap.byId(this.getGridObject().getUI5TableElement().getId()).length == 0){
+				return;
+			}
+			if(this.model === undefined) {
+				this.update(true);
+			} else {
+				var overrides = buildURLParamsForGrid(this);
+
+				var queryParams = this.queryTemplate.getQueryObject().overrides;
+				for(var key in queryParams){
+					if (queryParams.hasOwnProperty(key)) {
+						overrides[key] = queryParams[key];
+					} 
+				}
+
+				var url = com.sap.xmii.common.util.MIIi5Util.buildPostData(com.sap.xmii.common.util.GenericConstants.COMBINE_QUERY_ROWSETS_URL, overrides).url;
+				url = url.split('+').join('%2B');
+				var jsonObj = JSON.parse(com.sap.xmii.common.util.MIIi5Util.getOData(url, null, null, null, queryParams));
+				this.refreshTableData(url);
+			}
+		};
+
+		/**
+		 * @private
+		 */
+		var applyFormatting = function(thisObj) {
+			thisObj.getGridObject().populateMIIRowsets(thisObj.model);
+			var rows = thisObj.model.getModelData().getRows();
+			var columnArray = thisObj.model.getModelMetaData().getColumnArray();
+			columnArray.splice(0, 0,
+					{Name: "RowHeading", SourceColumn : "RowHeading"}
+			);
+			var columns = thisObj.model.getModelMetaData().getColumns();
+			var displayColumns = thisObj.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.GridPropertyConstants.DISPLAY_COLUMNS).split(",");
+			//Iterating over all the data rows
+			for(var index=0; index < rows.length; index++){
+				//Row heading for rows
+				thisObj.getGridObject().applyRowheadings(index);
+				// Applying formatting
+				for(var columnIndex = 1 ; columnIndex < columnArray.length ; columnIndex++){
+					var columnName = columnArray[columnIndex].Name;
+					if(displayColumns.indexOf(columnName) > -1) {
+						rows[index][columnName] = thisObj.getGridObject().formatCellValue(columnName, columnArray[columnIndex].SQLDataType,	rows[index][columnName]);
+					}
+					// Applying default style
+					var columnNameStyle = columnName+"Style";
+					rows[index][columnNameStyle] = thisObj.getGridObject().defaultStyle;
+				}
+				//Apply color context
+				if (thisObj.getGridObject().isColorContextDefined()) {
+					thisObj.getGridObject().applyColorContext(index);
+				}
+			}
+		};
+
+		/**
+		 * @private
+		 */
+		this.refreshTableData = function(url) {
+			this.model.update(url, this.getQueryObject());
+			var oModel = new sap.ui.model.json.JSONModel();
+			if(this.model != null && this.model.getJSONModel().oData.Rowsets.Rowset != undefined
+					&& this.model.getJSONModel().oData.Rowsets.Rowset[0].Row != undefined) {
+				this.originalRows = jQuery.extend(true, new Array(), this.model.getJSONModel().oData.Rowsets.Rowset[0].Row);
+				//Apply formatting to the data
+				applyFormatting(this);
+				oModel.setData({modelData: this.model.getModelData().getRows()});
+			}
+			this.getGridObject().getUI5TableElement().setModel(oModel);
+			this.getGridObject().getUI5TableElement().bindRows("/modelData");
+			this.getGridObject().getUI5TableElement().setSelectedIndex(-1);
+			if(this.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.GridPropertyConstants.AUTO_REFRESH) === false && this.getQueryObject().isTimeBasedQuery() === true && this.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.GridPropertyConstants.SHOW_TIMEBAR) === true) {
+				//update slider and datepickers
+				this.getTimeBar().updateSliderAndDatePickers();
+			}
+			// fire update event
+			fireUpdateEvent(this);
+		};
+
+		/*this.refreshTableDataForNewModel = function() {
+			placeGrid(this);
+		};*/
+
+		// Enable the passage of the 'this' object through the JavaScript timers
+		var __nativeSI__ = window.setInterval;
+		
+		/**
+		 * @private
+		 */
+		window.setInterval = function(vCallback, nDelay) {
+			var oThis = this;
+			return __nativeSI__(vCallback instanceof Function ? function() {
+				vCallback.apply(oThis, null);
+			} : vCallback, nDelay);
+		};
+
+		/**
+		 * Returns the formatted date
+		 * @private 
+		 */
+		this.formatDate = function(sourceDate, sourceFormat, dateFormat) {
+			var formattedDate = com.sap.xmii.common.util.MIIi5Util
+			.formatDate(sourceDate, sourceFormat, dateFormat);
+			return formattedDate;
+		};
+
+		/**
+		 * Returns the formatted number
+		 * @private
+		 */
+		this.formatNumber = function(value, format) {
+			var formattedNumber = com.sap.xmii.common.util.MIIi5Util
+			.formatNumber(value, format);
+			return formattedNumber;
+		};
+
+		/**
+		 * @private
+		 */
+		this.getTimeBar = function() {
+			return getTimeBar();
+		};
+
+		/**
+		 *
+		 */
+		this.isTimeAware = function() {
+			return isTimeAware();
+		};
+
+		/**
+		 * @private
+		 */
+		this.getToolBar = function() {
+			return getToolBar();
+		};
+
+		/**
+		 * @private
+		 */
+		this.getMessageArea = function() {
+			return getMessageArea();
+		};
+
+		/**
+		 * Returns an instance of the Chart layout
+		 * @return
+		 * @private
+		 */
+		this.getChartLayout = function() {
+			return getChartLayout();
+		};
+
+		/**
+		 * @private
+		 */
+		this.getTitleBar = function() {
+			return getTitleBar();
+		};
+
+		/**
+		 * @private
+		 */
+		this.getErrMessage = function() {
+			return getErrorMessage();
+		};
+
+		/**
+		 * @private
+		 */
+		this.createTableRow = function(oGridLayout, height) {
+			var oLayoutRow = new sap.ui.commons.layout.MatrixLayoutRow();
+			if (!com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(height))
+				oLayoutRow.setHeight(height);
+			oGridLayout.addRow(oLayoutRow);
+			var oLayoutCell = new sap.ui.commons.layout.MatrixLayoutCell();
+			oLayoutRow.addCell(oLayoutCell);
+			oLayoutCell.setVAlign(sap.ui.commons.layout.VAlign.Top);
+			oLayoutCell.setPadding(sap.ui.commons.layout.Padding.Neither);
+			//oLayoutCell.setPadding(sap.ui.commons.layout.Padding.None);
+			return oLayoutCell;
+		};
+
+		/**
+		 * @private
+		 */
+		this.hasErrMessage = function() {
+			return hasErrorMessage();
+		};
+
+		/**
+		 * Update the QueryTemplate Name and initializes the
+		 * Query Template Object again.
+		 * Called from MIIUI5Visualization - SetQueryTemplate()
+		 * @return
+		 * @private
+		 */
+		this.updateQueryTemplate = function() {
+			if (this.queryTemplate.queryTemplateName != this.queryTemplateName) {
+				this.queryTemplate = initQueryTemplate(this.queryTemplateName);
+			}
+		};
+
+		/**
+		 * Update the DisplayTemplate Name and initializes the
+		 * Chart Template Object again.
+		 * Called from MIIUI5Visualization - SetDisplayTemplate()
+		 * @return
+		 * @private
+		 */
+		this.updateDisplayTemplate = function() {
+			this.chartTemplate = initGridTemplate(this.chartTemplateName, jsonTemplateProps);
+			if (!com.sap.xmii.common.util.MIIi5Util.isEmpty(this.getChartObject())) {
+				//Assign all the i5Grid properties from chartTemplate to GridObject
+				this.getGridObject().gridPropertyConfig = this.chartTemplate.chartPropertyConfig;
+			}
+		};
+
+		/*this.getNumberOfDataPoints = function(index) {
+			var dataSetRowArray = this.queryTemplate.getQueryObject().getQueryResult().Rowsets.Rowset[0].Row;
+			if (index < 0 || index > dataSetRowArray.length - 1) {
+				var msg = com.sap.xmii.common.util.MessageBundle
+				.getText("XMSG_INVALID_DATASET_INDEX");
+				console.error(msg);
+				throw new com.sap.xmii.common.exception.MIIi5Exception(msg);
+			} else {
+				return dataSetRowArray.length;
+			}
+		};*/
+
+		/**
+		 * Sets height as number (not percentage)
+		 * @param height
+		 * @return void
+		 */
+		this.setGridHeight = function(height) {
+			this.chartHeight = height;
+			defaultHeight = height;
+		};
+
+		/**
+		 * Sets the Grid Width as number (not percentage)
+		 * @param width
+		 * @return void
+		 */
+		this.setGridWidth = function(width) {
+			this.chartWidth = width;
+		};
+
+		/**
+		 * Gets height as number (not percentage)
+		 * @param void
+		 * @return height
+		 */
+		this.getGridHeight = function() {
+			return this.chartHeight;
+		};
+
+		/**
+		 * Gets the Grid Width as number (not percentage)
+		 * @param void
+		 * @return width
+		 */
+		this.getGridWidth = function() {
+			return this.chartWidth;
+		};
+
+		/**
+		 * @private
+		 */
+		this.getOriginalRows = function() {
+			return this.originalRows;
+		};
+		
+		/**
+		 * @private
+		 */
+		this.drawErrorMessageArea = function(id, width,error){
+			if(com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(com.sap.xmii.common.util.ERRORMESSAGE)){
+//				if(error.message == undefined || error.message == ""){
+				if(com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(error.message)){
+					message = error;
+				} else { 
+					message = error.message;
+				}
+			} else {
+				message = com.sap.xmii.common.util.ERRORMESSAGE;
+			}
+
+			messageArea = initMessageArea(width);
+			messageArea.mProperties.text = message;
+			oChartLayout = new sap.ui.commons.layout.MatrixLayout();
+			oChartLayout.createRow(messageArea);
+			oChartLayout.placeAt(id);
+		};
+
+		/**
+		 * @private
+		 */
+		this.getColumnList = function() {
+			var ColumnList = [];
+			var column;
+			var columnList = this.getGridObject().getDisplayColumns().split(",");
+			var columnHeading = this.getGridObject().getColumnHeadings().split(',');
+			for(var index = 0; index < columnList.length; index++) {
+				column = {};
+				column.name = columnList[index];
+				column.desc = columnHeading[index];
+				ColumnList.push(column);
+			}
+			return ColumnList;
+		};
+
+		//below functions are to support the event framework
+		
+		/**
+		 * attach the handler according to the event type
+		 * @private
+		 * @param eventName string 
+		 * @param fnHandler function
+		 */
+		this.attachEventHandler = function(eventName, fnHandler) {
+			if (eventName === "onRowSelection") {
+				this.registerRowSelectionEventHandler(fnHandler);
+			} else if (eventName === "onCellSelection") {
+				this.registerCellSelectionEventHandler(fnHandler);
+			} else if (eventName === "onFirstUpdate") {
+				this.registerFirstUpdateEventHandler(fnHandler);
+			} else if (eventName === "onUpdate") {
+				this.registerUpdateEventHandler(fnHandler);
+			}
+		};
+
+		/**
+		 * Get selected row of table
+		 * 
+		 * @EventProperty(structMethod="getColumnList")
+		 * @return object
+		 */
+		this.getSelectedRow = function() {
+			var table = this.getGridObject().getUI5TableElement();
+			var index = table.getSelectedIndex();
+			if(index >= 0 && table.getContextByIndex(index)) {
+				return table.getContextByIndex(index).getObject();
+			} else {
+				return {};
+			}
+		};
+
+		/**
+		 * Get Text of selected cell
+		 * 
+		 * @EventProperty
+		 * @return string
+		 */
+		this.getSelectedCellValue = function() {
+			var gridObj = this.getGridObject();
+			var colIndex = gridObj.getSelectedCellColumn();
+			var rowIndex = gridObj.getSelectedRow();
+			if (gridObj.getRowHeadings().toString().split(',')[0] || gridObj.columnArray[0].Name !== "RowHeading") {
+				colIndex--;
+			}
+			if(colIndex > 0 && rowIndex > 0) {
+				return this.getGridObject().getCellValue(rowIndex, colIndex);
+			} else {
+				return "";
+			}
+		};
+
+
+	}catch(err){
+		var initMessageArea = function(width,chartBackgroundColor) {
+			jQuery.sap.log.info("Initiliazing error message bar");
+			var messageArea = new com.sap.xmii.common.tools.MessageArea(width,chartBackgroundColor);
+			
+			return messageArea.messageArea;
+	    };
+	    
+		this.draw = function(id) {
+			message = "Error: " + err.message;
+	    	messageArea = initMessageArea(this.chartWidth);
+	    	messageArea.mProperties.text = message;
+			
+	    	var oChartLayout = new sap.ui.commons.layout.MatrixLayout();
+			oChartLayout.createRow(messageArea);
+			oChartLayout.placeAt(id);
+		}
+	}
+}
+}// EOF Constructor
+
+//};
+
+/**
+ * Inheriting MIIUI5Visualization
+ * @private
+ */
+com.sap.xmii.grid.init.i5Grid.prototype = parentObj;
+com.sap.xmii.grid.init.i5Grid.prototype.constructor = com.sap.xmii.grid.init.i5Grid;

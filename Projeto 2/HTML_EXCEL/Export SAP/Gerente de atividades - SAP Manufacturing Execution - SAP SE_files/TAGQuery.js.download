@@ -1,0 +1,138 @@
+function getJSDoc() {
+	var x = '';
+
+	function getAddMethods() {
+		var addMethodStr = '';
+		var propNames = [ 'Type', 'AllowBuffering', 'AllowFuture',
+				'CacheDuration', 'CacheDurationUnits', 'Comment', 'Connector',
+				'DateFormat', 'Duration', 'DurationUnits', 'EndDate',
+				'Group', 'InlineTransform', 'IntervalCount',
+				'IsCachable', 'Mask', 'Method', 'Mode', 'Password',
+				'Resolution', 'RestrictedPropertyOverride', 'RowCount',
+				'SaveDate', 'Schedule', 'Server', 'Service', 'StartDate',
+				'Time', 'TimePeriod', 'TotalizerFactor', 'UseGroupMask',
+				'Trace', 'UserName' ];
+
+		for (prop in propNames) {
+			var getStr = 'String:' + 'get' + propNames[prop] + ';';
+			var setStr = 'void:' + 'set' + propNames[prop] + '(val)' + ';';
+			addMethodStr = addMethodStr + getStr + setStr;
+		}
+
+		return addMethodStr;
+	}
+	;
+	x = x + getAddMethods();
+	return x;
+};
+/**
+ * @Namespace
+ */
+com.sap.xmii.querytemplate.query = com.sap.xmii.querytemplate.query || {};
+
+// FOR INHERITANCE
+var parentQueryObj = new com.sap.xmii.querytemplate.query.Query();
+
+/***
+ * TAGQUERY CLASS
+ * 
+ * @constructor
+ */
+
+com.sap.xmii.querytemplate.query.TagQuery = function(queryTemplateName,
+		queryMetaData) {
+
+	// SInce both the Parametrized constructor and default constructor
+	// is not
+	this.setQueryMetaData(queryMetaData);
+	this.setQueryTemplateName(queryTemplateName);
+	this.addGettersAndSetters(com.sap.xmii.common.util.TagQueryPropNames);
+
+	  this.MODE_HISTORY = com.sap.xmii.common.util.QueryConstants.HISTORY;
+	  this.MODE_HISTORYEVENT = com.sap.xmii.common.util.QueryConstants.HISTORY_EVENT;
+	  this.MODE_STATISTICS = com.sap.xmii.common.util.GenericConstants.STATISTICS;
+
+}
+
+// Inheritance
+com.sap.xmii.querytemplate.query.TagQuery.prototype = parentQueryObj;
+com.sap.xmii.querytemplate.query.TagQuery.prototype.constructor = com.sap.xmii.querytemplate.query.TagQuery;
+
+com.sap.xmii.querytemplate.query.TagQuery.prototype.isTimeBasedQuery = function() {
+
+	var result = this.MODE_HISTORY.toUpperCase() == this.getMode()
+			.toUpperCase()
+			|| this.MODE_HISTORYEVENT.toUpperCase() == this.getMode()
+					.toUpperCase()
+			|| this.MODE_STATISTICS.toUpperCase() == this.getMode()
+					.toUpperCase()
+			|| this.mode != null
+			&& com.sap.xmii.common.util.MIIi5Util.endsWith(this.getMode()
+					.toUpperCase(), "WRITE");
+
+	return result;
+};
+
+/**
+ * Sets the new value of TagName on the Query
+ * 
+ * @param index
+ * @param tagName
+ * @return void
+ */
+com.sap.xmii.querytemplate.query.TagQuery.prototype.setTagName = function(index, tagName) {
+	if (tagName != null) {
+		this.overrides[com.sap.xmii.common.util.QueryConstants.TAG_NAME+"."+index] = tagName;
+	} else {
+		var message = com.sap.xmii.common.util.MessageBundle
+				.getText("XMSG_QRY_TAGNAME_NULL");
+		throw new com.sap.xmii.common.exception.MIIi5Exception(message);
+	}
+};
+
+/**
+ * Gets the TagName specified at the index
+ * 
+ * @param index
+ * @return String
+ */
+com.sap.xmii.querytemplate.query.TagQuery.prototype.getTagName = function(index) {
+	if (!com.sap.xmii.common.util.MIIi5Util
+			.isNullOrEmpty(this.overrides[com.sap.xmii.common.util.QueryConstants.TAG_NAME+"."+ index])) {
+		return this.overrides[com.sap.xmii.common.util.QueryConstants.TAG_NAME+"."+ index];
+	} else {
+		return this.paramsMap[com.sap.xmii.common.util.QueryConstants.TAG_NAME+"."+ index];
+	}
+};
+
+/**
+ * Gets the TagValue specified at the index
+ * 
+ * @param index
+ * @return String
+ */
+com.sap.xmii.querytemplate.query.TagQuery.prototype.getTagValue = function(index) {
+	if(this.overrides[com.sap.xmii.common.util.QueryConstants.TAG_VALUE+"."+ index] != undefined  && !isNaN(index)) {
+		if (isNaN(this.overrides[com.sap.xmii.common.util.QueryConstants.TAG_VALUE+"."+ index]) && !com.sap.xmii.common.util.MIIi5Util
+				.isNullOrEmpty(this.overrides[com.sap.xmii.common.util.QueryConstants.TAG_VALUE+"."+ index])) {
+			return this.overrides[com.sap.xmii.common.util.QueryConstants.TAG_VALUE+"."+ index];
+		} else if(!isNaN(this.overrides[com.sap.xmii.common.util.QueryConstants.TAG_VALUE+"."+ index])) {
+			return this.overrides[com.sap.xmii.common.util.QueryConstants.TAG_VALUE+"."+ index];
+		} else {
+			return this.paramsMap[com.sap.xmii.common.util.QueryConstants.TAG_VALUE+"."+ index];
+		}
+	}else {
+		return this.paramsMap[com.sap.xmii.common.util.QueryConstants.TAG_VALUE+"."+ index];
+	}
+};
+
+/**
+ * Sets the TagValue specified at the index
+ * 
+ * @param index
+ * @param value
+ * @return void
+ */
+com.sap.xmii.querytemplate.query.TagQuery.prototype.setTagValue = function(index, value) {
+	this.overrides[com.sap.xmii.common.util.QueryConstants.TAG_VALUE+"."+ index] = value;
+};

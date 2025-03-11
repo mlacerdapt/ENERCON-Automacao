@@ -1,0 +1,88 @@
+function getJSDoc() {
+    var x = '';
+    function getAddMethods() {
+		var addMethodStr = '';
+		var propNames = ['ShowMessageArea:boolean','CommandAudit:boolean','CommandCategory:String','CommandMessageReturn:String','CommandRole1:String','CommandRole2:String','CommandText:String',
+                          'CommandUser1LoginRequired:boolean','ConfirmRole1Name:boolean','ConfirmRole2Name:boolean','DateFormat:String','FocusOnInputField:boolean',
+                          'NumberFormat:String','UseLocaleFormat:boolean','UseServerTimeZone:boolean','FailureMessage:String'];
+	
+		for (prop in propNames) {
+			var propertyset = propNames[prop].split(':');
+		    var getStr = 'String:' + 'get' + propertyset[0] + '()' + ';';
+		    var setStr = 'void:' + 'set' + propertyset[0] + '('+propertyset[1]+')' + ';';
+		    addMethodStr = addMethodStr + getStr + setStr;
+		}
+	
+		return addMethodStr;
+    }
+    ;
+    x = x + getAddMethods();
+    return x;
+};
+
+
+com.sap.xmii.chart.hchart = com.sap.xmii.chart.hchart || {};
+
+/***
+ * CommandComponent Class which holds the i5Command Configuration
+ */
+
+com.sap.xmii.chart.hchart.i5CommandComponent = function(i5CommConfig) {
+	
+	this.commandConfig = i5CommConfig;
+	var that = this;
+	
+	/**
+	 * 
+	 */
+	var checkForBooleanValue = function(propValue){
+		//if propValue contains true as string ,convert that value to boolean
+		//This is a workAround.This would work when there are true/false values for strings
+		if(propValue==='true'){
+			propValue = true;
+		}else if	(propValue==='false'){
+			propValue = false;
+		}
+		return propValue;
+	};
+	
+	/**
+	 * Generates Getters and Setters for the i5Command DT Configuration
+	 */
+	var addGettersAndSetters = function(propNames){
+		//var propNames = Object.keys(that.commandConfig);
+		for (prop in propNames) {
+			var propName = propNames[prop];
+			var propValue = that.commandConfig[propName];	
+			that.commandConfig[propName]=checkForBooleanValue(propValue);
+						
+			com.sap.xmii.common.util.MIIi5Util.defineProperty(this, propName,
+					propValue);
+
+			var getFnName = 'that.get' + propName;
+			var funcnSynt = 'function(){ ';
+			var returnSynt = 'return ';
+			var getterFnToAssign = 'that.commandConfig["'+propName+'"]';
+			var closingSyntax = '}';
+			//Replacing eval code
+			//eval(getFnName + '=' + funcnSynt + returnSynt + getterFnToAssign	+ closingSyntax);
+			const actionToCall =  new Function("return "+ funcnSynt + returnSynt + getterFnToAssign	+ closingSyntax);
+			   this["get"+propName]  = actionToCall();
+			//end of code
+			// Create the Setter Function and assign with this.setTitle
+			var setFnName = 'that.set' + propName;
+			var setFuncnSynt = 'function(val){ ';
+			var overrideProps = 'that.commandConfig["' + propName + '"] = val;';
+			var setterFnToAssign = 'that.' + propName + '=' + 'val;';
+			//Replacing eval code
+			//eval(setFnName + '=' + setFuncnSynt + overrideProps	+ setterFnToAssign + closingSyntax);
+			 const actionToCall2 =  new Function("return "+ setFuncnSynt + overrideProps	+ setterFnToAssign + closingSyntax);
+			   this["set"+propName]  = actionToCall2();
+			//end of code
+		}
+		
+	};
+	
+	addGettersAndSetters(com.sap.xmii.common.util.I5CommandPropNames);
+	
+};

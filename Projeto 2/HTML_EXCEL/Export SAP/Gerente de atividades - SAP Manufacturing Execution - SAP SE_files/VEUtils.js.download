@@ -1,0 +1,1482 @@
+/**
+ * This method generates source code html when *.vds Files are dropped in cell.
+ * @param templateData
+ * @param html
+ * @param cellID
+ * @param runtime
+ * @param cellStyle
+ * @param height
+ * @param width
+ * @return
+ */
+function addVEControlContentScript(templateData, cellID, runtime, cellStyle, height, width, separateJsCode) {
+
+    var that = this;
+    divCellId = "vds" + cellID;
+    var startScript = '\t\t\t\t\t<script>\n';
+    var endScript = "\t\t\t\t\t</script>\n";
+    LoadModules.plantView = true;
+    var tempViewerId = "viewer" + cellID;
+    var path = templateData.Path.replace("/WEB", "");
+    var webFilePath = "/XMII/CM/" + path + "/" + templateData.Name;
+   // var url = window.location.protocol + "//" + window.location.host + webFilePath;
+    var url =  webFilePath;
+
+    var localHeight = $("#" + cellID).height();
+    var localWidth = $("#" + cellID).width();
+
+    if (runtime == false) {
+        var matrixWidth = $("#matrix1").width();
+        var paneAdjustment = $("#" + cellID).width() / matrixWidth;
+
+        if (sap.ui.getCore().byId("main-shell").isPaneOpen()) {
+            localWidth = ($("#" + cellID).width() + (250 * paneAdjustment));
+        }
+        var viewerHeight = "";
+        var viewerWidth = "";
+        if (!isPaneOpenedOnMerge) {
+            localWidth = localWidth - (250 * paneAdjustment);
+            isPaneOpenedOnMerge = true;
+        }
+    }
+    
+    var showStepCarousel = templateData.ShowCarouselRuntime;
+    var  viewPortInfo = templateData.ViewPortInfo;
+	var showStepNavigation;
+	if (showStepCarousel) {
+		showStepNavigation = true;
+	} else {
+		showStepNavigation = false;
+	}
+
+    var canvasHeight = localHeight;
+
+    localWidth = "100%";
+    canvasHeight = "100%";
+    var html = "\t\t\t\t\t<div id=\"" + divCellId + "\"  style=\"" + cellStyle + "\">\n";
+
+    var configuredPartsArray = templateData.Parts;
+    var objectName = "VEHTMLViewer_" + divCellId;
+    var sourceType = "vds";
+    var cellJs = "\t\t\t\t\t\tjQuery.sap.require(\"sap.ui.vk.ContentResource\");\n\n" + "\t\t\t\t\t\tvar contentResource = new sap.ui.vk.ContentResource({source: \"" + url + "\",sourceType: \"" + sourceType + "\", sourceId : \"abc\"	});\n";
+    cellJs += "\t\t\t\t\t\tvar " + objectName + " = new sap.ui.vk.Viewer({id:\"" + tempViewerId + "\", width:\"" + localWidth + "\", showSceneTree : false ,showStepNavigation : "+ showStepNavigation +", height:\"" + canvasHeight + "\" }); \n";
+    cellJs += "\t\t\t\t\t\t" + objectName + ".data(\"viewportInfo\", "+JSON.stringify(viewPortInfo)+");\n";
+    cellJs += "\t\t\t\t\t\t" + objectName + ".addContentResource(contentResource);\n";
+    cellJs += "\t\t\t\t\t\tceController.addObject(\"" + cellID + "\", " + objectName + ");\n";
+    cellJs += "\t\t\t\t\t\t" + objectName + ".placeAt(\"" + divCellId + "\");\n";
+    //if Object has tag data , will call add expression of instance FrameColor
+    cellJs += "\n";
+    cellJs += "\t\t\t\t\t\t" + objectName + ".addEventDelegate({onAfterRendering: function(oEvent){\n" +
+        "\t\t\t\t\t\t" + "createCustomToolBar(oEvent , \"" + divCellId + "\");\n" +
+        "\t\t\t\t\t\t}}, " + objectName + ");\n\n";
+
+    cellJs += "";
+    cellJs += "\t\t\t\t\t\t" + objectName + ".attachSelectionChanged(null, function(event){ handleVDSPartSelection(event," + runtime + ")});\n";
+    cellJs += "\t\t\t\t\t\t" + objectName + ".attachSceneLoadingSucceeded(null, function(event){ updateDefaultLabels(event," + runtime + ")});"; 
+    
+
+    //Code for creating Source code of Tag Configuration 
+    var callbackMethod = null;
+    var onClickFunctionName = null
+    if (isObjectNotNull(configuredPartsArray) && configuredPartsArray.length > 0) {
+        //var isExpressionPresent = checkForExpression(configuredPartsArray);
+        //if(isExpressionPresent){
+    	cellJs += "\n\t\t\t\t\t\t\ var vdsPartRulesArray = [];\n\n";
+        for (var j = 0; j < configuredPartsArray.length; j++) {
+            if ((configuredPartsArray[j].rules.length > 0) || (configuredPartsArray[j].displayData.DefaultLabel != "") || (configuredPartsArray[j].displayData.ShowLabel == true && isObjectNotNull(configuredPartsArray[j].displayData.Label) && configuredPartsArray[j].displayData.Label != "")) {
+                var partEventsData = configuredPartsArray[j].eventsData;
+                if (partEventsData.CallBack != null && partEventsData.CallBack != undefined && partEventsData.CallBack) {
+                    if (partEventsData.MethodName != null && partEventsData.MethodName != undefined) {
+                        callbackMethod = partEventsData.MethodName;
+                        if (globalUserScript.search("function " + callbackMethod) == -1) {
+                            var javadoc = '\n/**' +
+                                '\n' + oBundle.getText("TAG_VALUE_CHANGE_CALLBACK") +
+                                '\nParameters:' +
+                                '\n\tpartName : ' + oBundle.getText("VDS_PART_NAME") +
+                                '\n\tpartId:\t' + oBundle.getText("VDS_PART_ID") +
+                                '\n\tcolor:\t' + oBundle.getText("COLOR_PARAM") +
+                                '\n\tvalue:\t' + oBundle.getText("TAG_EXPRESSION_VALUE") +
+                                '\n\tunitOfMeasure:\t' + oBundle.getText("UNIT_OF_MEASURE_PARAM") +
+                                '\n\tmetaData:\t' + oBundle.getText("VDS_PART_METADATA") +
+                                '\n**/';
+                            globalUserScript += javadoc;
+                            globalUserScript += '\n' + 'function ' + callbackMethod + '(partName, partId, color, value, unit, metaData){\n//TODO\n}\n';
+                        }
+                    }
+                }
+
+                if (partEventsData.OnClickFunction !== undefined && partEventsData.OnClickFunction != null && partEventsData.OnClickFunction) {
+                    if (partEventsData.OnClickFunctionName !== undefined && partEventsData.OnClickFunctionName != null &&
+                        partEventsData.OnClickFunctionName != "") {
+                        onClickFunctionName = partEventsData.OnClickFunctionName;
+                        if (globalUserScript.search("function " + onClickFunctionName) == -1) {
+                            var javadoc = '\n/**' +
+                                '\n' + oBundle.getText("PART_ON_CLICK_CALLBACK") +
+                                '\nParameters:' +
+                                '\n\tpartName : ' + oBundle.getText("VDS_PART_NAME") +
+                                '\n\tpartId:\t' + oBundle.getText("VDS_PART_ID") +
+                                '\n\tmetaData:\t' + oBundle.getText("VDS_PART_METADATA") +
+                                '\n\tvalue:\t' + oBundle.getText("TAG_EXPRESSION_VALUE") +
+                                '\n**/';
+                            globalUserScript += javadoc;
+                            globalUserScript += '\n' + 'function ' + onClickFunctionName + '(partName , partId, metaData, value){\n//TODO\n}\n';
+                        }
+                    }
+
+                }
+
+                cellJs += "\t\t\t\t\t\t var vdsPartRulesData_" + j + " = {};\n" +
+                    "\t\t\t\t\t\t vdsPartRulesData_" + j + ".vdsPartName = \"" + configuredPartsArray[j].partName + "\";\n" +
+                    "\t\t\t\t\t\t vdsPartRulesData_" + j + ".configuredWith = \"" + configuredPartsArray[j].configureWith + "\";\n" +
+                    "\t\t\t\t\t\t vdsPartRulesData_" + j + ".vdsPartId = \"" + configuredPartsArray[j].selectedNodeId + "\";\n";
+                if (isObjectNotNull(configuredPartsArray[j].displayData.Label) && configuredPartsArray[j].displayData.Label != "") {
+                	cellJs += "\t\t\t\t\t\t vdsPartRulesData_" + j + ".textLabel = \"" + configuredPartsArray[j].displayData.Label + "\";\n";
+                }
+                if (isObjectNotNull(configuredPartsArray[j].displayData.Unit) && configuredPartsArray[j].displayData.Unit != "") {
+                	cellJs += "\t\t\t\t\t\t vdsPartRulesData_" + j + ".unit = \"" + configuredPartsArray[j].displayData.Unit + "\";\n";
+                    if(isObjectNotNull(configuredPartsArray[j].displayData.Namespaces))
+                    	cellJs += "\t\t\t\t\t\t vdsPartRulesData_" + j + ".uomNamespace = \"" + configuredPartsArray[j].displayData.Namespaces + "\";\n";
+                    cellJs += "\t\t\t\t\t\t vdsPartRulesData_" + j + ".altUnit = \"" + configuredPartsArray[j].displayData.AltUnit + "\";\n";
+                    cellJs += "\t\t\t\t\t\t vdsPartRulesData_" + j + ".uomQuery = \"" + configuredPartsArray[j].displayData.ConfiguredQuery + "\";\n";
+                    if(isObjectNotNull(configuredPartsArray[j].displayData.UnitPropertySet))
+                    	cellJs += "\t\t\t\t\t\t vdsPartRulesData_" + j + ".unitPropertySet = \"" + configuredPartsArray[j].displayData.UnitPropertySet + "\";\n";
+                    cellJs += "\t\t\t\t\t\t vdsPartRulesData_" + j + ".isUnitValueHelp = \"" + configuredPartsArray[j].displayData.IsUnitValueHelp + "\";\n";
+
+                }
+                cellJs += "\t\t\t\t\t\t vdsPartRulesData_" + j + ".showLabel = \"" + configuredPartsArray[j].displayData.ShowLabel + "\";\n" +
+                    "\t\t\t\t\t\t vdsPartRulesData_" + j + ".showUnit = \"" + configuredPartsArray[j].displayData.ShowUnit + "\";\n" +
+                    "\t\t\t\t\t\t vdsPartRulesData_" + j + ".decimalPlaces = \"" + configuredPartsArray[j].displayData.Decimals + "\";\n" +
+                    "\t\t\t\t\t\t vdsPartRulesData_" + j + ".showValue = \"" + configuredPartsArray[j].displayData.Value + "\";\n" +
+                    "\t\t\t\t\t\t vdsPartRulesData_" + j + ".showDefault = \"" + configuredPartsArray[j].displayData.ShowDefault + "\";\n" +
+                    "\t\t\t\t\t\t vdsPartRulesData_" + j + ".DefaultValue = \"" + configuredPartsArray[j].displayData.DefaultLabel + "\";\n" +
+                    "\t\t\t\t\t\t vdsPartRulesData_" + j + ".defaultFont = \"" + configuredPartsArray[j].displayData.Font + "\";\n" +
+                    "\t\t\t\t\t\t vdsPartRulesData_" + j + ".defaultFontColor = \"" + configuredPartsArray[j].displayData.FontColor + "\";\n" +
+                    "\t\t\t\t\t\t vdsPartRulesData_" + j + ".defaultFontSize = \"" + configuredPartsArray[j].displayData.FontSize + "\";\n" +
+                    "\t\t\t\t\t\t vdsPartRulesData_" + j + ".defaultFontBGColor = \"" + configuredPartsArray[j].displayData.BGColor + "\";\n" +
+                    "\t\t\t\t\t\t vdsPartRulesData_" + j + ".defaultFrameColor = \"" + configuredPartsArray[j].displayData.FrameColor + "\";\n";
+
+                if (isObjectNotNull(callbackMethod) && callbackMethod != "undefined") {
+                	cellJs += "\t\t\t\t\t\t vdsPartRulesData_" + j + ".callbackMethod = \"" + callbackMethod + "\";\n";
+                }
+                if (partEventsData) {
+                	cellJs += "\t\t\t\t\t\t vdsPartRulesData_" + j + ".ShowTagTrend = \"" + partEventsData.ShowTagTrend + "\";\n\n";
+                    if (isObjectNotNull(onClickFunctionName) && onClickFunctionName != "undefined") {
+                    	cellJs += "\t\t\t\t\t\t vdsPartRulesData_" + j + ".OnClickFunctionName = \"" + onClickFunctionName + "\";\n\n";
+                    }
+                }
+
+                var vdsPartRuleArray = configuredPartsArray[j].rules;
+                if (isObjectNotNull(configuredPartsArray) && configuredPartsArray.length > 0) {
+                	cellJs += "\t\t\t\t\t\t var vdsPartExpressionArray_" + j + " = [];\n";
+                    for (var k = 0; k < vdsPartRuleArray.length; k++) {
+                    	cellJs += "\t\t\t\t\t\t var vdsPartExpression_" + k + " = {};\n" +
+                            "\t\t\t\t\t\t vdsPartExpression_" + k + ".Expr = \"" + vdsPartRuleArray[k].Expr.replace(/\"/g, '\\\"') + "\";\n";
+                        if (vdsPartRuleArray[k].Color != "#000000" && vdsPartRuleArray[k].Color != "undefined") {
+                        	cellJs += "\t\t\t\t\t\t vdsPartExpression_" + k + ".Color = \"" + vdsPartRuleArray[k].Color + "\";\n";
+                        }
+                        if (isObjectNotNull(vdsPartRuleArray[k].Action) && vdsPartRuleArray[k].Action != "") {
+                        	cellJs += "\t\t\t\t\t\t vdsPartExpression_" + k + ".vdsAction = \"" + vdsPartRuleArray[k].Action + "\";\n";
+                        }
+                        if (vdsPartRuleArray[k].BGColor != "#000000" && vdsPartRuleArray[k].BGColor != "undefined") {
+                        	cellJs += "\t\t\t\t\t\t vdsPartExpression_" + k + ".textBGColor = \"" + vdsPartRuleArray[k].BGColor + "\";\n";
+                        }
+                        if (vdsPartRuleArray[k].FontColor != "#000000" && vdsPartRuleArray[k].FontColor != "undefined" && isObjectNotNull(vdsPartRuleArray[k].FontColor)) {
+                        	cellJs += "\t\t\t\t\t\t vdsPartExpression_" + k + ".textFontColor = \"" + vdsPartRuleArray[k].FontColor + "\";\n";
+                        }
+                        cellJs += "\t\t\t\t\t\t vdsPartExpression_" + k + ".textFontSize = \"" + vdsPartRuleArray[k].FontSize + "\";\n" +
+                            "\t\t\t\t\t\t vdsPartExpression_" + k + ".textFont = \"" + vdsPartRuleArray[k].Font + "\";\n";
+                        if (vdsPartRuleArray[k].FrameColor != "#000000" && vdsPartRuleArray[k].FrameColor != "undefined") {
+                        	cellJs += "\t\t\t\t\t\t vdsPartExpression_" + k + ".textFrameColor = \"" + vdsPartRuleArray[k].FrameColor + "\";\n";
+                        }
+                        cellJs += "\t\t\t\t\t\t vdsPartExpression_" + k + ".Datatype = \"" + vdsPartRuleArray[k].Datatype + "\";\n" +
+                            "\t\t\t\t\t\t vdsPartExpression_" + k + ".MappedValue = \"" + vdsPartRuleArray[k].MappedValue.replace(/\"/g, '\\\"') + "\";\n" +
+                            "\t\t\t\t\t\t vdsPartExpression_" + k + ".Operator = \"" + vdsPartRuleArray[k].Operator + "\";\n" +
+                            "\t\t\t\t\t\t vdsPartExpression_" + k + ".Value = \"" + vdsPartRuleArray[k].Value + "\";\n" +
+                            "\t\t\t\t\t\t vdsPartExpressionArray_" + j + ".push(vdsPartExpression_" + k + ");\n\n";
+                    }
+                    cellJs += "\t\t\t\t\t\t vdsPartRulesData_" + j + ".rules = vdsPartExpressionArray_" + j + " ;\n";
+
+                }
+                cellJs += "\t\t\t\t\t\t vdsPartRulesArray.push(vdsPartRulesData_" + j + ");\n\n";
+            }
+        }
+        cellJs += "\t\t\t\t\t\t addExpression( vdsPartRulesArray ," + objectName + ");\n";
+        // }
+    }
+
+    if (separateJsCode) {
+        cellHtml = {};
+        cellHtml.html = html;
+        cellHtml.js = cellJs;
+    } else {
+    	html = html + startScript + cellJs + endScript + '\t\t\t\t\t\t</div>\n';
+        cellHtml = html;
+    }
+    return cellHtml;
+}
+
+/**
+ * This method adds Expression configured for 3D Parts for tag subscription
+ * @param partRulesArray
+ * @param objectName
+ * @return
+ */
+function addExpression(partRulesArray, objectName) {
+
+    objectName.partRulesArray = partRulesArray;
+    console.log("add expression called");
+
+    for (var i = 0; i < partRulesArray.length; i++) {
+
+        var partConfig = partRulesArray[i];
+        //For old dashboards, configured with is not available.
+        if((partConfig.configuredWith == "undefined") || (partConfig.configuredWith == undefined)){
+        	partConfig.configuredWith = "PIC";
+        }
+        if(isObjectNull(partConfig.configuredWith) || partConfig.configuredWith == "PIC"){
+		        var unit = partConfig.unit;
+		        var namespace = partConfig.uomNamespace;
+		        var altUnit = partConfig.altUnit;
+		        var unitPropertySet = partConfig.unitPropertySet;
+		        var isUnitvalueHelp = partConfig.isUnitValueHelp;
+		        var evaluator = new TagExpressionUtil();
+		        var picTagArray = evaluator.parseRulesForTags(partConfig.rules, partConfig.DefaultValue);
+		        var picTagPropertiesArray = evaluator.parseRulesForTagProperties(partConfig.rules, partConfig.DefaultValue);
+		        for(var j = 0; j < picTagArray.length ; j++){
+					var picTag =  picTagArray[j];
+					picTag.tagGUID = generateGuid();
+					picTag.tagAlias = picTag.tagName;
+					var params = {};
+					params.Mode = "ObjectList", params.Namespace = picTag.tagNamespace, params.Tag = picTag.tagName;
+					var data = getPICDetailsForVDS(XMII_PIC_ODATA_URL, params, null);
+					
+					if (isValidResponse(data)) {
+						//only single row is expected
+						var row = data.d.results[0].Rowset.results[0].Row.results[0];
+						//if the result is found then populating private variables
+						if (isObjectNotNull(row)) {
+							if(isObjectNotNull(row.TagAlias)){
+								picTag.tagAlias = row.TagAlias;
+							}
+						}
+					}
+					pCoSubscriber.addTag(picTag);
+				}
+		        if (isObjectNotNull(namespace)) {
+		            var uomProperty = {};
+		            uomProperty.tagNamespace = namespace;
+		            uomProperty.propertyName = altUnit;
+		            uomProperty.propertySetName = unitPropertySet;
+		            picTagPropertiesArray.push(uomProperty);
+		        }
+		        for (var k = 0; k < picTagPropertiesArray.length; k++) {
+		            var picTagProperty = picTagPropertiesArray[k];
+		            pCoSubscriber.addTagProperty(picTagProperty);
+		        }
+        }else if(partConfig.configuredWith == "Query"){
+
+	        var unit = partConfig.unit;
+	        //QueryExpressionUtil.prototype.parseRulesForQuery
+	        jQuery.sap.registerModulePath('Controls', '/XMII/CompositionEnvironment/js');
+		    jQuery.sap.require("Controls.QueryExpressionUtil");
+	        var evaluator = new QueryExpressionUtil();
+	        var queryArray = evaluator.parseRulesForQuery(partConfig.rules, partConfig.DefaultValue);
+	        for(var j = 0; j < queryArray.length ; j++){
+				var queryObj =  queryArray[j];
+				queryObj.TagDisplay = "VDS";
+				queryDataSubscriber.addQueryObject(queryObj);
+			}
+    
+        }
+        objectName.instanceSettings = {};
+        objectName.instanceSettings.blinkingNodes = [];
+        objectName.instanceSettings.blinkHandlers = [];
+
+   
+    
+    
+    }
+    sap.ui.getCore().getEventBus().subscribe("mii.ui.ce.events", "picTagUpdated", updateVDSForTagValue, objectName);
+    sap.ui.getCore().getEventBus().subscribe("mii.ui.ce.events", "AllQueryUpdated", updateVDSForQueryValue, objectName);
+
+}
+
+/**
+ * This method gets called when tag subscription is received. This function will evaluate the rules configured for each part and will execute the rule.
+ * @param sChannelId
+ * @param sEventId
+ * @param oData
+ * @return
+ */
+function updateVDSForQueryValue(sChannelId, sEventId, oData) {
+    var that = this;
+    if (that.getGraphicsCore() != undefined) {
+        console.log("updateVDSForQueryValue function called");
+
+        //For Each Part configured for tags, Call expression Evaluator to get matched expression
+        var oDvl = that.getGraphicsCore()._dvl;
+        if (oDvl.Settings.LastLoadedSceneId != undefined && oDvl.Settings.LastLoadedSceneId != null) {
+            var sceneId = that.sceneId = oDvl.Settings.LastLoadedSceneId;
+            var partArray = that.partRulesArray;
+            for (var j = 0; j < partArray.length; j++) {
+                var partRuleJson = partArray[j];
+                if(partRuleJson.configuredWith == "Query"){
+                var partName = partRuleJson.vdsPartName;
+                var partExpressionArray = partRuleJson.rules;
+                var evaluator = new QueryExpressionUtil();
+                var expressionJson = evaluator.evaluateRules(partExpressionArray);
+                if(partName == "Global"){
+                	if(isObjectNotNull(expressionJson) && expressionJson.vdsAction != null && expressionJson.vdsAction !=undefined  && expressionJson.vdsAction != "Empty" && expressionJson.vdsAction != oBundle.getText("XLBL_ISOLATE") && expressionJson.vdsAction != oBundle.getText("XLBL_HIDE")&& expressionJson.vdsAction != oBundle.getText("XLBL_ZOOM")&& expressionJson.vdsAction != oBundle.getText("XLBL_BLINK")){
+                		var stepNavigation = that.getAggregation("stepNavigation");
+                		var procedureId;
+                		var procedureName;
+            			if(isObjectNull(stepNavigation)){
+            				stepNavigation = that._stepNavigation;
+            			}
+            			var procedures = stepNavigation.getProceduresAndSteps().procedures;
+            			for(var i = 0; i< procedures.length; i++){
+
+            					if( expressionJson.vdsAction == procedures[i].name){
+            						procedureId =  procedures[i].id;
+            						procedureName = procedures[i].name;
+            						break;
+            					}
+            			
+            			}
+            		
+                		var o = stepNavigation.getProceduresAndSteps(); 
+                		stepNavigation.oDvl.Client.OnStepEvent = function(clientId, type, stepId) {
+                			that.currentPlayingProcedure = expressionJson.vdsAction;
+                			that.currentPlayingStepType =  type;
+                		};
+                		if(procedureName == that.currentPlayingProcedure ){
+	                		if(that.currentPlayingStepType === undefined || that.currentPlayingStepType == 2){
+	                			stepNavigation.playAllSteps(procedureId); 
+	                		}
+                		}else{
+                			stepNavigation.playAllSteps(procedureId);
+                		}
+                	}
+                }else{
+                var partId = oDvl.Scene.FindNodes(oDvl.Settings.LastLoadedSceneId, DvlEnums.DVLFINDNODETYPE.DVLFINDNODETYPE_NODE_NAME, DvlEnums.DVLFINDNODEMODE.DVLFINDNODEMODE_EQUAL, partName).nodes[0];
+
+                var textLabel = partRuleJson.textLabel;
+                var showLabel = partRuleJson.showLabel;
+                var showUnit = partRuleJson.showUnit;
+                var unit = partRuleJson.unit;
+                if (partRuleJson.isUnitValueHelp == "true" || partRuleJson.isUnitValueHelp == true) {
+                	unit = evaluator.getQueryColumnValue(partRuleJson.uomQuery, partRuleJson.altUnit);
+                }
+
+                var showValue = partRuleJson.showValue;
+                var decimal = partRuleJson.decimalPlaces;
+                var showDefault = partRuleJson.showDefault;
+                var defaultValue = partRuleJson.DefaultValue;
+                console.dir(defaultValue);
+                //call expression evaluator by giving expression array
+                //var indexOfSuccessfulExpression =  
+                //assuming first expression is valid.
+                var indexOfSuccessfulExpression = 0;
+               
+                var value = "";
+                if (expressionJson == null) {
+                	var val = "";
+        			if(isObjectNotNull(showDefault)  && (showDefault == "true" || showDefault == true)){
+        				val = evaluator.evaluateDefaultRule(defaultValue);
+        				if(isObjectNotNull(decimal)){
+        					var decimalPlaces = parseInt(decimal);
+        					if(decimalPlaces >= 0 && typeof val === "number")
+        						val = val.toFixed(decimalPlaces);
+
+        				}
+        			}
+                    if (isObjectNotNull(showLabel) && showLabel == "true") {
+                        value = textLabel + " " + val;
+                    } else {
+                        value = val;
+                    }
+                    if (isObjectNotNull(showUnit) && showUnit == "true" && isObjectNotNull(unit)) {
+                        value = value + " " + unit;
+                    }
+                    if((that.instanceSettings.previousActionPart == partName ) && that.instanceSettings.previousBlinkHandler){
+                    clearBlinkNode( that, partId ,that.instanceSettings.previousBlinkHandler);
+                    that.instanceSettings.previousVDSAction = null;
+                    }
+                    resetColorAndLabel (oDvl, partName, sceneId);
+                    changeColorAndLabel(partName, null, value, partRuleJson.defaultFont, partRuleJson.defaultFontSize, partRuleJson.defaultFontBGColor, partRuleJson.defaultFontColor, partRuleJson.defaultFrameColor, "true", oDvl);
+                    continue;
+                }
+                value = expressionJson.displayValue;
+
+                if (typeof(value) === "function") {
+                    value = value.name;
+                }
+                that.instanceSettings.partRulesArray = partArray;
+                var color = expressionJson.Color;
+                var action = expressionJson.vdsAction;
+                if (action == "Empty" || action == "undefined" || action == "") {
+                    action = undefined;
+                }
+                var textFont = expressionJson.textFont;
+                var textBGColor = expressionJson.textBGColor;
+                var textFontSize = expressionJson.textFontSize;
+                var textColor = expressionJson.textFontColor;
+                var textFrameColor = expressionJson.textFrameColor;
+                if (isObjectNull(textBGColor)) {
+                    textBGColor = "000000";
+                }
+                if (isObjectNull(textColor)) {
+                    textColor = "000000";
+                }
+                if (isObjectNull(textFrameColor)) {
+                    textFrameColor = "000000";
+                }
+                if (isObjectNull(color)) {
+                    color = "000000";
+                }
+                var dataType = expressionJson.Datatype;
+
+                if (isObjectNotNull(dataType) && (dataType.toLowerCase() == "double" || dataType.toLowerCase() == "numeric" || dataType.toLowerCase() == "integer") &&
+                    decimal !== undefined && decimal != "") {
+                    var decimalPlaces = parseInt(decimal);
+                    if (decimalPlaces >= 0 && typeof value === "number")
+                        value = value.toFixed(decimalPlaces);
+                }
+                partArray[j].currentValue = value;
+                if (isObjectNotNull(showLabel) && showLabel == "true") {
+                    value = textLabel + " " + value;
+                }
+                if (isObjectNotNull(showUnit) && showUnit == "true" && isObjectNotNull(unit)) {
+                    value = value + " " + unit;
+                }
+                if (isObjectNull(that.instanceSettings.previousActionPart)) {
+                    if (isObjectNotNull(action)) {
+
+                        that.instanceSettings.previousActionPart = partName;
+                        that.instanceSettings.previousVDSAction = action;
+                        if (action == oBundle.getText("XLBL_ISOLATE")) {
+                            toggleIsolation(oDvl, partId);
+                        } else if (action == oBundle.getText("XLBL_HIDE")) {
+                            hideObject(oDvl, partId, that.sceneId);
+                        } else if (action == oBundle.getText("XLBL_ZOOM")) {
+                            zoomToNode(oDvl, partId);
+                        } else if (action == oBundle.getText("XLBL_BLINK")) {
+                          var handler =   blinkNode(that, partId);
+                          that.instanceSettings.previousBlinkHandler = handler;
+                          that.instanceSettings.blinkingNodes.push(partId);
+                          var handlerObj = {partId :handler};
+                          that.instanceSettings.blinkHandlers.push(handlerObj);
+                        }
+                    }
+                    if ((isObjectNotNull(action) && action != oBundle.getText("XLBL_HIDE")) || (action == "" || action == undefined))
+                        changeColorAndLabel(partName, color, value, textFont, textFontSize, textBGColor, textColor, textFrameColor, showValue, oDvl);
+
+                } else if (isObjectNotNull(that.instanceSettings.previousActionPart) && that.instanceSettings.previousActionPart == partName) {
+
+                    if (isObjectNull(action)) {
+                        resetView(oDvl);
+                        showAll(oDvl, sceneId);
+                        toggleIsolation(oDvl);
+                        that.instanceSettings.previousActionPart = partName;
+                        that.instanceSettings.previousVDSAction = action;
+                        if( that.instanceSettings.blinkingNodes !== null && that.instanceSettings.blinkingNodes.indexOf(partId) != -1){
+                        	var previousHandler = getPreviousBlinkHandler(that.instanceSettings.blinkHandlers,partId);
+                        	clearBlinkNode( that, partId ,previousHandler);//TODO
+                        	that.instanceSettings.blinkingNodes.splice(that.instanceSettings.blinkingNodes.indexOf(partId), 1);
+                        	removeFromBlinkHandler(that.instanceSettings.blinkHandlers,partId);
+                        }
+                    } else if (isObjectNotNull(action) && (that.instanceSettings.previousVDSAction != action)) {
+                    	 /*if(that.instanceSettings.previousBlinkHandler){
+                         	clearBlinkNode( that, partId ,that.instanceSettings.previousBlinkHandler);
+                         }*/
+                    	 if (action != oBundle.getText("XLBL_BLINK")){
+	                        resetView(oDvl);
+	                        showAll(oDvl, sceneId);
+	                        toggleIsolation(oDvl);
+                    	 }
+                        if (action == oBundle.getText("XLBL_ISOLATE")) {
+                            toggleIsolation(oDvl, partId);
+                        } else if (action == oBundle.getText("XLBL_HIDE")) {
+                            hideObject(oDvl, partId, that.sceneId);
+                        } else if (action == oBundle.getText("XLBL_ZOOM")) {
+                            zoomToNode(oDvl, partId);
+                        } else if (action == oBundle.getText("XLBL_BLINK")) {
+                        	if(that.instanceSettings.blinkingNodes == null || that.instanceSettings.blinkingNodes.indexOf(partId) == -1){
+
+                           	 var handler =  blinkNode(that, partId);
+                           	 that.instanceSettings.previousBlinkHandler = handler;
+                           	 that.instanceSettings.blinkingNodes.push(partId);
+                           	 var handlerObj = {partId :handler};
+                             that.instanceSettings.blinkHandlers.push(handlerObj);
+                           	
+                        	}
+                        }
+                        that.instanceSettings.previousActionPart = partName;
+                        that.instanceSettings.previousVDSAction = action;
+                    }
+
+                    if ((isObjectNotNull(action) && action != oBundle.getText("XLBL_HIDE")) || (action == "" || action == undefined))
+                        changeColorAndLabel(partName, color, value, textFont, textFontSize, textBGColor, textColor, textFrameColor, showValue, oDvl);
+
+
+                } else if (isObjectNotNull(that.instanceSettings.previousActionPart) && that.instanceSettings.previousActionPart != partName) {
+
+                    if (isObjectNotNull(action)) {
+                    	 if (action != oBundle.getText("XLBL_BLINK")){
+ 	                        resetView(oDvl);
+ 	                        showAll(oDvl, sceneId);
+ 	                        toggleIsolation(oDvl);
+                     	 }
+                        that.instanceSettings.previousActionPart = partName;
+                        that.instanceSettings.previousVDSAction = action;
+                    }else if(isObjectNull(action)){
+                    		resetView(oDvl);
+	                        showAll(oDvl, sceneId);
+	                        toggleIsolation(oDvl);
+                    }
+
+                    if (isObjectNotNull(action)) {
+                        if (action == oBundle.getText("XLBL_ISOLATE")) {
+                            toggleIsolation(oDvl, partId);
+                        } else if (action == oBundle.getText("XLBL_HIDE")) {
+                            hideObject(oDvl, partId, that.sceneId);
+                        } else if (action == oBundle.getText("XLBL_ZOOM")) {
+                            zoomToNode(oDvl, partId);
+                        } else if (action == oBundle.getText("XLBL_BLINK")) {
+                        	if(that.instanceSettings.blinkingNodes == null || that.instanceSettings.blinkingNodes.indexOf(partId) == -1){
+
+                           	 var handler =  blinkNode(that, partId);
+                           	 that.instanceSettings.previousBlinkHandler = handler;
+                           	  that.instanceSettings.blinkingNodes.push(partId);
+                           	  var handlerObj = {partId :handler};
+                              that.instanceSettings.blinkHandlers.push(handlerObj);
+                           
+                        	}
+                        }
+                    }
+                    //Change only color and values
+                    if ((isObjectNotNull(action) && action != oBundle.getText("XLBL_HIDE")) || (action == "" || action == undefined))
+                        changeColorAndLabel(partName, color, value, textFont, textFontSize, textBGColor, textColor, textFrameColor, showValue, oDvl);
+
+                }
+                // code for callback function if any
+                var callbackMethod = partRuleJson.callbackMethod;
+                if (isObjectNotNull(callbackMethod) && callbackMethod != "undefined") {
+                    var metaData = getMetaData(oDvl, undefined, partId, partName);
+                    window[callbackMethod](partName, partId, color, partArray[j].currentValue, unit, metaData);
+                }
+            }
+            
+            }
+            }
+        }
+    }
+}
+
+function getUnitFromQueryColumn(uomQueryName, uomColumnName){
+	
+}
+
+/**
+ * This method gets called when tag subscription is received. This function will evaluate the rules configured for each part and will execute the rule.
+ * @param sChannelId
+ * @param sEventId
+ * @param oData
+ * @return
+ */
+function updateVDSForTagValue(sChannelId, sEventId, oData) {
+    var that = this;
+    if (that.getGraphicsCore() != undefined) {
+        console.log("updateVDSForTagValue function called");
+
+        //For Each Part configured for tags, Call expression Evaluator to get matched expression
+        var oDvl = that.getGraphicsCore()._dvl;
+        if (oDvl.Settings.LastLoadedSceneId != undefined && oDvl.Settings.LastLoadedSceneId != null) {
+            var sceneId = that.sceneId = oDvl.Settings.LastLoadedSceneId;
+            var partArray = that.partRulesArray;
+            for (var j = 0; j < partArray.length; j++) {
+                var partRuleJson = partArray[j];
+                if(partRuleJson.configuredWith == "PIC"){
+                var partName = partRuleJson.vdsPartName;
+                var partExpressionArray = partRuleJson.rules;
+                var evaluator = new TagExpressionUtil();
+                var expressionJson = evaluator.evaluateRules(partExpressionArray);
+                if(partName == "Global"){
+                	if(isObjectNotNull(expressionJson) && expressionJson.vdsAction != null && expressionJson.vdsAction !=undefined && expressionJson.vdsAction != "Empty" && expressionJson.vdsAction != oBundle.getText("XLBL_ISOLATE") && expressionJson.vdsAction != oBundle.getText("XLBL_HIDE")&& expressionJson.vdsAction != oBundle.getText("XLBL_ZOOM")&& expressionJson.vdsAction != oBundle.getText("XLBL_BLINK")){
+                		var stepNavigation = that.getAggregation("stepNavigation");
+                		
+
+                		var procedureId;
+                		var procedureName;
+            			if(isObjectNull(stepNavigation)){
+            				stepNavigation = that._stepNavigation;
+            			}
+            			var procedures = stepNavigation.getProceduresAndSteps().procedures;
+            			for(var i = 0; i< procedures.length; i++){
+
+            					if( expressionJson.vdsAction == procedures[i].name){
+            						procedureId =  procedures[i].id;
+            						procedureName = procedures[i].name;
+            						break;
+            					}
+            			
+            			}
+            		
+                		var o = stepNavigation.getProceduresAndSteps(); 
+                		stepNavigation.oDvl.Client.OnStepEvent = function(clientId, type, stepId) {
+                			that.currentPlayingProcedure = expressionJson.vdsAction;
+                			that.currentPlayingStepType =  type;
+                		};
+                		if(procedureName == that.currentPlayingProcedure ){
+	                		if(that.currentPlayingStepType === undefined || that.currentPlayingStepType == 2){
+	                			stepNavigation.playAllSteps(procedureId); 
+	                		}
+                		}else{
+                			stepNavigation.playAllSteps(procedureId);
+                		}
+                	}
+                }else{
+               
+                var partId = oDvl.Scene.FindNodes(oDvl.Settings.LastLoadedSceneId, DvlEnums.DVLFINDNODETYPE.DVLFINDNODETYPE_NODE_NAME, DvlEnums.DVLFINDNODEMODE.DVLFINDNODEMODE_EQUAL, partName).nodes[0];
+
+                var textLabel = partRuleJson.textLabel;
+                var showLabel = partRuleJson.showLabel;
+                var showUnit = partRuleJson.showUnit;
+                var unit = partRuleJson.unit;
+                if (partRuleJson.isUnitValueHelp == "true") {
+                    unit = getUnitFromWSPropertySet(partRuleJson.uomNamespace, partRuleJson.altUnit);
+                }
+
+                var showValue = partRuleJson.showValue;
+                var decimal = partRuleJson.decimalPlaces;
+                var showDefault = partRuleJson.showDefault;
+                var defaultValue = partRuleJson.DefaultValue;
+                console.dir(defaultValue);
+                //call expression evaluator by giving expression array
+                //assuming first expression is valid.
+                var indexOfSuccessfulExpression = 0;
+               
+                var value = "";
+                if (expressionJson == null) {
+
+                	var val = "";
+        			if(isObjectNotNull(showDefault)  && (showDefault == "true" || showDefault == true)){
+        				val = evaluator.evaluateDefaultRule(defaultValue);
+        				if(isObjectNotNull(decimal)){
+        					var decimalPlaces = parseInt(decimal);
+        					if(decimalPlaces >= 0 && typeof val === "number")
+        						val = val.toFixed(decimalPlaces);
+
+        				}
+        			}
+                    if (isObjectNotNull(showLabel) && showLabel == "true") {
+                        value = textLabel + " " + val;
+                    } else {
+                        value = val;
+                    }
+                    if (isObjectNotNull(showUnit) && showUnit == "true" && isObjectNotNull(unit)) {
+                        value = value + " " + unit;
+                    }
+                    if((that.instanceSettings.previousActionPart == partName ) && that.instanceSettings.previousBlinkHandler){
+                    	clearBlinkNode( that, partId ,that.instanceSettings.previousBlinkHandler);
+                    	that.instanceSettings.previousVDSAction = null;
+                    }
+                    resetColorAndLabel (oDvl, partName, sceneId);
+                    changeColorAndLabel(partName, null, value, partRuleJson.defaultFont, partRuleJson.defaultFontSize, partRuleJson.defaultFontBGColor, partRuleJson.defaultFontColor, partRuleJson.defaultFrameColor, "true", oDvl);
+                    continue;
+                }
+                value = expressionJson.displayValue;
+
+                if (typeof(value) === "function") {
+                    value = value.name;
+                }
+                that.instanceSettings.partRulesArray = partArray;
+                var color = expressionJson.Color;
+                var action = expressionJson.vdsAction;
+                if (action == "Empty" || action == "undefined" || action == "") {
+                    action = undefined;
+                }
+                var textFont = expressionJson.textFont;
+                var textBGColor = expressionJson.textBGColor;
+                var textFontSize = expressionJson.textFontSize;
+                var textColor = expressionJson.textFontColor;
+                var textFrameColor = expressionJson.textFrameColor;
+                if (isObjectNull(textBGColor)) {
+                    textBGColor = "000000";
+                }
+                if (isObjectNull(textColor)) {
+                    textColor = "000000";
+                }
+                if (isObjectNull(textFrameColor)) {
+                    textFrameColor = "000000";
+                }
+                if (isObjectNull(color)) {
+                    color = "000000";
+                }
+                var dataType = expressionJson.Datatype;
+
+                if (isObjectNotNull(dataType) && (dataType.toLowerCase() == "double" || dataType.toLowerCase() == "numeric" || dataType.toLowerCase() == "integer") &&
+                    decimal !== undefined && decimal != "") {
+                    var decimalPlaces = parseInt(decimal);
+                    if (decimalPlaces >= 0 && typeof value === "number")
+                        value = value.toFixed(decimalPlaces);
+                }
+                partArray[j].currentValue = value;
+                if (isObjectNotNull(showLabel) && showLabel == "true") {
+                    value = textLabel + " " + value;
+                }
+                if (isObjectNotNull(showUnit) && showUnit == "true" && isObjectNotNull(unit)) {
+                    value = value + " " + unit;
+                }
+                if (isObjectNull(that.instanceSettings.previousActionPart)) {
+                    if (isObjectNotNull(action)) {
+
+                        that.instanceSettings.previousActionPart = partName;
+                        that.instanceSettings.previousVDSAction = action;
+                        if (action == oBundle.getText("XLBL_ISOLATE")) {
+                            toggleIsolation(oDvl, partId);
+                        } else if (action == oBundle.getText("XLBL_HIDE")) {
+                            hideObject(oDvl, partId, that.sceneId);
+                        } else if (action == oBundle.getText("XLBL_ZOOM")) {
+                            zoomToNode(oDvl, partId);
+                        } else if (action == oBundle.getText("XLBL_BLINK")) {
+                        	var handler = blinkNode(that, partId);
+                        	that.instanceSettings.previousBlinkHandler = handler;
+                        	that.instanceSettings.blinkingNodes.push(partId);
+                        	 var handlerObj = {partId :handler};
+                             that.instanceSettings.blinkHandlers.push(handlerObj);
+                        }
+                    }
+                    if ((isObjectNotNull(action) && action != oBundle.getText("XLBL_HIDE")) || (action == "" || action == undefined))
+                        changeColorAndLabel(partName, color, value, textFont, textFontSize, textBGColor, textColor, textFrameColor, showValue, oDvl);
+
+                } else if (isObjectNotNull(that.instanceSettings.previousActionPart) && that.instanceSettings.previousActionPart == partName) {
+
+                	 if (isObjectNull(action)) {
+                         resetView(oDvl);
+                         showAll(oDvl, sceneId);
+                         toggleIsolation(oDvl);
+                         that.instanceSettings.previousActionPart = partName;
+                         that.instanceSettings.previousVDSAction = action;
+                         if( that.instanceSettings.blinkingNodes !== null && that.instanceSettings.blinkingNodes.indexOf(partId) != -1){
+                         	var previousHandler = getPreviousBlinkHandler(that.instanceSettings.blinkHandlers,partId);
+                         	clearBlinkNode( that, partId ,previousHandler);//TODO
+                         	that.instanceSettings.blinkingNodes.splice(that.instanceSettings.blinkingNodes.indexOf(partId), 1);
+                         	removeFromBlinkHandler(that.instanceSettings.blinkHandlers,partId);
+                         }
+                     } else if (isObjectNotNull(action) && (that.instanceSettings.previousVDSAction != action)) {
+                    	 if (action != oBundle.getText("XLBL_BLINK")){
+ 	                        resetView(oDvl);
+ 	                        showAll(oDvl, sceneId);
+ 	                        toggleIsolation(oDvl);
+                     	 }
+                       /* if(that.instanceSettings.previousBlinkHandler){
+                        	clearBlinkNode( that, partId ,that.instanceSettings.previousBlinkHandler);
+                        }*/
+                        if (action == oBundle.getText("XLBL_ISOLATE")) {
+                            toggleIsolation(oDvl, partId);
+                        } else if (action == oBundle.getText("XLBL_HIDE")) {
+                            hideObject(oDvl, partId, that.sceneId);
+                        } else if (action == oBundle.getText("XLBL_ZOOM")) {
+                            zoomToNode(oDvl, partId);
+                        } else if (action == oBundle.getText("XLBL_BLINK")) {
+                        	var handler = blinkNode(that, partId);
+                        	that.instanceSettings.previousBlinkHandler = handler;
+                        	that.instanceSettings.blinkingNodes.push(partId);
+                        	 var handlerObj = {partId :handler};
+                             that.instanceSettings.blinkHandlers.push(handlerObj);
+                        }
+                        that.instanceSettings.previousActionPart = partName;
+                        that.instanceSettings.previousVDSAction = action;
+                    }
+
+                    if ((isObjectNotNull(action) && action != oBundle.getText("XLBL_HIDE")) || (action == "" || action == undefined))
+                        changeColorAndLabel(partName, color, value, textFont, textFontSize, textBGColor, textColor, textFrameColor, showValue, oDvl);
+
+
+                } else if (isObjectNotNull(that.instanceSettings.previousActionPart) && that.instanceSettings.previousActionPart != partName) {
+
+                    if (isObjectNotNull(action)) {
+                    	 if (action != oBundle.getText("XLBL_BLINK")){
+  	                        resetView(oDvl);
+  	                        showAll(oDvl, sceneId);
+  	                        toggleIsolation(oDvl);
+                      	 }
+                        that.instanceSettings.previousActionPart = partName;
+                        that.instanceSettings.previousVDSAction = action;
+                    }else if(isObjectNull(action)){
+                		resetView(oDvl);
+                        showAll(oDvl, sceneId);
+                        toggleIsolation(oDvl);
+                    }
+
+                    if (isObjectNotNull(action)) {
+                        if (action == oBundle.getText("XLBL_ISOLATE")) {
+                            toggleIsolation(oDvl, partId);
+                        } else if (action == oBundle.getText("XLBL_HIDE")) {
+                            hideObject(oDvl, partId, that.sceneId);
+                        } else if (action == oBundle.getText("XLBL_ZOOM")) {
+                            zoomToNode(oDvl, partId);
+                        } else if (action == oBundle.getText("XLBL_BLINK")) {
+                           var handler = blinkNode(that, partId);
+                           that.instanceSettings.previousBlinkHandler = handler;
+                           that.instanceSettings.blinkingNodes.push(partId);
+                           var handlerObj = {partId :handler};
+                           that.instanceSettings.blinkHandlers.push(handlerObj);
+                        }
+                    }
+                    //Change only color and values
+                    if ((isObjectNotNull(action) && action != oBundle.getText("XLBL_HIDE")) || (action == "" || action == undefined))
+                        changeColorAndLabel(partName, color, value, textFont, textFontSize, textBGColor, textColor, textFrameColor, showValue, oDvl);
+
+                }
+                // code for callback function if any
+                var callbackMethod = partRuleJson.callbackMethod;
+                if (isObjectNotNull(callbackMethod) && callbackMethod != "undefined") {
+                    var metaData = getMetaData(oDvl, undefined, partId, partName);
+                    window[callbackMethod](partName, partId, color, partArray[j].currentValue, unit, metaData);
+                }
+            }
+            }
+            }
+            
+        }
+    }
+}
+
+/**
+ * This function gets called on click of 3d part
+ * @param event
+ * @param runtime
+ * @return
+ */
+function handleVDSPartSelection(event, runtime) {
+    var vdsViewer = event.getSource();
+    var parentCell = vdsViewer.getParent();
+    var vdsCellId = parentCell.sId;
+
+
+    cellId = vdsCellId.split("viewer")[1];
+    var panel = sap.ui.getCore().byId(cellId);
+    var tagButton = sap.ui.getCore().byId("" + cellId + "_TagConfig");
+    if (tagButton != null)
+        tagButton.destroy();
+    if ((event.getParameters().unselected.length > 0) && (event.getParameters().selected.length == 0)) {
+        parentCell.nodeName = undefined;
+        vdsViewer.previousSelectedNodeName = undefined;
+        parentCell.selectedNode = undefined;
+        sap.ui.getCore().byId("vds" + cellId + "isolate").setEnabled(false);
+        sap.ui.getCore().byId("vds" + cellId + "hideSelection").setText(oBundle.getText("XFLD_HIDE_SELECTION"));
+        sap.ui.getCore().byId("vds" + cellId + "hideSelection").setEnabled(false);
+        return;
+    }
+//    changeing after SAP UI5 upgrade 1.71
+//      reverting UI5 upgradation changes
+//    var oDvl= event.getSource()._contentConnector._contentManager._graphicsCore._dvl;
+    
+    var oDvl = event.getSource()._dvl;
+    var sceneId = oDvl.Settings.LastLoadedSceneId;
+    var nodeName, selectedNode;
+    if (event.getParameters().selected.length > 0) {
+        idFirstSelectedNode = event.getParameters().selected[0];
+        try {
+            var niname = oDvl.Scene.RetrieveNodeInfo(sceneId, idFirstSelectedNode,
+                DvlEnums.DVLNODEINFO.DVLNODEINFO_NAME);
+            parentCell.nodeName = nodeName = niname.NodeName;
+            vdsViewer.previousSelectedNodeName = nodeName;
+            parentCell.selectedNode = selectedNode = idFirstSelectedNode;
+            sap.ui.getCore().byId("vds" + cellId + "isolate").setEnabled(true);
+            sap.ui.getCore().byId("vds" + cellId + "hideSelection").setText(oBundle.getText("XFLD_HIDE_SELECTION"));
+            sap.ui.getCore().byId("vds" + cellId + "hideSelection").setEnabled(true);
+        } catch (e) {
+            //This means user has clicked on empty space.
+            console.log(e);
+
+        }
+    }
+    
+    if(event.getParameters().selected.length == 0 && event.getParameters().unselected.length == 0){
+    	if(vdsViewer.previousSelectedNodeName != undefined){
+    		nodeName = vdsViewer.previousSelectedNodeName;
+    	}
+    }
+    /**
+     * Handle runtime function call and Trend Chart.
+     */
+    if (runtime == true) {
+        //get the onClick function for the clicked part
+
+        var partArray = parentCell.partRulesArray;
+        if(isObjectNotNull(partArray)){
+        for (var j = 0; j < partArray.length; j++) {
+            var partRuleJson = partArray[j];
+            var partName = partRuleJson.vdsPartName;
+            var partId = partRuleJson.vdsPartId;
+            var onclickFunc = partRuleJson.OnClickFunctionName;
+            if (isObjectNotNull(onclickFunc) && onclickFunc != "undefined" && (partName == nodeName)) {
+                var metaData = getMetaData(oDvl, undefined, partId, partName);
+                window[onclickFunc](partName, partId, metaData, partRuleJson.currentValue);
+            }
+
+            if (partRuleJson.ShowTagTrend == "true" && (partName == nodeName) && partRuleJson.configuredWith == "PIC") {
+                //open trend mode for all the tags configured for this part.
+                var evaluator = new TagExpressionUtil();
+                var picTagArray = evaluator.parseRulesForTags(partRuleJson.rules);
+                var namespaceArray = [];
+                for (var k = 0; k < picTagArray.length; k++) {
+                    var picTag = picTagArray[k];
+                    namespaceArray.push(picTag.tagNamespace);
+                }
+                if (namespaceArray.length > 0) {
+                    showTrendDialogForTags(namespaceArray);
+                }
+            }
+        }
+    }
+    }
+}
+
+function updateDefaultLabels  (event, runtime){
+	 var vdsViewer = event.getSource();
+//	 changeing after SAP UI5 upgrade 1.71
+//   reverting UI5 upgradation changes
+
+//	    var oDvl= event.getSource()._contentConnector._contentManager._graphicsCore._dvl;
+	  var oDvl = event.getSource()._dvl;
+	  var partArray = vdsViewer.partRulesArray;
+	if((runtime == true || runtime == "true") && isObjectNotNull(partArray)){
+	var oDvl = vdsViewer.getGraphicsCore()._dvl;
+	for(var j = 0; j< partArray.length ; j++){
+		var partRuleJson = partArray[j];
+             var partName = partRuleJson.vdsPartName;
+             var textLabel = partRuleJson.textLabel;
+     		 var showLabel = partRuleJson.showLabel;
+    		 var partName = partRuleJson.vdsPartName;
+    		 var showValue =  partRuleJson.showValue;
+    		 
+		var partId = oDvl.Scene.FindNodes(oDvl.Settings.LastLoadedSceneId, DvlEnums.DVLFINDNODETYPE.DVLFINDNODETYPE_NODE_NAME, DvlEnums.DVLFINDNODEMODE.DVLFINDNODEMODE_EQUAL, partName).nodes[0];
+		if(isObjectNotNull(showLabel) && showLabel == "true" && isObjectNotNull(textLabel)){
+		changeColorAndLabel(partName, null, textLabel, partRuleJson.defaultFont, partRuleJson.defaultFontSize, partRuleJson.defaultFontBGColor, partRuleJson.defaultFontColor,partRuleJson.defaultFrameColor,showValue,oDvl);
+		}
+		
+	}
+}
+}
+
+/**
+ * This function adds Action Menu to sap.ui.vk.Toolbar.
+ * @param oEvent
+ * @param divCellId
+ * @return
+ */
+function createCustomToolBar(oEvent, divCellId) {
+    var srcControl = oEvent.srcControl;
+    if(srcControl.getViewport() && isObjectNotNull(srcControl.data("viewportInfo"))){
+    	srcControl.getViewport().setViewInfo(srcControl.data("viewportInfo"));
+    }
+    if(isObjectNotNull(srcControl._toolbar)){
+    var toolbar1 = srcControl._toolbar._toolbar;
+    toolbar1.addStyleClass("sapUiSizeCompact");
+    if (isObjectNull(sap.ui.getCore().byId(divCellId + "_actionMenu"))) {
+        var actionMenu = new sap.ui.unified.Menu(divCellId + "_actionMenu", {
+            ariaDescription: oBundle.getText("XFLD_ACTION_MENU"),
+            tooltip: oBundle.getText("XFLD_ACTION_MENU")
+        });
+
+        var homeMenu = new sap.ui.unified.MenuItem(divCellId + "home", {
+            text: oBundle.getText("XFLD_HOME")
+        });
+
+        actionMenu.addItem(homeMenu);
+
+
+        var isolateMenu = new sap.ui.unified.MenuItem(divCellId + "isolate", {
+            text: oBundle.getText("XFLD_ISOLATE"),
+            enabled: false
+        });
+
+        actionMenu.addItem(isolateMenu);
+
+        var hideSelectionMenu = new sap.ui.unified.MenuItem(divCellId + "hideSelection", {
+            text: oBundle.getText("XFLD_HIDE_SELECTION"),
+            enabled: false
+        });
+
+        actionMenu.addItem(hideSelectionMenu);
+
+        var showAllMenu = new sap.ui.unified.MenuItem(divCellId + "showAll", {
+            text: oBundle.getText("XFLD_SHOW_ALL")
+        });
+
+        actionMenu.addItem(showAllMenu);
+
+        var actionIcon = new sap.m.Button("" + divCellId + "actionIcon", {
+            icon: sap.ui.core.IconPool.getIconURI("expand-group"),
+            enabled: true,
+            tooltip: oBundle.getText("XFLD_ACTION_MENU"),
+            press: function() {
+                var eDock = sap.ui.core.Popup.Dock;
+                actionMenu.open(
+                    false /*First item already highlighted*/ ,
+                    actionIcon.getFocusDomRef() /*Dom reference which gets the focus back when the menu is closed*/ ,
+                    eDock.BeginTop, /*"Edge" of the menu (see sap.ui.core.Popup)*/
+                    eDock.BeginBottom, /*"Edge" of the related opener position (see sap.ui.core.Popup)*/
+                    actionIcon.getDomRef() /*Related opener position (see sap.ui.core.Popup)*/
+                );
+            }
+        });
+        homeMenu.attachSelect(srcControl, onHomeVDS, null);
+        isolateMenu.attachSelect(srcControl, toggleIsolateVDSComponent, null);
+        hideSelectionMenu.attachSelect(srcControl, toggleHideShowSelection, null);
+        showAllMenu.attachSelect(srcControl, showAllComponent, null);
+
+        toolbar1.addContent(actionIcon);
+        //toolbar1.rerender();
+    }
+}
+}
+
+/**
+ * This function retrieves metadata associated with a part.
+ * @param oDvl
+ * @param sceneId
+ * @param idFirstSelectedNode
+ * @param Name
+ * @return
+ */
+function getMetaData(oDvl, sceneId, idFirstSelectedNode, Name) {
+    if (oDvl != undefined) {
+        if (isObjectNull(sceneId)) {
+            sceneId = oDvl.Settings.LastLoadedSceneId;
+        }
+        try {
+            var mi = oDvl.Scene.RetrieveMetadata(sceneId, idFirstSelectedNode);
+            console.log(mi);
+            var mObject = mi.metadata;
+            if (mObject) {
+                return mObject;
+            } else {
+                return null;
+            }
+        } catch (error) {
+            console.log("Error occurend while retreiveing metadata ");
+            return null;
+        }
+    }
+}
+
+function getPartsList (oDvl, maxParts, maxNodesInSinglePart, maxPartNameLength, type, sort,
+		dvlidConsumedStep, substring) {
+	if(oDvl != undefined ){
+	maxParts = maxParts != null ? maxParts : 0; // 0=unlimited
+	maxNodesInSinglePart = maxNodesInSinglePart != null ? maxNodesInSinglePart : 0; // 0=unlimited
+	maxPartNameLength = maxPartNameLength != null ? maxPartNameLength : 0; // 0=unlimited
+	type = type != null ? type : DvlEnums.DVLPARTSLISTTYPE.DVLPARTSLISTTYPE_ALL;
+	sort = sort != null ? sort : DvlEnums.DVLPARTSLISTSORT.DVLPARTSLISTSORT_NAME_ASCENDING;
+	dvlidConsumedStep = dvlidConsumedStep != null ? dvlidConsumedStep : DvlEnums.DVLID_INVALID; // only used
+																																																						// if
+																																																						// DVLPARTSLISTTYPE_CONSUMED_BY_STEP
+	substring = substring != null ? substring : null; // Null=filtering not required
+
+	var sceneId = oDvl.Settings.LastLoadedSceneId;
+	return oDvl.Scene.BuildPartsList(sceneId, maxParts, maxNodesInSinglePart, maxPartNameLength, type, sort,
+			dvlidConsumedStep, substring);
+	}
+}
+
+/**
+ * This function is called when user clicks on Home menu item.
+ * @param oEvent
+ * @param viewerInstance
+ * @return
+ */
+function onHomeVDS(oEvent, viewerInstance) {
+    resetView(viewerInstance.getGraphicsCore()._dvl);
+}
+
+/**
+ * This method gets called on click of Show All Menu item.
+ * @param oEvent
+ * @param viewerInstance
+ * @return
+ */
+function showAllComponent(oEvent, viewerInstance) {
+    var arr = viewerInstance.getId().split("viewer");
+    var panelId = arr[1];
+    sap.ui.getCore().byId("vds" + panelId + "hideSelection").setText(oBundle.getText("XFLD_HIDE_SELECTION"));
+    showAll(viewerInstance.getGraphicsCore()._dvl);
+}
+
+/**
+ * This function gets called on click of isolate/remove isolate Menu item
+ * @param oEvent
+ * @param viewerInstance
+ * @return
+ */
+function toggleIsolateVDSComponent(oEvent, viewerInstance) {
+    var that = this;
+    toggleIsolation(viewerInstance.getGraphicsCore()._dvl, viewerInstance.selectedNode);
+    var currentText = sap.ui.getCore().byId(oEvent.getParameters().id).getText();
+    if (currentText === oBundle.getText("XFLD_ISOLATE")) {
+        sap.ui.getCore().byId(oEvent.getParameters().id).setText(oBundle.getText("XFLD_REMOVE_ISOLATE"));
+    } else if (currentText === oBundle.getText("XFLD_REMOVE_ISOLATE")) {
+        sap.ui.getCore().byId(oEvent.getParameters().id).setText(oBundle.getText("XFLD_ISOLATE"));
+    }
+}
+
+/**
+ * This function gets called on click of Hide Selection/Show selection menu item
+ * @param oEvent
+ * @param viewerInstance
+ * @return
+ */
+function toggleHideShowSelection(oEvent, viewerInstance) {
+    var currentText = sap.ui.getCore().byId(oEvent.getParameters().id).getText();
+    if (currentText === oBundle.getText("XFLD_HIDE_SELECTION")) {
+        hideObject(viewerInstance.getGraphicsCore()._dvl, viewerInstance.selectedNode);
+        sap.ui.getCore().byId(oEvent.getParameters().id).setText(oBundle.getText("XFLD_SHOW_SELECTION"));
+    } else if (currentText === oBundle.getText("XFLD_SHOW_SELECTION")) {
+        showObject(viewerInstance.getGraphicsCore()._dvl, viewerInstance.selectedNode);
+        sap.ui.getCore().byId(oEvent.getParameters().id).setText(oBundle.getText("XFLD_HIDE_SELECTION"));
+    }
+}
+
+/**
+ * This function retrieves UOM from tag property set array of Websocketsubscriber.
+ * @param uomNamespace
+ * @param propertyName
+ * @return
+ */
+function getUnitFromWSPropertySet(uomNamespace, propertyName) {
+    var tagPropertyArray = pCoSubscriber.tagPropertiesArray;
+    var unitvalue;
+
+    for (var i = 0; i < tagPropertyArray.length; i++) {
+        var tagProperty = tagPropertyArray[i];
+        if ((tagProperty.tagNamespace == uomNamespace) && (tagProperty.propertyName == propertyName)) {
+            unitvalue = tagProperty.tagPropertyValue;
+            break;
+        }
+    }
+    return unitvalue;
+}
+
+/**
+ * This function changes colour and applies Dynamic Label on Part
+ * @param nodeName
+ * @param colorHexCode
+ * @param LabelName
+ * @param textFont
+ * @param textFontSize
+ * @param textBGColor
+ * @param textColor
+ * @param textFrameColor
+ * @param showValue
+ * @param oDvl
+ * @return
+ */
+function changeColorAndLabel(nodeName, colorHexCode, LabelName, textFont, textFontSize, textBGColor, textColor, textFrameColor, showValue, oDvl) {
+    var that = this;
+    if (isObjectNotNull(colorHexCode)) {
+
+        var colorxml = '<?xml version="1.0"?><PAINT_LIST><PAINT COLOR="' + colorHexCode + '" OPACITY="1.0" VISIBLE="true"><NODE ID="' + nodeName + '"/></PAINT></PAINT_LIST>';
+        if (oDvl != undefined) {
+            oDvl.Scene.Execute(oDvl.Settings.LastLoadedSceneId, DvlEnums.DVLEXECUTE.DVLEXECUTE_PAINTXML, colorxml);
+        }
+
+    }
+    if (isObjectNotNull(LabelName) && (showValue === "true")) {
+        if (isObjectNull(textBGColor)) {
+            textBGColor = "0080FF";
+        } else {
+            var textBGColor = textBGColor.match(/[A-F0-9]*\b/i);
+        }
+        if (isObjectNull(textFontSize)) {
+            textFontSize = "15";
+        }
+        if (isObjectNull(textFont)) {
+            textFont = "Arial Black";
+        }
+        if (isObjectNull(textFrameColor)) {
+            textFrameColor = "000000";
+        } else {
+            textFrameColor = textFrameColor.match(/[A-F0-9]*\b/i);
+        }
+        if (isObjectNull(textColor)) {
+            textColor = "000000";
+        } else {
+            var textColor = textColor.match(/[A-F0-9]*\b/i);
+        }
+
+        var labelxml = '<?xml version="1.0" encoding="utf-8"?><dynamic-labels xmlns="http://schemas.sap.com/VE/Viewer/dynamic-labels/2014/February">' + '<dynamic-label id="' + nodeName + '" size="12,20" opacity="0.25" position="0,0" poi-color="2" pivot-point="0,0" margin="4,4" frame-color="' + textFrameColor + '" bg-color="' + textBGColor + '"' + '  font-size="' + textFontSize + '" alignment="1,1" font="' + textFont + '" text="' + LabelName + '" text-color="' + textColor + '" /> </dynamic-labels>';
+
+
+        if (oDvl != undefined) {
+            oDvl.Scene.Execute(oDvl.Settings.LastLoadedSceneId, DvlEnums.DVLEXECUTE.DVLEXECUTE_DYNAMICLABELS, labelxml);
+        }
+    }
+
+}
+
+/**
+ * This function deselects a particular part.
+ * @param viewer
+ * @param selectedNodeId
+ * @return
+ */
+function clearSelectSingleNode(viewer, selectedNodeId) {
+    var oDvl = viewer.getGraphicsCore()._dvl;
+    oDvl.Scene.ChangeNodeFlags(viewer.sceneId, selectedNodeId, DvlEnums.DVLNODEFLAG.DVLNODEFLAG_SELECTED, DvlEnums.DVLFLAGOPERATION.DVLFLAGOP_CLEAR);
+
+}
+
+/**
+ * This function selects a particular part
+ * @param viewer
+ * @param selectedNodeId
+ * @return
+ */
+function selectSingleNode(viewer, selectedNodeId) {
+    var that = this;
+    var oDvl = viewer.getGraphicsCore()._dvl;
+    //
+    oDvl.Scene.ChangeNodeFlags(viewer.sceneId, selectedNodeId, DvlEnums.DVLNODEFLAG.DVLNODEFLAG_SELECTED, DvlEnums.DVLFLAGOPERATION.DVLFLAGOP_SET);
+    viewer.selectedNode = selectedNodeId;
+    try {
+        var niname = oDvl.Scene.RetrieveNodeInfo(viewer.sceneId, selectedNodeId,
+            DvlEnums.DVLNODEINFO.DVLNODEINFO_NAME);
+        viewer.nodeName = niname.NodeName;
+    } catch (e) {
+        //This means user has clicked on empty space.
+        console.log(e);
+    }
+}
+
+function getPreviousBlinkHandler(blinkHandlers, partId){
+	if(blinkHandlers !== null && blinkHandlers.length >0){
+		
+		for(var k = 0; k< blinkHandlers.length; k++){
+			if(blinkHandlers[k][partId] != null && blinkHandlers[k][partId] !== undefined){
+				return blinkHandlers[k][partId];
+			} 
+		}
+	}
+}
+function removeFromBlinkHandler(blinkHandlers, partId){
+	if(blinkHandlers !== null && blinkHandlers.length >0){
+		
+		for(var k = 0; k< blinkHandlers.length; k++){
+			if(blinkHandlers[k][partId] != null && blinkHandlers[k][partId] !== undefined){
+				blinkHandlers.splice(k,1);
+				break;
+			} 
+		}
+	}
+}
+
+/**
+ * This function provides zoom to a particular part.
+ * @param oDvl
+ * @param selectedNodeId
+ * @return
+ */
+function zoomToNode(oDvl, selectedNodeId) {
+    if (isObjectNotNull(oDvl)) {
+        var dvlid;
+        if (isObjectNotNull(selectedNodeId)) {
+            dvlid = selectedNodeId;
+        }
+        if (selectedNodeId != DvlEnums.DVLID_INVALID /*&& dvlid != nodeIsolated*/ ) {
+//            oDvl.Renderer.ZoomTo(DvlEnums.DVLZOOMTO.DVLZOOMTO_NODE, selectedNodeId, 2);
+        	 oDvl.Renderer.Zoom(DvlEnums.DVLZOOMTO.DVLZOOMTO_SELECTED);
+            return;
+           
+        }
+
+    }
+}
+/**
+ * This function performs blink action on configured part.
+ * @param viewer
+ * @param selectedNodeId
+ * @return
+ */
+function blinkNode(viewer, selectedNodeId){
+	if (isObjectNotNull(viewer)) {
+		var scene  = viewer.getScene();
+		if(scene !== null){
+
+		var nodeHierarchy = scene.getDefaultNodeHierarchy();
+
+		//retrieve a node id; in this case we retrieve one of the root nodes
+		
+		var nodeId = nodeHierarchy.getChildren()[0];
+		
+//		commented after 1.71 upgrade
+
+//		var nodeProxy = new sap.ui.vk.NodeProxy(nodeHierarchy, selectedNodeId); 
+		var nodeProxy = nodeHierarchy.createNodeProxy(selectedNodeId);
+		
+		var type = selectedNodeId;
+		this[type+'_count'] =0;
+		var timeout = 500;
+		var action = function() {
+			if(this[type+'_count'] % 2 ==0 ){
+			nodeProxy.setOpacity(0.5);
+			}else{
+				nodeProxy.setOpacity(0.8);
+			}
+			this[type+'_count']++;
+		};
+		var handler = setInterval(action, timeout);
+		return handler;
+	}	
+	}
+}
+
+/**
+ * This function performs blink action on configured part.
+ * @param viewer
+ * @param selectedNodeId
+ * @return
+ */
+function clearBlinkNode(viewer, selectedNodeId, listner){
+	if (isObjectNotNull(viewer)) {
+		var scene  = viewer.getScene();
+		if(scene !== null){
+
+		var nodeHierarchy = scene.getDefaultNodeHierarchy();
+
+		//retrieve a node id; in this case we retrieve one of the root nodes
+		
+		var nodeId = nodeHierarchy.getChildren()[0];
+		
+//		commented after 1.71 upgrade
+
+//		var nodeProxy = new sap.ui.vk.NodeProxy(nodeHierarchy, selectedNodeId);
+		var nodeProxy = nodeHierarchy.createNodeProxy(selectedNodeId);
+		nodeProxy.setOpacity(1);		
+        clearInterval(listner);
+	}	
+	}
+}
+/**
+ * This function does reset of colour and dynamic label for a part
+ * @param nodeName
+ * @param oDvl
+ * @return
+ */
+function resetColorAndLabel (oDvl, nodeName, sceneId){
+
+		var colorxml='<?xml version="1.0"?><PAINT_LIST><PAINT COLOR=""><NODE ID="'+nodeName+'"/></PAINT></PAINT_LIST>';
+		if(oDvl != undefined ){
+			oDvl.Scene.Execute(sceneId, DvlEnums.DVLEXECUTE.DVLEXECUTE_PAINTXML, colorxml);
+		}
+		
+		var labelxml='<?xml version="1.0" encoding="utf-8"?><dynamic-labels xmlns="http://schemas.sap.com/VE/Viewer/dynamic-labels/2014/February">'
+			+'<dynamic-label id="'+nodeName+'" /> </dynamic-labels>';
+		
+		
+		if(oDvl != undefined ){
+			oDvl.Scene.Execute(sceneId, DvlEnums.DVLEXECUTE.DVLEXECUTE_DYNAMICLABELS, labelxml);
+		}
+
+}
+
+/**
+ * Call to Core DVL function for Isolation
+ * @param oDvl
+ * @param selectedNodeId
+ * @return
+ */
+function toggleIsolation(oDvl, selectedNodeId) {
+    if (isObjectNotNull(oDvl)) {
+        var dvlid;
+        if (isObjectNotNull(selectedNodeId)) {
+            dvlid = selectedNodeId;
+        }
+        var nodeIsolated = oDvl.Renderer.GetIsolatedNode();
+        if (nodeIsolated != DvlEnums.DVLID_INVALID /*&& dvlid != nodeIsolated*/ ) {
+            oDvl.Renderer.ZoomTo(DvlEnums.DVLZOOMTO.DVLZOOMTO_RESTORE_REMOVEISOLATION, nodeIsolated, 0.5);
+            return;
+        }
+
+
+        if (dvlid == DvlEnums.DVLID_INVALID) {
+            return;
+        }
+        if (dvlid != undefined)
+        	oDvl.Renderer.SetIsolatedNode(dvlid);
+//            oDvl.Renderer.ZoomTo(DvlEnums.DVLZOOMTO.DVLZOOMTO_NODE_SETISOLATION, dvlid, 0.5);
+        
+
+        // DO NOT USE: that.oDvl.Renderer.CanIsolateNode(dvlid)
+        
+    }
+}
+
+/**
+ * Call to Core DVL function for hiding object
+ * @param oDvl
+ * @param selectedNodeId
+ * @param sceneId
+ * @return
+ */
+function hideObject(oDvl, selectedNodeId, sceneId) {
+
+    if (oDvl != undefined) {
+        var dvlid;
+        if (isObjectNotNull(selectedNodeId)) {
+            dvlid = selectedNodeId;
+        }
+        var currentSceneId = sceneId;
+
+        currentSceneId = currentSceneId != null ? currentSceneId : oDvl.Settings.LastLoadedSceneId;
+        oDvl.Scene.ChangeNodeFlags(currentSceneId, dvlid, DvlEnums.DVLNODEFLAG.DVLNODEFLAG_VISIBLE,
+            DvlEnums.DVLFLAGOPERATION.DVLFLAGOP_CLEAR);
+    }
+}
+
+/**
+ * Call to Core DVL function for showing object
+ * @param oDvl
+ * @param selectedNodeId
+ * @return
+ */
+function showObject(oDvl, selectedNodeId) {
+
+
+    if (oDvl != undefined) {
+        var dvlid;
+        if (isObjectNotNull(selectedNodeId)) {
+            dvlid = selectedNodeId;
+        }
+        var currentSceneId;
+        currentSceneId = currentSceneId != null ? currentSceneId : oDvl.Settings.LastLoadedSceneId;
+        oDvl.Scene.ChangeNodeFlags(currentSceneId, dvlid, DvlEnums.DVLNODEFLAG.DVLNODEFLAG_VISIBLE,
+            DvlEnums.DVLFLAGOPERATION.DVLFLAGOP_SET);
+    }
+}
+/**
+ * Call to Core DVL function to reset the view
+ * @param oDvl
+ * @return
+ */
+function resetView(oDvl) {
+    if (oDvl != undefined) {
+        oDvl.Renderer.ResetView();
+    }
+}
+/**
+ * Call to Core DVL function to show all parts
+ * @param oDvl
+ * @param sceneId
+ * @return
+ */
+function showAll(oDvl, sceneId) {
+    var that = this;
+    if (oDvl != undefined) {
+        sceneId = sceneId != null ? sceneId : oDvl.Settings.LastLoadedSceneId;
+        oDvl.Scene.PerformAction(sceneId, DvlEnums.DVLSCENEACTION.DVLSCENEACTION_SHOW_ALL);
+    }
+}

@@ -1,0 +1,10 @@
+[System]
+Name=ENP
+Client=009
+[User]
+Name=00082300
+Language=E
+[Function]
+Command=IQ09
+Title=Exibir nº série material
+Type=Transaction

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Intranet Dashboard</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> <!-- Para gráficos -->
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Terroni Dashboard</h1>
+            <nav>
+                <ul>
+                    <li><a href="#">Dashboard</a></li>
+                    <li><a href="#">Calendar</a></li>
+                    <li><a href="#">Analytics</a></li>
+                    <li><a href="#">Wallet</a></li>
+                    <li><a href="#">Chat</a></li>
+                </ul>
+            </nav>
+        </header>
+
+        <main>
+            <section class="stats">
+                <h2>Statistics</h2>
+                <p>Followers: {{ user_data['followers'] }}</p>
+                <p>Following: {{ user_data['following'] }}</p>
+                <p>Comments: {{ user_data['comments'] }}</p>
+                <p>Likes: {{ user_data['likes'] }}</p>
+            </section>
+
+            <section class="audience">
+                <h2>Audience Overview</h2>
+                <p>Gender Breakdown</p>
+                <canvas id="genderChart"></canvas>
+
+                <p>Age Groups</p>
+                <canvas id="ageChart"></canvas>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        // Gráfico de Gênero
+        const genderData = {
+            labels: ['Female', 'Male', 'Other'],
+            datasets: [{
+                label: 'Gender Breakdown',
+                data: [{{ user_data['gender_breakdown']['female'] }}, {{ user_data['gender_breakdown']['male'] }}, {{ user_data['gender_breakdown']['other'] }}],
+                backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56']
+            }]
+        };
+
+        const genderConfig = {
+            type: 'pie',
+            data: genderData,
+        };
+
+        const genderChart = new Chart(
+            document.getElementById('genderChart'),
+            genderConfig
+        );
+
+        // Gráfico de Faixa Etária
+        const ageData = {
+            labels: ['18-24', '25-34', '35-44', '45-54'],
+            datasets: [{
+                label: 'Age Groups',
+                data: [{{ user_data['age_groups']['18-24'] }}, {{ user_data['age_groups']['25-34'] }}, {{ user_data['age_groups']['35-44'] }}, {{ user_data['age_groups']['45-54'] }}],
+                backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0']
+            }]
+        };
+
+        const ageConfig = {
+            type: 'bar',
+            data: ageData,
+        };
+
+        const ageChart = new Chart(
+            document.getElementById('ageChart'),
+            ageConfig
+        );
+    </script>
+</body>
+</html>

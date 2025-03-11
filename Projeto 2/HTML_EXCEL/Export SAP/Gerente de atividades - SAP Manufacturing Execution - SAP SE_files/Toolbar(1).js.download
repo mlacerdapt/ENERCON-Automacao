@@ -1,0 +1,695 @@
+document.write('<scr' + 'ipt type="text/javascript" src="/XMII/JavaScript/' + (miiModePath || 'minified')+ '/'+'ConfigurationPopup.js"></scr' + 'ipt>');
+document.write('<scr' + 'ipt type="text/javascript" src="/XMII/CompositionEnvironment/js/customControls/tag-color-picker.js"></scr' + 'ipt>');
+
+//TOOLBAR NAMESPACE
+com.sap.xmii.common.tools = com.sap.xmii.common.tools||{};
+
+var parentToolComponent = new com.sap.xmii.common.tools.AppToolBar();
+
+/**
+ * TOOLBAR Constructor
+ * @param width
+ */
+com.sap.xmii.common.tools.ToolBar = function(thisObj){
+	jQuery.sap.require(com.sap.xmii.common.util.GenericConstants.JQUERY_ICON_POOL);
+	var vizType = thisObj.getChartTemplateObject().chartConfig.Type;
+	var compMode = thisObj.chartTemplate.chartPropertyConfig.getProperty("CompatibilityMode");
+
+	//Create a MenuButton Control
+	this.toolBarObj = new sap.ui.commons.layout.HorizontalLayout();
+
+	var refreshButton = new sap.ui.commons.Button({
+		tooltip: com.sap.xmii.common.util.MessageBundle.getText("XFLD_REFRESH_DATA"), 
+		lite : true,
+		icon: sap.ui.core.IconPool.getIconURI(com.sap.xmii.common.util.GenericConstants.REFRESH),
+		press : refreshChartDataManually}); 
+
+	if(JSON.parse(thisObj.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.AUTO_REFRESH)) == true)
+		refreshButton.setEnabled(false);
+	else
+		refreshButton.setEnabled(true);
+
+	var settingButton = new sap.ui.commons.MenuButton({text: "",lite:true, tooltip: com.sap.xmii.common.util.MessageBundle.getText("XTOL_CONFIG_SETTINGS"), icon: sap.ui.core.IconPool.getIconURI(com.sap.xmii.common.util.GenericConstants.SETTINGS)}); 
+
+	//Create the menu DATA
+	var oSettingsMenu = new sap.ui.commons.Menu();
+
+	var oDataMenuItem = new sap.ui.commons.MenuItem({text: com.sap.xmii.common.util.MessageBundle.getText("XMIT_SETTINGS_MENU_DATA"),
+		tooltip : com.sap.xmii.common.util.MessageBundle.getText("XMIT_SETTINGS_MENU_DATA")});
+	oSettingsMenu.addItem(oDataMenuItem);
+
+	/*// TO add i5SPC specific menu items 
+	if(vizType === com.sap.xmii.common.util.SPCChartConstants.I5SPCCHART){
+		 com.sap.xmii.common.tools.i5SPCToolBar(oSettingsMenu, this, thisObj, "menu");
+	}*/
+
+	var oRefreshRateMenuItem = new sap.ui.commons.MenuItem({text: com.sap.xmii.common.util.MessageBundle.getText("XMIT_SETTINGS_MENU_REFRESH_RATE"),
+		tooltip : com.sap.xmii.common.util.MessageBundle.getText("XMIT_SETTINGS_MENU_REFRESH_RATE")}); 
+	oSettingsMenu.addItem(oRefreshRateMenuItem);
+
+	var oConfigDisplayParamsMenuItem = new sap.ui.commons.MenuItem({text: com.sap.xmii.common.util.MessageBundle.getText("XFLD_CONF_DISPLAY_PARAMS"),
+		tooltip : com.sap.xmii.common.util.MessageBundle.getText("XFLD_CONF_DISPLAY_PARAMS")}); 
+	oSettingsMenu.addItem(oConfigDisplayParamsMenuItem);
+
+	if(thisObj.getQueryTemplate() != ""){
+		var oConfigQueryParamsMenuItem = new sap.ui.commons.MenuItem({text: com.sap.xmii.common.util.MessageBundle.getText("XFLD_CONF_QUERY_PARAMS"),
+			tooltip : com.sap.xmii.common.util.MessageBundle.getText("XFLD_CONF_QUERY_PARAMS")}); 
+		oSettingsMenu.addItem(oConfigQueryParamsMenuItem);
+	}
+	var oEnableZooming = new miiHChart.menuItem({text: com.sap.xmii.common.util.MessageBundle.getText("XCKL_ENABLE_ZOOMING"),
+		tooltip : com.sap.xmii.common.util.MessageBundle.getText("XCKL_ENABLE_ZOOMING")});
+	if(thisObj.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.ENABLE_ZOOMING)!= undefined)
+		oEnableZooming._button.setChecked(JSON.parse(thisObj.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.ENABLE_ZOOMING)))
+	oSettingsMenu.addItem(oEnableZooming);
+	oEnableZooming.attachSelect(toggleZooming);
+	
+	var oEnableVertMarkerMenuItem = new miiHChart.menuItem({text: com.sap.xmii.common.util.MessageBundle.getText("XCKL_ENABLE_VERTMARKER"),
+		tooltip : com.sap.xmii.common.util.MessageBundle.getText("XCKL_ENABLE_VERTMARKER")}); 
+	if(thisObj.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.ENABLE_VERTMARKER)!= undefined)
+		oEnableVertMarkerMenuItem._button.setChecked(JSON.parse(thisObj.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.ENABLE_VERTMARKER)))
+	oSettingsMenu.addItem(oEnableVertMarkerMenuItem);
+	oEnableVertMarkerMenuItem.attachSelect(toggleVertMarkers);
+	
+	var oRefreshAutomaticMenuItem = new miiHChart.menuItem({text: com.sap.xmii.common.util.MessageBundle.getText("XMIT_SETTINGS_MENU_REFRESH_AUTOMATICALLY"),
+		tooltip : com.sap.xmii.common.util.MessageBundle.getText("XMIT_SETTINGS_MENU_REFRESH_AUTOMATICALLY")}); //custom menu item with a checkbox
+	oRefreshAutomaticMenuItem._button.setChecked(JSON.parse(thisObj.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.AUTO_REFRESH)));
+	if(thisObj.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.ENABLE_AUTO_REFRESH) != false) {
+		oRefreshAutomaticMenuItem.setEnabled(true);
+		oRefreshAutomaticMenuItem._button.setEnabled(true);
+	} else {
+		oRefreshAutomaticMenuItem.setEnabled(false);
+		oRefreshAutomaticMenuItem._button.setEnabled(false);
+	}
+	oSettingsMenu.addItem(oRefreshAutomaticMenuItem);
+
+	if (vizType === com.sap.xmii.common.util.ChartPropertyConstants.I5CHART || vizType === com.sap.xmii.common.util.ChartPropertyConstants.ICHART
+			|| vizType === com.sap.xmii.common.util.SPCChartConstants.I5SPCCHART || vizType === com.sap.xmii.common.util.SPCChartConstants.ISPCCHART) {
+		
+		var oShowLegendMenuItem = new miiHChart.menuItem({
+			text: com.sap.xmii.common.util.MessageBundle.getText("XMIT_SETTINGS_MENU_SHOW_LEGEND"),
+			tooltip : com.sap.xmii.common.util.MessageBundle.getText("XMIT_SETTINGS_MENU_SHOW_LEGEND")
+		}); //custom menu item with a checkbox
+		oShowLegendMenuItem._button.setChecked(thisObj.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.SHOW_LEGEND) == true);
+		oSettingsMenu.addItem(oShowLegendMenuItem);
+		oShowLegendMenuItem.attachSelect(toggleLegendDisplay);
+
+		var oShowTooltipMenuItem = new miiHChart.menuItem({
+			text: com.sap.xmii.common.util.MessageBundle.getText("XMIT_SETTINGS_MENU_SHOW_TOOLTIP"),
+			tooltip : com.sap.xmii.common.util.MessageBundle.getText("XMIT_SETTINGS_MENU_SHOW_TOOLTIP")
+		}); //custom menu item with a checkbox
+		oShowTooltipMenuItem._button.setChecked(thisObj.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.SHOW_TOOLTIP) == true);
+		oSettingsMenu.addItem(oShowTooltipMenuItem);
+		oShowTooltipMenuItem.attachSelect(toggleToolTip);
+		//Disable LegendMenuButton and ShowTooltipMenuButton for Gauge chart.
+		var chartType = thisObj.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.CHART_TYPE);
+		if (chartType == com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_GAUGE) {
+			oShowLegendMenuItem.setEnabled(false);
+			oShowLegendMenuItem._button.setEnabled(false);
+			oShowTooltipMenuItem.setEnabled(false);
+			oShowTooltipMenuItem._button.setEnabled(false);
+		}
+	}	
+	
+	if (vizType === com.sap.xmii.common.util.ChartPropertyConstants.I5CHART || vizType === com.sap.xmii.common.util.ChartPropertyConstants.ICHART) {
+		var oGlossyMenuItem = new miiHChart.menuItem({
+			text: com.sap.xmii.common.util.MessageBundle.getText("XMIT_SETTINGS_MENU_GLOSSY_EFFECT"),
+			tooltip : com.sap.xmii.common.util.MessageBundle.getText("XMIT_SETTINGS_MENU_GLOSSY_EFFECT")
+		}); //custom menu item with a checkbox
+		oGlossyMenuItem._button.setChecked(thisObj.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.GLOSSY) == true);
+		oSettingsMenu.addItem(oGlossyMenuItem);
+		oGlossyMenuItem.attachSelect(rerenderChart);
+	}
+
+	var oPrintMenuItem = new sap.ui.commons.MenuItem({
+		text: com.sap.xmii.common.util.MessageBundle.getText("XMIT_SETTINGS_MENU_PRINT"),
+		tooltip : com.sap.xmii.common.util.MessageBundle.getText("XMIT_SETTINGS_MENU_PRINT")
+	}); 
+	oSettingsMenu.addItem(oPrintMenuItem);
+
+	var oHelpMenuItem = new sap.ui.commons.MenuItem({
+		text: com.sap.xmii.common.util.MessageBundle.getText("XMIT_SETTINGS_MENU_HELP"),
+		tooltip : com.sap.xmii.common.util.MessageBundle.getText("XMIT_SETTINGS_MENU_HELP")
+	}); 
+	oHelpMenuItem.attachSelect(showHelp);
+	oSettingsMenu.addItem(oHelpMenuItem);
+
+	var shadowIdName, rrField, dialogId, oSubDialog;
+
+	//attach a function to the print menu item
+	oPrintMenuItem.attachSelect(print);
+	oRefreshAutomaticMenuItem.attachSelect(refreshAutomatically);
+	oRefreshRateMenuItem.attachSelect(open_popup);
+	oConfigDisplayParamsMenuItem.attachSelect(openDisplayConfPopup);
+	if(thisObj.getQueryTemplate() != ""){
+		oConfigQueryParamsMenuItem.attachSelect(openQueryConfPopup);
+	}
+
+	//submenu for Data
+	var oDataSubMenu = new sap.ui.commons.Menu({ariaDescription: com.sap.xmii.common.util.MessageBundle.getText("XMEN_EXPORT_RAW_DATA")});
+	oDataMenuItem.setSubmenu(oDataSubMenu);
+
+	var queryTemplateName = thisObj.queryTemplate.queryTemplateName;
+	var queryMetaData = thisObj.queryTemplate.getQueryObject().getQueryMetaData();
+
+	var overrides = new Object(); 
+
+	var enableStatisticsAndCurrent = true;
+	// the Current and Statistics Data options will be enabled only for Tag
+	if(thisObj.getQueryObject() instanceof com.sap.xmii.querytemplate.query.TagQuery){ 
+		enableStatisticsAndCurrent = true;
+	} else{
+		enableStatisticsAndCurrent = false;
+	}
+
+	//Create the items and add them to the sub menu
+	//Export HTML Data
+	var oHTMLDataMenuItem = new sap.ui.commons.MenuItem({text: com.sap.xmii.common.util.MessageBundle.getText("XMIT_EXPORT_RAW_DATA_HTML"), 
+		tooltip: com.sap.xmii.common.util.MessageBundle.getText("XMIT_EXPORT_RAW_DATA_HTML")});
+	oHTMLDataMenuItem.attachSelect(exportAsHTML);
+	oDataSubMenu.addItem(oHTMLDataMenuItem);
+
+	//Export CSV Data
+	var oCSVDataMenuItem = new sap.ui.commons.MenuItem({text: com.sap.xmii.common.util.MessageBundle.getText("XMIT_EXPORT_RAW_DATA_CSV"), 
+		tooltip: com.sap.xmii.common.util.MessageBundle.getText("XMIT_EXPORT_RAW_DATA_CSV")});
+	oCSVDataMenuItem.attachSelect(exportAsCSV);
+	oDataSubMenu.addItem(oCSVDataMenuItem);
+
+	//Export XML Data
+	var oXMLDataMenuItem = new sap.ui.commons.MenuItem({text: com.sap.xmii.common.util.MessageBundle.getText("XMIT_EXPORT_RAW_DATA_XML"), 
+		tooltip: com.sap.xmii.common.util.MessageBundle.getText("XMIT_EXPORT_RAW_DATA_XML")});
+	oXMLDataMenuItem.attachSelect(exportAsXML);
+	oDataSubMenu.addItem(oXMLDataMenuItem);
+
+	/*// To add sub menu items in Data
+	if(vizType === com.sap.xmii.common.util.SPCChartConstants.I5SPCCHART) {
+		com.sap.xmii.common.tools.i5SPCToolBar(oDataSubMenu, this, thisObj, "subMenu");
+	}*/
+
+	//Export Statistical Data
+	var oStatisticsDataMenuItem = new sap.ui.commons.MenuItem({text: com.sap.xmii.common.util.MessageBundle.getText("XMIT_STATISTICS"), 
+		tooltip: com.sap.xmii.common.util.MessageBundle.getText("XMIT_STATISTICS")});
+	oStatisticsDataMenuItem.setEnabled(enableStatisticsAndCurrent);	
+	oStatisticsDataMenuItem.attachSelect(exportStatistics);
+	oDataSubMenu.addItem(oStatisticsDataMenuItem);
+
+	//Export Current Data
+	var oCurrentValuesDataMenuItem = new sap.ui.commons.MenuItem({text: com.sap.xmii.common.util.MessageBundle.getText("XMIT_CURRENT_VALUES"), 
+		tooltip: com.sap.xmii.common.util.MessageBundle.getText("XMIT_CURRENT_VALUES")});
+	oCurrentValuesDataMenuItem.setEnabled(enableStatisticsAndCurrent);	
+	oCurrentValuesDataMenuItem.attachSelect(exportCurrent);
+	oDataSubMenu.addItem(oCurrentValuesDataMenuItem);
+
+	//functions for export menu options
+	function exportAsHTML(oEvent){
+		return thisObj.saveAsHTMLFile();
+	}
+
+	function exportAsCSV(oEvent){
+		return thisObj.saveAsCSVFile();
+	}
+
+	function exportAsXML(oEvent){
+		return thisObj.saveAsXMLFile();
+	}
+
+	function exportStatistics(oEvent){
+		return thisObj.exportStatistics();
+	}
+
+	function exportCurrent(oEvent){
+		return thisObj.exportCurrent();
+	}
+
+	function toggleLegendDisplay() {
+		if(vizType === com.sap.xmii.common.util.SPCChartConstants.I5SPCCHART) {
+			for(var i=0; i < thisObj.getChartObject().getUI5ChartElement().getContent().length; i++) {
+				if(compMode)
+					thisObj.getChartObject().getUI5ChartElement().getContent()[i].getLegend().setVisible(oShowLegendMenuItem._button.getChecked());	
+				else
+					thisObj.getChartObject().getUI5ChartElement().getContent()[i].getVizProperties().legend.visible = oShowLegendMenuItem._button.getChecked();	
+			}
+		} else {
+			if(compMode)
+			thisObj.getChartObject().getUI5ChartElement().getLegend().setVisible(oShowLegendMenuItem._button.getChecked());
+			else{
+				var legend = {
+						visible : oShowLegendMenuItem._button.getChecked()
+				};
+				thisObj.getChartObject().getUI5ChartElement().getVizProperties().tooltip = legend;
+			}
+		}
+		thisObj.chartTemplate.chartPropertyConfig.setProperty(com.sap.xmii.common.util.ChartPropertyConstants.SHOW_LEGEND, oShowLegendMenuItem._button.getChecked());
+		thisObj.applyChartPropertiesOnReady();
+		thisObj.refresh();
+	}
+
+	function toggleToolTip() {
+		if(vizType === com.sap.xmii.common.util.SPCChartConstants.I5SPCCHART) {
+			for(var i=0; i < thisObj.getChartObject().getUI5ChartElement().getContent().length; i++) {
+				if (compMode) {
+					thisObj.getChartObject().getUI5ChartElement().getContent()[i].getToolTip().setVisible(oShowTooltipMenuItem._button.getChecked());
+				} else {
+					thisObj.getChartObject().getUI5ChartElement().getContent()[i].getVizProperties().tooltip.visible = oShowTooltipMenuItem._button.getChecked();
+				}
+			}
+		} else {
+			if(compMode)
+				thisObj.getChartObject().getUI5ChartElement().getToolTip().setVisible(oShowTooltipMenuItem._button.getChecked());
+			else{
+				var tooltip = {
+						visible : oShowTooltipMenuItem._button.getChecked()
+				};
+				thisObj.getChartObject().getUI5ChartElement().getVizProperties().tooltip = tooltip;
+			}
+		}
+		thisObj.chartTemplate.chartPropertyConfig.setProperty(com.sap.xmii.common.util.ChartPropertyConstants.SHOW_TOOLTIP, oShowTooltipMenuItem._button.getChecked());
+		thisObj.applyChartPropertiesOnReady();
+		thisObj.refresh();
+	}
+
+	function rerenderChart(){
+		if (vizType === com.sap.xmii.common.util.ChartPropertyConstants.I5CHART || vizType === com.sap.xmii.common.util.ChartPropertyConstants.ICHART) {
+			if(oGlossyMenuItem._button.getChecked() == true)
+				thisObj.chartTemplate.chartPropertyConfig.setProperty(com.sap.xmii.common.util.ChartPropertyConstants.GLOSSY, true);
+			else
+				thisObj.chartTemplate.chartPropertyConfig.setProperty(com.sap.xmii.common.util.ChartPropertyConstants.GLOSSY, false);
+
+			thisObj.refresh();
+		}
+	}
+
+	function showHelp(){
+		var dispType = thisObj.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.GenericConstants.TYPE);
+		if(dispType===com.sap.xmii.common.util.ChartPropertyConstants.I5CHART )
+			window.open(com.sap.xmii.common.util.CHART_HELP_LINK);
+		else if(dispType===com.sap.xmii.common.util.GridPropertyConstants.I5GRID )
+			window.open(com.sap.xmii.common.util.GRID_HELP_LINK);
+		else if(dispType===com.sap.xmii.common.util.SPCChartConstants.I5SPCCHART)
+			window.open(com.sap.xmii.common.util.SPCCHART_HELP_LINK);
+	}
+
+	function print(){
+		var features = "";//"toolbar=yes,locationbar=1,directories=1,statusbar=1,menubar=1,scrollbar=1,resizable=yes,titlebar=1";
+		if(vizType === com.sap.xmii.common.util.GridPropertyConstants.I5GRID) {
+			var gridHeight,gridWidth;
+			if(thisObj.getGridHeight().indexOf('px') > -1)
+				gridHeight = thisObj.getGridHeight().substring(0, thisObj.getGridHeight().indexOf('px'));
+			else
+				gridHeight = com.sap.xmii.common.util.SPCChartConstants.DEFAULT_CHART_HEIGHT;
+			if(thisObj.getGridWidth().indexOf('px') > -1)
+				gridWidth = thisObj.getGridWidth().substring(0, thisObj.getGridWidth().indexOf('px'));
+			else
+				gridWidth = com.sap.xmii.common.util.SPCChartConstants.DEFAULT_CHART_WIDTH;
+
+			//this block is to get the table's filter and sort information
+			var columns = thisObj.getGridObject().oTable.getColumns();
+			var sortFilter = {};
+			var property, oColumn;
+			for (var i in columns) {
+				oColumn = columns[i];
+				property = {};
+				if (oColumn.getFilterValue()) {
+					property.filter = oColumn.getFilterValue();
+				}
+				if (oColumn.getSorted()) {
+					property.sortOrder = oColumn.getSortOrder()
+				}
+				if (property.filter || property.sortOrder && oColumn.getProperty("filterProperty")) {
+					sortFilter[oColumn.getProperty("filterProperty")] = property;
+				}
+			}
+
+			var previewURL = "/XMII/DynamicPageServlet?btnGeneratePage=Generate+Page&Height="+gridHeight+"&Width="+gridWidth+"&QueryTemplate="+thisObj.getQueryObject().getQueryTemplateName()
+			+ "&DisplayTemplate="+thisObj.getDisplayTemplate()+"&Applet=i5Grid&Content-Type=image/png&isPreview=false"+"&sortFilter="+JSON.stringify(sortFilter);
+			
+			if (thisObj.getChartTemplateObject().getProperty("FileType") == 'Query') {
+				previewURL += "&FileType="+thisObj.getChartTemplateObject().getProperty("FileType")+"&GridType="+determineGridType(thisObj.getChartTemplateObject().getProperty("GridType"))
+				+"&displayColumns="+thisObj.getGridObject().getDisplayColumns();
+			}
+			var eURL = com.sap.xmii.common.util.MIIi5Util.encodeURL(previewURL);
+			
+			var qOverrides = thisObj.getQueryObject().overrides;
+			var parameters = {
+					"QueryProperties" : JSON.stringify(qOverrides)
+					// TODO DisplayProperties
+			};
+			
+			$.ajax({
+				url : eURL,
+				data : parameters,
+				type : 'POST',
+				success : function(responseText) {									
+					var parsedData = fetchAndEncodeJSONfromResponse(responseText);
+					var completedataWithScript = embedDataWithScript(parsedData);
+					var newWin = window.open('', 'newWin',
+							features);
+					newWin.document
+							.write(completedataWithScript);
+					newWin.document.close();
+				}
+			});
+		} else {
+			var newWin = window.open('', 'newWin', features);
+			var topDoc = "<html><head><title>Print Preview</title>";
+			var metaDoc = "<meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\"><meta charset=\"UTF-8\"> </head>";
+			var endDoc = "</body></html>";
+
+			newWin.document.write(topDoc);
+			newWin.document.write(metaDoc);
+			newWin.document.write("<body>");
+
+			var s = new XMLSerializer();
+
+			var svg = $('#'+thisObj.chartPosId).find('.v-m-root')[0];//$('#'+thisObj.chartPosId).children().children().children().children()[index].childNodes[0].childNodes[0].childNodes[0].childNodes[1];//upperchart
+			var svgPrint = svg.cloneNode(true);
+			if(thisObj.getChartObject().getShowTitle() === true) {
+				//to convert html object to jQuery object
+				var title = $('#'+thisObj.chartPosId).find('#'+thisObj.getTitleBar().mAggregations.items[0].sId);//$($('#'+thisObj.chartPosId).children().children().children().children()[0].childNodes[0].childNodes[0]);
+				//clone the title object to modify it for preview
+				var titlePrint = title[0].cloneNode(true);
+				titlePrint = $(titlePrint);
+				//to modify width of the titlebar in preview 
+				titlePrint.css(com.sap.xmii.common.util.GenericConstants.WIDTH, title.width());
+				titlePrint = titlePrint[0];
+
+				//var titlePrint = title.cloneNode(true);
+				var titleStr = s.serializeToString(titlePrint);
+				newWin.document.write(titleStr);
+
+				var titleHeight = com.sap.xmii.common.util.GenericConstants.DEFAULT_CHARTTITLE_HEIGHT + "px";
+				$(svgPrint).css(com.sap.xmii.common.util.GenericConstants.TOP, titleHeight);//height for title
+			}
+
+			var svgStr = s.serializeToString(svgPrint);
+			newWin.document.write(svgStr);
+
+			if(thisObj.getChartObject().lowerChartRequired) {
+				var width = $(svg).css(com.sap.xmii.common.util.GenericConstants.HEIGHT);
+				var lowersvg = $('#'+thisObj.chartPosId).find('.v-m-root')[1];//$('#'+thisObj.chartPosId).children().children().children().children()[index].childNodes[0].childNodes[0].childNodes[0].childNodes[1];
+				var lowersvgPrint = lowersvg.cloneNode(true);
+				$(lowersvgPrint).css(com.sap.xmii.common.util.GenericConstants.TOP,width);//height for upperchart
+				svgStr = s.serializeToString(lowersvgPrint);
+				newWin.document.write(svgStr);
+			}
+
+			newWin.document.write(endDoc);
+
+			newWin.document.close();//make html available for print
+			newWin.print();
+		}
+	}
+
+	function fetchAndEncodeJSONfromResponse(responseText) {
+		
+		
+		var tree = document.createDocumentFragment();
+		var newTextHtml = document.createElement('htmlText');
+		tree.appendChild(newTextHtml);
+		
+		//encoding data recieved from response.
+		
+		var encodeParsedData = sap.ui.require("sap/base/security/encodeXML");
+
+		var encodeddata = encodeParsedData(responseText);
+
+		newTextHtml.innerHTML = $('<div/>', {
+			html : encodeddata
+		}).text();
+
+		var parsedData = JSON
+				.parse(tree.getElementById('JSONdata').innerHTML);
+		
+		return parsedData;
+	}
+	
+	function embedDataWithScript(parseddata) {
+
+		var ssiIndicator = parseddata.ssiIndicator;
+		var textLeftToRight = parseddata.textLeftToRight;
+		var queryTemplateName = parseddata.queryTemplateName;
+		var dispTemplateName = parseddata.dispTemplateName;
+		var jsonTemplateProperties = parseddata.jsonTemplateProperties;
+		var fourConditions = parseddata.fourConditions;
+		var GRID_TYPE = parseddata.GRID_TYPE;
+		var DISPLAY_COLUMNS = parseddata.DISPLAY_COLUMNS;
+		var qTemplateProperties = parseddata.qTemplateProperties;
+
+		// Script creation
+
+		var htmlContent = "";
+		if (ssiIndicator == null) {
+			htmlContent += "<!DOCTYPE HTML>\n";
+			if (textLeftToRight) {
+				htmlContent += "<HTML DIR=ltr>\n";
+			} else {
+				htmlContent += "<HTML DIR=rtl>\n";
+			}
+			htmlContent += "<HEAD>\n";
+			htmlContent += "<TITLE>\n";
+			htmlContent += "Auto-Generated Page\n";
+			htmlContent += "</TITLE>\n";
+
+			htmlContent += "<meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\">\n"; // for
+			// HTML5
+
+			htmlContent += "</HEAD>\n";
+
+			htmlContent += "<BODY>\n";
+		}
+
+		htmlContent += "<SCRIPT type='text/javascript' src='/XMII/JavaScript/bootstrap.js' data-libs='i5Grid'> </SCRIPT>\n";
+
+		htmlContent += "<SCRIPT>\n";
+		htmlContent += "var addProps = " + jsonTemplateProperties
+				+ ";\n";
+		if (fourConditions == "true") {
+			htmlContent += "var pGrid = new com.sap.xmii.grid.init.i5Grid(\'"
+					+ GRID_TYPE
+					+ "\',\'"
+					+ queryTemplateName
+					+ "\'"
+					+ ",JSON.stringify(addProps));\n";
+
+			htmlContent += "pGrid.getChartTemplateObject().setProperty('DisplayColumns','"
+					+ DISPLAY_COLUMNS + "');\n";
+		} else {
+			htmlContent += "var pGrid = new com.sap.xmii.grid.init.i5Grid(\'"
+					+ dispTemplateName
+					+ "\',\'"
+					+ queryTemplateName
+					+ "\'" + ",JSON.stringify(addProps));\n";
+		}
+
+		Object
+				.keys(parseddata.qTemplateProperties)
+				.forEach(
+						function(key) {
+							htmlContent += "pGrid.getQueryObject().setParameter('"
+									+ key
+									+ "' ,'"
+									+ parseddata.qTemplateProperties[key]
+									+ "');\n";
+						})
+
+
+		htmlContent += "pGrid.getChartTemplate().setShowTimeBar(false);\n";
+		htmlContent += "pGrid.getChartTemplate().setShowMessageArea(false);\n";
+		htmlContent += "pGrid.getChartTemplate().setShowAppToolBar(false);\n";
+		htmlContent += "pGrid.getChartTemplate().setShowTitleArea(false);\n";
+		htmlContent += "pGrid.draw(\'content\');\n";
+		htmlContent += "if (addProps.sortFilter) {\n";
+		htmlContent += "var sfStr = eval(\'\"\' + addProps.sortFilter + \'\"\')\n";
+		htmlContent += "var sortFilters = JSON.parse(sfStr)\n";
+		htmlContent += "var table = pGrid.getGridObject().oTable;\n";
+		htmlContent += "var columns = table.getColumns();\n";
+		htmlContent += "var sortFilter, oCloumn;\n";
+		htmlContent += "for (var i in columns) {\n";
+		htmlContent += "oCloumn = columns[i];\n";
+		htmlContent += "sortFilter = sortFilters[oCloumn.getProperty(\"filterProperty\")];\n";
+		htmlContent += "if (sortFilter) { "
+				+ "if (sortFilter.filter) { table.filter(oCloumn, sortFilter.filter); } "
+				+ "if (sortFilter.sortOrder) { table.sort(oCloumn, sortFilter.sortOrder) }\n";
+		htmlContent += "}}}\n";
+		htmlContent += "pGrid.getGridObject().oTable.setVisibleRowCountMode(sap.ui.table.VisibleRowCountMode.Fixed); "
+				+ "pGrid.getGridObject().oTable.setVisibleRowCount(pGrid.getRowCount());\n";
+		htmlContent += "pGrid.fnOnReadyEvent = function(){ window.print(); };\n";
+		htmlContent += "</SCRIPT>\n";
+
+		htmlContent += "<div id=\"content\"></div>\n";
+		if (ssiIndicator == null) {
+			htmlContent += "</BODY>\n";
+			htmlContent += "</HTML>";
+		}
+	
+		return htmlContent;
+
+	}
+
+
+
+
+
+
+	
+	function refreshChartDataManually() {
+		//reset start and end dates
+		var overrides = thisObj.getQueryObject().overrides;
+		delete overrides.StartDate;
+		delete overrides.EndDate;
+		thisObj.refreshData();
+	}
+	function clearVerticalMarkers(){
+		if(thisObj.getChartObject().getUI5ChartElement().getVizProperties() != undefined){
+		var reflines = thisObj.getChartObject().getUI5ChartElement().getVizProperties().plotArea.referenceLine.line.timeAxis;
+		if(reflines.length > 0){
+			thisObj.getChartObject().chartPropertyConfig.setProperty("timeAxisArray",null);
+			sap.ui.getCore().byId(thisObj.chartPosId+'clear').setVisible(false);
+			var plotTimeAxis = {plotArea : {
+				referenceLine: {
+					line: {
+						timeAxis: []
+					}
+				}}};
+			//After updating this value chart has to be refreshed, here without executing query again.
+			thisObj.getChartObject().getUI5ChartElement().setVizProperties(plotTimeAxis);
+		}
+	  }
+	}
+	function toggleZooming(){
+		if(oEnableZooming._button.getChecked() == true) 
+			thisObj.getChartObject().setEnableZooming(true);
+		else
+			thisObj.getChartObject().setEnableZooming(false);
+	}
+	function toggleVertMarkers(){
+		thisObj.getChartObject().setEnableVerticalMarker(oEnableVertMarkerMenuItem._button.getChecked());
+		thisObj.refresh();
+	}
+	function refreshAutomatically() {
+		if(oRefreshAutomaticMenuItem._button.getChecked() == true) {
+			thisObj.getChartTemplate().setAutoRefresh(true);
+			refreshButton.setEnabled(false);
+			if(!com.sap.xmii.common.util.MIIi5Util.isEmpty(thisObj.getTimeBar())){
+				thisObj.getTimeBar().toggleTimeBarOpener(false);
+			}
+		} else {
+			thisObj.getChartTemplate().setAutoRefresh(false);
+			refreshButton.setEnabled(true);
+			if(!com.sap.xmii.common.util.MIIi5Util.isEmpty(thisObj.getTimeBar())){
+				thisObj.getTimeBar().toggleTimeBarOpener(true);
+			}
+		}
+
+		thisObj.autoRefreshChart();
+	}
+
+	function open_popup(){
+		//clear all the tooltips before opening any popup
+		$('.v-m-tooltip').find('.v-background').remove();
+
+		var chartWidth = $('#' + thisObj.getTitleBar().sId).width();
+
+		// Create shadow of the popup
+		var shadow = document.createElement(com.sap.xmii.common.util.GenericConstants.DIV);
+		shadowIdName = com.sap.xmii.common.util.GenericConstants.SHADOW + com.sap.xmii.common.util.MIIi5Util.generateGuid();
+		shadow.setAttribute('id',shadowIdName);
+
+		$('#' + thisObj.chartPosId).parent().append(shadow);
+
+		var chartPosition = $('#' + thisObj.chartPosId);
+		var position = chartPosition.offset();
+		$("#"+shadowIdName).css( { position: "fixed", left: position.left, top: position.top ,height:chartPosition.height(),width:chartWidth,display: "block",background: '#CCC', opacity:0.3} );
+
+		dialogId = com.sap.xmii.common.util.MIIi5Util.generateGuid();
+		oSubDialog = new sap.ui.commons.Dialog(dialogId, {title: com.sap.xmii.common.util.MessageBundle.getText("XFLD_REFRESH_RATE"), resizable : false,
+			contentBorderDesign :sap.ui.commons.enums.BorderDesign.Box});
+
+		//Create a matrix layout with 2 columns
+		var oMatrix = new sap.ui.commons.layout.MatrixLayout({
+			layoutFixed : true,
+			columns : 2,
+			width : com.sap.xmii.common.util.GenericConstants.MATRIX_LAYOUT_WIDTH
+		});
+
+		var rrLabel = new sap.ui.commons.Label({text: com.sap.xmii.common.util.MessageBundle.getText("XFLD_REFRESH_RATE")+":", tooltip : com.sap.xmii.common.util.MessageBundle.getText("XFLD_REFRESH_RATE"),labelFor: rrField});
+		rrField = new sap.ui.commons.TextField({width:'5em',
+			value : thisObj.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.REFRESH_RATE)});
+
+		oMatrix.createRow(rrLabel, rrField);
+		oSubDialog.addContent(oMatrix);
+		oSubDialog.addButton(new sap.ui.commons.Button({text: com.sap.xmii.common.util.MessageBundle.getText("XBUT_OK"), press: updateRefreshRate}));
+		oSubDialog.addButton(new sap.ui.commons.Button({text: com.sap.xmii.common.util.MessageBundle.getText("XBUT_CANCEL"), press: function(){oSubDialog.close();}}));
+		thisObj.getChartLayout().addDependent(oSubDialog);
+		oSubDialog.open();
+		oSubDialog.attachClosed(close_popup);
+
+
+		var boxLeft = position.left + (chartWidth/3);
+		var boxTop = position.top + (chartPosition.height()/3);
+		$('#' + dialogId).css({position: com.sap.xmii.common.util.GenericConstants.ABSOLUTE, left:boxLeft, top:boxTop, margin:"5px", background:"#FFF", width:"220px"});
+
+	}
+
+	function openDisplayConfPopup() {
+		com.sap.xmii.common.tools.ConfigurationPopup.createConfigurationPopup(thisObj, false);
+	}
+
+	function openQueryConfPopup() {
+		com.sap.xmii.common.tools.ConfigurationPopup.createConfigurationPopup(thisObj, true);
+	}
+
+	// Close popup
+	function close_popup(event){
+		$('#' + shadowIdName).remove();
+		if(sap.ui.getCore().byId(com.sap.xmii.common.util.GenericConstants.MATRIX_LAYOUT) != null)
+			sap.ui.getCore().byId(com.sap.xmii.common.util.GenericConstants.MATRIX_LAYOUT).destroy();
+	}
+
+	function updateRefreshRate() {
+		thisObj.getChartTemplate().setRefreshRate(rrField.getValue());
+		thisObj.autoRefreshChart();
+		close_popup();
+		oSubDialog.close();
+	}	
+
+	//Attach the Menu to the MenuButton
+	settingButton.setMenu(oSettingsMenu);
+	//Adding the additionalToolBar
+	this.AdditionalToolBar(thisObj, this.toolBarObj);
+	if (vizType === com.sap.xmii.common.util.ChartPropertyConstants.I5CHART) {
+		var clearVerticalMarkersButton = sap.ui.getCore().byId(thisObj.chartPosId+"clear");
+		if(clearVerticalMarkersButton === undefined) {
+			clearVerticalMarkersButton = new sap.ui.commons.Button({id : thisObj.chartPosId+"clear", text: "",lite:true, tooltip:com.sap.xmii.common.util.MessageBundle.getText("XTOL_CLEAR_VMARKERS") , icon: "sap-icon://eraser",
+			press : clearVerticalMarkers
+				});
+		}
+		var timeAxisArray = thisObj.getChartObject().chartPropertyConfig.getProperty("timeAxisArray");
+		if(timeAxisArray === undefined || timeAxisArray === null ||
+				timeAxisArray.length === 0) {
+			clearVerticalMarkersButton.setVisible(false);
+		} else {
+			if(thisObj.getChartObject().getChartType() === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_LINE && thisObj.getChartObject().getTimeSeries() === true)
+				clearVerticalMarkersButton.setVisible(true);
+		}
+
+	this.toolBarObj.addContent(clearVerticalMarkersButton);
+	}
+	this.toolBarObj.addContent(settingButton);
+	this.toolBarObj.addContent(refreshButton);
+},
+com.sap.xmii.common.tools.AdditionalToolBar = function(thisObj , toolBarObj){
+	if(thisObj.getAdditionalTiteBarItems != undefined){
+		//Looping though the additional ToolBar items and adding it to ToolBar
+		var toolBarItemArray = thisObj.getAdditionalTiteBarItems();
+		for(var i = 0 ; i < toolBarItemArray.length ; i++){
+			toolBarObj.addContent(toolBarItemArray[i]);
+		}
+	}
+},
+
+/*
+ * TOOLBAR CLASS
+ */
+com.sap.xmii.common.tools.ToolBar.prototype = parentToolComponent;
+com.sap.xmii.common.tools.ToolBar.prototype.constructor = com.sap.xmii.common.tools.ToolBar;
+com.sap.xmii.common.tools.ToolBar.prototype.AdditionalToolBar = com.sap.xmii.common.tools.AdditionalToolBar;

@@ -1,0 +1,49 @@
+function getJSDoc() {
+	var x = '';
+	function getAddMethods() {
+		var addMethodStr = '';
+		var propNames = [ 'URL', 'Transform', 'DateFormat', 'Mode',
+				'NumberFormat', 'IsCached', 'AllowFuture' ];
+
+		for (prop in propNames) {
+			var getStr = 'String:' + 'get' + propNames[prop] + '()' + ';';
+			var setStr = 'void:' + 'set' + propNames[prop] + '(val)' + ';';
+			addMethodStr = addMethodStr + getStr + setStr;
+		}
+
+		return addMethodStr;
+	}
+	;
+	x = x + getAddMethods();
+	return x;
+};
+/**
+ * @Namespace 
+ */
+com.sap.xmii.querytemplate.query = com.sap.xmii.querytemplate.query || {};
+
+// FOR INHERITANCE
+var parentQueryObj = new com.sap.xmii.querytemplate.query.Query();
+
+/***
+ * XMlQuery
+ * @constructor 
+ * @return
+ */
+
+com.sap.xmii.querytemplate.query.XMLQuery = function(queryTemplateName,
+		queryMetaData) {
+
+	this.setQueryMetaData(queryMetaData);
+	this.setQueryTemplateName(queryTemplateName);
+	this.addGettersAndSetters(com.sap.xmii.common.util.XMLQueryPropNames);
+}
+
+// Inheritance
+com.sap.xmii.querytemplate.query.XMLQuery.prototype = parentQueryObj;
+com.sap.xmii.querytemplate.query.XMLQuery.prototype.constructor = com.sap.xmii.querytemplate.query.XMLQuery;
+
+com.sap.xmii.querytemplate.query.XMLQuery.prototype.isTimeBasedQuery = function() {
+
+	return false;
+}

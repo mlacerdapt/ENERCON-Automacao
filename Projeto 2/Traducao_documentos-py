@@ -1,0 +1,90 @@
+import os
+import pandas as pd
+from docx import Document
+from PyPDF2 import PdfFileReader, PdfFileWriter
+from translate import Translator
+from io import StringIO
+
+def translate_text(text, translator):
+    try:
+        translated_text = translator.translate(text)
+        return f"{text.strip()} / {translated_text.strip()}"
+    except Exception as e:
+        print(f"Error translating text: {text}\nError: {e}")
+        return text  # Return original text if translation fails
+
+def translate_word(file_path, output_path, translator):
+    try:
+        doc = Document(file_path)
+        for para in doc.paragraphs:
+            translated_text = translate_text(para.text, translator)
+            para.text = translated_text
+        doc.save(output_path)
+    except Exception as e:
+        print(f"Error processing Word file: {file_path}\nError: {e}")
+
+def translate_excel(file_path, output_path, translator):
+    try:
+        df = pd.read_excel(file_path)
+        translated_df = df.applymap(lambda x: translate_text(str(x), translator) if isinstance(x, str) else x)
+        translated_df.to_excel(output_path, index=False)
+    except Exception as e:
+        print(f"Error processing Excel file: {file_path}\nError: {e}")
+
+def translate_pdf(file_path, output_path, translator):
+    try:
+        reader = PdfFileReader(file_path)
+        writer = PdfFileWriter()
+
+        for page_num in range(reader.getNumPages()):
+            page = reader.getPage(page_num)
+            text = page.extract_text()
+            translated_text = translate_text(text, translator)
+            page_text = StringIO(translated_text)
+            page.merge_page(PdfFileReader(page_text))
+
+            writer.add_page(page)
+
+        with open(output_path, 'wb') as f:
+            writer.write(f)
+    except Exception as e:
+        print(f"Error processing PDF file: {file_path}\nError: {e}")
+
+def translate_text_file(file_path, output_path, translator):
+    try:
+        with open(file_path, 'r', encoding='utf-8') as file:
+            lines = file.readlines()
+
+        translated_lines = []
+        for line in lines:
+            translated_text = translate_text(line, translator)
+            translated_lines.append(f"{line.strip()} / {translated_text.strip()}\n")
+
+        with open(output_path, 'w', encoding='utf-8') as file:
+            file.writelines(translated_lines)
+    except Exception as e:
+        print(f"Error processing text file: {file_path}\nError: {e}")
+
+def translate_files_in_directory(directory, output_directory):
+    if not os.path.exists(output_directory):
+        os.makedirs(output_directory)
+
+    translator = Translator(to_lang="en", from_lang="pt")
+
+    for filename in os.listdir(directory):
+        file_path = os.path.join(directory, filename)
+        output_path = os.path.join(output_directory, filename)
+
+        if filename.endswith(".docx"):
+            translate_word(file_path, output_path, translator)
+        elif filename.endswith(".xlsx"):
+            translate_excel(file_path, output_path, translator)
+        elif filename.endswith(".pdf"):
+            translate_pdf(file_path, output_path, translator)
+        elif filename.endswith(".txt"):
+            translate_text_file(file_path, output_path, translator)
+
+if __name__ == "__main__":
+    input_directory = r"C:\Users\00082300\Downloads\Projeto 2\arquivostraducao\Original"
+    output_directory = r"C:\Users\00082300\Downloads\Projeto 2\arquivostraducao\Traduzido"
+    translate_files_in_directory(input_directory, output_directory)

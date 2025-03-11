@@ -1,0 +1,62 @@
+/**
+ * This class is responsible for spawing a web worker thread named MIITask.js which acts as a subworkder and sends messages to back to this
+ * file to keep the thread separate. This is used generally to fetch the data from the server in a different thread and the handlers as well.
+ * @author I064174
+ */
+
+
+/**
+ * This is the constructor responsible for spawing the sub worker and registering the handlers
+ */
+function MIIWorker() {
+	var that = this;
+	var workerObject = new Worker("/XMII/CompositionEnvironment/js/MIITask.js");
+	var callbackHandlers = {};
+	
+	//registering the function which will be called from the subn worker
+	workerObject.onmessage = function(oEvent) {
+		if (oEvent.data instanceof Object && oEvent.data.hasOwnProperty("dataReturned") && oEvent.data.hasOwnProperty("functionHandler")) {
+			//calling the registered event handlers with their thisObject and additional arguments
+			callbackHandlers[oEvent.data.functionHandler].ffunction.apply(callbackHandlers[oEvent.data.functionHandler].thisObject, [oEvent.data, JSON.parse(oEvent.data.additionalArguments)]);
+		}
+	};
+
+	//this function is used to send the message to the sub worker
+	this.sendMessage = function() {
+		if (arguments.length < 1) {
+			throw new Error("The arguments should be greater than 1");
+			return;
+		}
+		
+		workerObject.postMessage({
+			"functionName" : arguments[0],
+			"baseURL" : arguments[1],
+			"queryArguments" : arguments[2],
+			"functionHandler" : arguments[3],
+			//it has be a json string, otherwise it is not sent to the sub worker and a parsing error is thrown
+			"additionalArguments" : JSON.stringify(Array.prototype.slice.call(arguments, 4)[0]),
+			"errorHandler" : arguments[5]
+		});
+	};
+
+	this.terminate = function() {
+		workerObject.terminate();
+	};
+
+	//registering the event Handlers for this worker object
+	this.registerCallbackHandler = function(handlerName, functionHandler, thisObject, cellId) {
+		if (cellId)
+			handlerName = handlerName + "_" + cellId;
+		
+		callbackHandlers[handlerName] = {};
+		callbackHandlers[handlerName].ffunction = functionHandler;
+		callbackHandlers[handlerName].thisObject = thisObject;
+	},
+
+	this.deregisterCallbackHandler = function(handlerName) {
+		delete callbackHandlers[handlerName];
+	}
+};
+
+//default object created for use in Charts in SSCE
+var miiWorker = new MIIWorker();

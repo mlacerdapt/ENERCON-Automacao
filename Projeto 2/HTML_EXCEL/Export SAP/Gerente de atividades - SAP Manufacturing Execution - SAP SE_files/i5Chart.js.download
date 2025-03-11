@@ -1,0 +1,2154 @@
+var jsScriptFiles = ['ChartComponent.js','LineChart.js','PieChart.js','BarChart.js','StackedBarChart.js','CustomChart.js','HorizontalBarChart.js','ScatterChart.js','BubbleChart.js',
+                     'DonutChart.js','GaugeChart.js','VizFrameChart.js','i5ChartModel.js'];
+
+for(kjs in jsScriptFiles){
+	var ss = '<scr' + 'ipt type="text/javascript" src="/XMII/JavaScript/' + (miiModePath || 'minified')+ '/'+jsScriptFiles[kjs]+'"'+'></scr' + 'ipt>';
+	document.write(ss);
+}
+
+/**
+ * @Namespace com.sap.xmii.chart
+ */
+com.sap.xmii.chart.hchart = com.sap.xmii.chart.hchart || {};
+
+var parentObj = new com.sap.xmii.common.init.MIIUI5Visualization();
+
+/***
+ * CLASS i5Chart is the primary class representing Charts
+ * 
+ * @constructor
+ */
+
+com.sap.xmii.chart.hchart.i5Chart = function() {
+	/*com.sap.xmii.chart.hchart = {
+			i5Chart : function() {*/
+	/*
+	 * Setting the arguments for the constructor to a private variable,chartArgs
+	 */
+	try{
+		var chartArgs = arguments;
+		var errorMessage = '';
+		var titleBar, messageArea, isCustomMessageArea = false, timeBar = {}, refreshIntervalId = 0, oChartLayout;
+ 		var messageAreaToolbar;
+        var oLayout;
+		var addtionalToolBarArray = [];
+		var eventsConfiguration = {};
+		var timeAware = true;
+	 	var callBackData = {};
+	 	var queryMode;
+		var cellID;
+		var oldDateFormat = "";
+		var kpiViewObj = {};
+		var originalRow={};
+      
+		// **PRIVATE FUNCTIONS**
+		var setupLogging = function() {
+			//default log level is ERROR, and DEBUG_MODE_ON = false
+			jQuery.sap.log.info("Script console debug logs(INFO/LOG level) allowed: "+com.sap.xmii.common.util.DEBUG_MODE_ON);
+			if(com.sap.xmii.common.util.DEBUG_MODE_ON) {
+				jQuery.sap.log.setLevel(jQuery.sap.log.Level.INFO);
+			}
+		};
+
+		/*
+		 * Setup for arguments The function is needed to set the arguments that the
+		 * user passes for i5Chart constructors to the appropriate variables that
+		 * will be used to create,render the chart
+		 */
+		var queryTemplateName, chartTemplateName, jsonTemplateProps, chartType, queryDataUrl,tempGauge;
+		var setUpChartArguments = function() {
+
+			setupLogging();
+
+			//re-initialize the flags for the new chart instance
+			com.sap.xmii.common.util.MIIi5Util.reInitializeUtilVariables();
+
+			var chartTypeNumber = chartArgs[0];
+			var chartTypesArray = com.sap.xmii.common.util.MIIi5Util.stringToArray(com.sap.xmii.common.util.CHART_TYPES_ARRAY, ",");
+
+			if (chartArgs.length >= 2) {
+				// first argument
+				if (!isNaN(chartTypeNumber)) {// will accept numbers passed as number/string
+
+					// check if the chartType provided by the user is one of the MII defined chart types then do the following
+					chartType = chartTypesArray[chartTypeNumber];
+					if (typeof chartType != com.sap.xmii.common.util.GenericConstants.UNDEFINED) {
+						queryTemplateName = chartArgs[1];
+						queryDataUrl = chartArgs[2];
+						jsonTemplateProps = chartArgs[3];// this will be null
+						chartTemplateName = com.sap.xmii.common.util.GenericConstants.DEFAULT_I5CHART;
+					} else {
+						// ChartType provided is not supported
+						var msg = com.sap.xmii.common.util.MessageBundle.getText("XMSG_CHARTTYPE_NOT_SUPPORTED");
+						jQuery.sap.log.error(msg);
+						throw new com.sap.xmii.common.exception.MIIi5Exception(msg);
+					}
+				} else {// if arg[0] not a chartType, then arg[0] = charttemplatename
+					chartTemplateName = chartArgs[0];
+					queryTemplateName = chartArgs[1];
+					jsonTemplateProps = chartArgs[2];// this will be null
+				}
+			} else {
+				if(chartArgs.length == 1 && ((!isNaN(chartTypeNumber) && chartTypeNumber == 11) || chartTypeNumber=="Gauge"))
+				{
+					chartTemplateName = com.sap.xmii.common.util.GenericConstants.DEFAULT_I5CHART;
+					chartType = chartTypesArray[isNaN(chartTypeNumber)?11:chartTypeNumber];
+					tempGauge = true;
+
+				}else{
+					// Insufficient number of arguments
+					var msg = com.sap.xmii.common.util.MessageBundle.getText("XMSG_INSUFFICIENT_NUMBER_OF_PARAMETERS");
+					jQuery.sap.log.error(msg);
+					throw new com.sap.xmii.common.exception.MIIi5Exception(msg);
+				}
+
+			}
+		};
+
+		/*
+		 * Event triggered on click of gauge and calls the custom method and show trend if clicked at runtime
+		 * 
+		 */
+		
+		this.bindOnClick = function () {
+		    if (this.callBackData != undefined && this.callBackData != "" && this.callBackData != null &&
+		        this.callBackData.Config != undefined && this.callBackData.Config != null && this.callBackData.Config != "" &&
+		        this.callBackData.Config.CallBackData != undefined && this.callBackData.Config.CallBackData != null & this.callBackData.Config.CallBackData != "") {
+
+		        var data = this.callBackData.Config.CallBackData;
+		        if (isObjectNotNull(data)) {
+		            if (isObjectNotNull(data.SelectCallback) && data.SelectCallback && isObjectNotNull(data.SelectFunctionName) && data.SelectFunctionName != "" && window[data.SelectFunctionName]) {
+		                var dataObject = this.model.getModelData().getRowset(0).Row[0];
+		                var kpiData = {
+		                    kpiName: dataObject.NAME.substring(0,dataObject.NAME.lastIndexOf("/"))+"/" + removeExtension(dataObject.NAME.substring(dataObject.NAME.lastIndexOf("/")+1)), // taken care if any project or any folder name has  "."
+		                    currentValue: dataObject.VALUE,
+		                    dimensions: createDimensionArray(this.callBackData.Config.dimensions)
+		                };
+		                window[data.SelectFunctionName](kpiData);
+		            }
+		            if (data.ShowTrend == true || data.ShowTrend == "true") {
+		                showTrendDialogForTileAndGauge(this.callBackData);
+		            }
+		        }
+		    }
+		};
+		
+		
+		//setUpChartArguments();
+
+		/*
+		 * Method checks for the Chart Type and creates the Chart Object
+		 */
+		var createChart = function(chartPropertyConfig, model, type, chartWidth, chartHeight, id, compMode, thisObj) {
+			var ui5Obj = '';
+			chartPropertyConfig.isTimeBasedQuery = thisObj.getQueryObject().isTimeBasedQuery();
+			
+			//reset the error message before initialising the chart component
+			chartPropertyConfig.properties.ErrorMessage = undefined;
+			//type = com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(getErrorMessage()) ? type : "";			
+			if(compMode){
+			switch (type) {
+			case com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_PIE : {
+				var pieChart = new com.sap.xmii.chart.ui5.PieChart(chartPropertyConfig, model);
+				pieChart.width = chartWidth;
+				pieChart.height = chartHeight;
+				pieChart.create();
+				ui5Obj = pieChart;
+				break;
+			}
+
+			case com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_LINE : {
+				var lineChart = new com.sap.xmii.chart.ui5.LineChart(chartPropertyConfig, model);
+				lineChart.width = chartWidth;
+				lineChart.height = chartHeight;
+				lineChart.create();
+				ui5Obj = lineChart;
+				break;
+			}
+
+			case com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_BAR : {
+				var barChart = new com.sap.xmii.chart.ui5.BarChart(chartPropertyConfig, model);
+				barChart.width = chartWidth;
+				barChart.height = chartHeight;
+				barChart.create();
+				ui5Obj = barChart;
+				break;
+			}
+
+			case com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_GROUP_BAR : {
+				var barChart = new com.sap.xmii.chart.ui5.BarChart(chartPropertyConfig, model);
+				barChart.width = chartWidth;
+				barChart.height = chartHeight;
+				barChart.create();
+				ui5Obj = barChart;
+				break;
+			}
+
+			case com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_STACKED_BAR : {
+				var stackedBar = new com.sap.xmii.chart.ui5.StackedBarChart(chartPropertyConfig, model);
+				stackedBar.width = chartWidth;
+				stackedBar.height = chartHeight;
+				stackedBar.create();
+				ui5Obj = stackedBar;
+				break;
+			}
+
+			case com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_HORIZONTAL_BAR : {
+				var hBarChart = new com.sap.xmii.chart.ui5.HorizontalBarChart(chartPropertyConfig, model);
+				hBarChart.width = chartWidth;
+				hBarChart.height = chartHeight;
+				hBarChart.create();
+				ui5Obj = hBarChart;
+				break;
+			}
+
+			case com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_HORIZONTAL_GROUP_BAR : {
+				var hBarChart = new com.sap.xmii.chart.ui5.HorizontalBarChart(chartPropertyConfig, model);
+				hBarChart.width = chartWidth;
+				hBarChart.height = chartHeight;
+				hBarChart.create();
+				ui5Obj = hBarChart;
+				break;
+			}
+
+			case com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_SCATTER : {
+				var sChart = new com.sap.xmii.chart.ui5.ScatterChart(chartPropertyConfig, model);
+				if(!com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(sChart.chartPropertyConfig.properties.ErrorMessage)){
+					//empty chart initialization -- shows a container
+					sChart = new com.sap.xmii.chart.ui5.ChartComponent();
+					sChart.init(chartPropertyConfig, model, thisObj);
+				}
+				sChart.width = chartWidth;
+				sChart.height = chartHeight;
+				sChart.create();
+				ui5Obj = sChart;
+				break;
+			}
+
+			case com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_CUSTOM : {
+				var cChart = new com.sap.xmii.chart.ui5.CustomChart(chartPropertyConfig, model);
+				cChart.width = chartWidth;
+				cChart.height = chartHeight;
+				cChart.create();
+				ui5Obj = cChart;
+				break;
+			}
+
+			case com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_BUBBLE : {
+				var bChart = new com.sap.xmii.chart.ui5.BubbleChart(chartPropertyConfig, model);
+				if(!com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(bChart.chartPropertyConfig.properties.ErrorMessage)){
+					//empty chart initialization -- shows a container
+					bChart = new com.sap.xmii.chart.ui5.ChartComponent();
+					bChart.init(chartPropertyConfig, model, thisObj);
+				}
+				bChart.width = chartWidth;
+				bChart.height = chartHeight;
+				bChart.create();
+				ui5Obj = bChart;
+				break;
+			}
+
+			case com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_DONUT : {
+				var doNutChart = new com.sap.xmii.chart.ui5.DonutChart(chartPropertyConfig, model);
+				doNutChart.width = chartWidth;
+				doNutChart.height = chartHeight;
+				doNutChart.create();
+				ui5Obj = doNutChart;
+				break;
+			}
+			case com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_GAUGE : {
+				var gaugeChart = new com.sap.xmii.chart.ui5.GaugeChart(chartPropertyConfig, model);
+				gaugeChart.width = chartWidth;
+				gaugeChart.height = chartHeight;
+				gaugeChart.create();
+				ui5Obj = gaugeChart;
+				break;
+			}
+			
+			default : {
+				var i5Empty = new com.sap.xmii.chart.ui5.ChartComponent();
+				i5Empty.init(chartPropertyConfig, model, thisObj);
+				i5Empty.width = chartWidth;
+				i5Empty.height = chartHeight;
+				i5Empty.create();
+				ui5Obj = i5Empty;
+				break;
+			}
+			}
+			}
+			else{
+				var vizFrameChart = new com.sap.xmii.chart.ui5.VizFrameChart(chartPropertyConfig, model);
+				if(type === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_SCATTER 
+				   || type === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_BUBBLE){
+					if(!com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(vizFrameChart.chartPropertyConfig.properties.ErrorMessage)){
+						//empty chart initialization -- shows a container
+						vizFrameChart = new com.sap.xmii.chart.ui5.ChartComponent();
+						vizFrameChart.init(chartPropertyConfig, model, thisObj);
+					}
+				}
+				vizFrameChart.width = chartWidth;
+				vizFrameChart.height = chartHeight;
+				vizFrameChart.i5ChartInstance = thisObj;
+				vizFrameChart.create();
+				ui5Obj = vizFrameChart;
+			}
+
+			ui5Obj.chartPosId = id;
+			var errMsg = ui5Obj.chartPropertyConfig.properties.ErrorMessage;
+			if(com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(errMsg)) {
+				if (type === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_GAUGE) {
+					ui5Obj.getUI5ChartElement().attachRenderComplete(ui5Obj.chartReady, ui5Obj);
+					ui5Obj.i5ChartInstance = thisObj;
+					if(window.ssceLayout && !ssceLayout.isDesign){
+						ui5Obj.getUI5ChartElement().attachBrowserEvent('click',thisObj.bindOnClick,thisObj);
+					}
+				} else if(type !== ""){
+					if(compMode)
+						ui5Obj.getUI5ChartElement().attachInitialized(ui5Obj.chartReady, ui5Obj);
+					else {
+						ui5Obj.getUI5ChartElement().attachRenderComplete(ui5Obj.chartReady, ui5Obj);
+						if(type === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_LINE || type === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_BAR || 
+								type === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_CUSTOM) {
+							if(sap.ui.Device.system.desktop)
+								sap.viz.api.env.globalSettings({"treatAsMobile": "off"}); 
+							ui5Obj.getUI5ChartElement().attachSelectData(ui5Obj.chartSelected, ui5Obj);
+						}
+					}
+					ui5Obj.i5ChartInstance = thisObj;
+				}
+			} else {
+				setErrorMessage(errMsg);
+			}
+			return ui5Obj;
+		};
+
+		/*
+		 * Initializes the Chart Object
+		 */
+		var initChart = function(chartPropertyConfig, model, chartWidth, chartHeight, id, thisObj) {
+			jQuery.sap.log.info("In init of chart");
+			var type = chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.CHART_TYPE);
+			var chrtTemp = new com.sap.xmii.charttemplate.ChartTemplate(chartTemplateName);
+			var compMode = chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.COMP_MODE);
+			var dualYAxis = chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.DUAL_YAXIS);
+			var timeSeries = chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.TIME_SERIES);
+			//com.sap.xmii.common.util.MIIi5Util.configureChartParameters(chartPropertyConfig, type , compMode, dualYAxis, timeSeries);
+			compMode = chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.COMP_MODE);
+			if(type == com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_GAUGE){
+				compMode = true;
+			}
+			jQuery.sap.log.info("ChartType is " + type);
+			return createChart(chartPropertyConfig, model, type, chartWidth, chartHeight, id, compMode, thisObj);
+		};
+
+		/*
+		 * Gets the DisplayTemplate details as a ChartTemplate Object
+		 */
+		var initChartTemplate = function(chartTemplateName, jsonTemplateProps) {
+			jQuery.sap.log.info("In init of chart template");
+			var chrtTemp = new com.sap.xmii.charttemplate.ChartTemplate(chartTemplateName);
+			jQuery.sap.log.info("initChartTemplate: chartTemplate:" + JSON.stringify(chrtTemp));
+			// Check if jsonProps exists and load it
+			if (typeof jsonTemplateProps === com.sap.xmii.common.util.GenericConstants.UNDEFINED
+					|| com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(jsonTemplateProps)) {
+			} else {
+				jQuery.sap.log.info("jsonTemplateProps to be set.." + jsonTemplateProps);
+				chrtTemp.chartPropertyConfig.setAdditionalProps(jsonTemplateProps);
+				jQuery.sap.log.info("initChartTemplate: After updating chartTemplate with jsonTemplateProps:"
+						+ JSON.stringify(chrtTemp));
+			}
+			return chrtTemp;
+		};
+
+		/*
+		 * Gets the QueryTemplate details as a ChartTemplate Object
+		 */
+		var initQueryTemplate = function(queryTemplateName) {
+			jQuery.sap.log.info("In init of query template");
+			if(com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(queryTemplateName) && !com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(queryDataUrl)){
+				var qTemp = new com.sap.xmii.querytemplate.QueryTemplate(queryTemplateName,queryDataUrl);
+				qTemp.getQueryObject().setQueryResultUrl(queryDataUrl);
+			}else{
+				var qTemp = new com.sap.xmii.querytemplate.QueryTemplate(queryTemplateName);
+			}
+			jQuery.sap.log.info("initQueryTemplate: queryTemplate:" + JSON.stringify(qTemp));
+			return qTemp;
+		};
+
+		/*
+		 * Creates a Title object
+		 */
+		var initTitleBar = function(thisObj) {
+			jQuery.sap.log.info("Initiliazing title bar");
+			var titleBar = new com.sap.xmii.common.tools.TitleBar(thisObj);
+			return titleBar.titleBar;
+		};
+
+		/*
+		 * Creates a Message Area
+		 */
+		var initMessageArea = function(width,chartBackgroundColor) {
+			jQuery.sap.log.info("Initiliazing message bar");
+			messageAreaToolbar = new com.sap.xmii.common.tools.MessageArea(width,chartBackgroundColor);
+			return messageAreaToolbar.messageArea;
+		};
+
+		/*
+		 * Creates a TimeBar object
+		 */
+		var initTimeBar = function(width, thisObj) {
+			jQuery.sap.log.info("Initiliazing time bar");
+			var timeBar = new com.sap.xmii.common.tools.TimeBar(width, thisObj);
+			return timeBar;
+		};
+
+		/*
+		 * Places the Chart under the specified element(by id) of the HTML Pages
+		 * 
+		 */
+		var normalizeChartData = function(thisObj) {
+
+			var valueCols = thisObj.getChartObject().chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.VALUE_COLUMNS);
+			var valueKeys = (valueCols || "").split(",");
+			
+			var bForcedUnique = thisObj.getChartObject().chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.FORCED_UNIQUE);
+			if(bForcedUnique === undefined)
+				bForcedUnique = false;
+			
+			var cacheMap = {};
+			var formattedColAdded = false;
+			
+			function formatStringValue(dataset, labelObj) {
+				if(dataset != null && dataset.length >0) {
+					var attr = labelObj.name;
+					var sqlType = labelObj.type;
+					var bNumberFormatRequired = com.sap.xmii.common.util.MIIi5Util.isNumberFormatRequired(sqlType);
+					var oldValue;
+					var index = 0;
+					var colAdded = false;
+					for(var i=0; i<dataset.length; i++) {
+						var o = dataset[i];
+						Object.keys(o).forEach(function (key) { 
+							if(key === attr) {
+								//var keyForOriValue = key + "_ori";
+								//o[keyForOriValue] = o[key];
+								var keyForFormattedValue = "_formattedColumn";
+								//format the value if !isNaN
+								if(!formattedColAdded) {
+									if(bNumberFormatRequired) {
+										o[key] = thisObj.numberFormatter.format(o[key]);
+									} else {
+										o[keyForFormattedValue] = o[key];
+									}
+									colAdded = true;
+								}
+								//make unique
+								if(bForcedUnique && valueKeys.indexOf(attr)=== -1) {//attr not in measurename
+									if(oldValue !== o[keyForFormattedValue] && cacheMap[o[keyForFormattedValue]] === undefined) {
+										index++;
+										cacheMap[o[keyForFormattedValue]] = index;
+									} else if(cacheMap[o[keyForFormattedValue]] != undefined){
+										index = cacheMap[o[keyForFormattedValue]];
+									}
+									oldValue = o[keyForFormattedValue];
+									o[keyForFormattedValue] += " ("+(index)+")";
+								}//skip value columns from doing the below logic if attr is a measurename
+							}
+						});
+					}
+					//This could be improved to check if _formattedColumn actually got added
+					if(!formattedColAdded && colAdded)
+						formattedColAdded = true;
+				}
+			}
+			
+
+			function formatDatesAndMakeUnique(rows, attr) {
+				if(rows != null && rows.length >0) {
+					//var chartType = thisObj.getChartObject().getChartType();
+					var chartType = thisObj.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.CHART_TYPE);
+					var sliderLabels = new Array();
+					var colAdded = false;
+					for(var i=0; i<rows.length; i++) {
+						var o = rows[i];
+						Object.keys(o).forEach(function (key) { 
+							if(key === attr) {
+								//var keyForOriValue = key;// + "_ori";
+								var keyForFormattedValue = "_formattedColumn";
+								//o[keyForFormattedValue] = o[key];
+								//format the date values 
+								var dateFormatter = com.sap.xmii.common.util.MIIi5Util.getDateFormatter(thisObj.dateFormat);
+								var valueToBeFormatted = com.sap.xmii.common.util.MIIi5Util.formatDateTime(o[key]);
+								if(valueToBeFormatted != undefined) {
+									o[keyForFormattedValue] = dateFormatter.format(valueToBeFormatted);
+									sliderLabels[i] = o[keyForFormattedValue];
+									if(!formattedColAdded) {
+										if (chartType == com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_GAUGE) {
+											o[key] = dateFormatter.format(valueToBeFormatted);
+										} else {
+											o[key] = valueToBeFormatted;
+										}
+										colAdded = true;
+									}
+									//make unique
+									if(bForcedUnique)
+										o[keyForFormattedValue] += " ("+(i+1)+")";
+								}
+							}
+						});
+					}
+					//This could be improved to check if _formattedColumn actually got added
+					if(!formattedColAdded && colAdded)
+						formattedColAdded = true;
+					if(thisObj.getTimeBar() instanceof com.sap.xmii.common.tools.TimeBar && thisObj.getTimeBar().slider != undefined)
+						thisObj.getTimeBar().slider.setLabels(sliderLabels);
+				}
+			} 
+
+			function getColumnNameAndType(sourceColumnName) {
+				var cols = thisObj.model.getModelMetaData().getColumns().Column;
+				if(cols != null && cols.length >0) {
+					for(var i=0; i<cols.length; i++) {
+						var obj = cols[i];
+						if(obj.SourceColumn === sourceColumnName) {
+							var colObj = {name:obj.Name, type:obj.SQLDataType};
+							return colObj;
+						}
+					}
+				}
+			}
+
+			if(thisObj.model != undefined) {
+				var fatalError = thisObj.model.getModelData().getFatalError();
+				var rowsetData = thisObj.model.getModelData().getRowset();
+				var rowsData = thisObj.model.getModelData().getRows();
+				if (com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(fatalError) && !jQuery.isEmptyObject(rowsetData) && !jQuery.isEmptyObject(rowsData)) {
+					var rows = thisObj.model.getJSONModel().oData.Rowsets.Rowset[0].Row;
+					if(rows != null && rows.length >0) {
+						//Label columns
+						var labelCols = thisObj.getChartObject().chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.LABEL_COLUMNS);
+						var isTimeBased = thisObj.getQueryObject().isTimeBasedQuery();
+						if(labelCols != undefined  && labelCols.length != 0) {
+							var labels = labelCols.split(",");
+							for(var label in labels) {
+								var labelObj = getColumnNameAndType(labels[label]);
+								//Label column: make values unique by adding the sequence number to it
+								//If labelcolumn SQLDataType === 93 --> format the date values
+								if(labelObj && com.sap.xmii.common.util.MIIi5Util.isDateTimeColumn(labelObj.type)) {
+									formatDatesAndMakeUnique(rows, labelObj.name);
+								} else if (labelObj){
+									formatStringValue(rows, labelObj);
+								}
+							}
+						} else {
+							//Check columns which are DateTime type and format them
+							var cols = thisObj.model.getModelMetaData().getColumns().Column;
+							for ( var col in cols) {
+								var columnObj = cols[col];
+								var dimensionName = columnObj.Name;
+								var dimensionSQLDataType = columnObj.SQLDataType;
+								if(com.sap.xmii.common.util.MIIi5Util.isDateTimeColumn(dimensionSQLDataType)) {
+									formatDatesAndMakeUnique(rows, dimensionName);
+								} else {
+									formatStringValue(rows, columnObj);
+								}
+							}
+						}
+					}
+					//reset error message
+					setErrorMessage(undefined);
+				} else {
+					//thisObj.getChartObject().setChartType("");
+					var message = fatalError;
+					if(com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(fatalError)) {
+						message = com.sap.xmii.common.util.MessageBundle.getText("XLBL_NO_DATA");
+					}
+					setErrorMessage(message);
+					throw new com.sap.xmii.common.exception.MIIi5Exception(message);
+				}
+			}
+
+		};
+
+		var placeChart = function(thisObj, isQueryTemplateExecRequired) {
+			//manipulate chart data
+			normalizeChartData(thisObj);
+			var chartConfig;
+			jQuery.sap.log.info("thisObj.getChartObject() -->" + thisObj.getChartObject());
+			//if (!com.sap.xmii.common.util.MIIi5Util.isEmpty(thisObj.getChartObject())) {
+			if (thisObj.getChartObject() != "") {
+				chartConfig = thisObj.getChartObject().chartPropertyConfig;
+			} else {
+				chartConfig = thisObj.chartTemplate.chartPropertyConfig;
+			}
+			var chartType = chartConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.CHART_TYPE);
+			//Make sure "gauge-bundle" is loaded if and only if chart type is Gauge.
+			if (chartType == com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_GAUGE) {
+				//"gauge-bundle" must be loaded before create the gauge chart, and create chart must be done before place chart.
+				requirejs.config({baseUrl : "/XMII/JavaScript/" + (miiModePath || 'minified') + "/ChartExtensions/bundles/sap/viz/ext/gauge"});
+				require(["gauge-bundle"], function () {
+					createAndPlaceChart(chartConfig, thisObj, isQueryTemplateExecRequired);
+				});
+			} else {
+				createAndPlaceChart(chartConfig, thisObj, isQueryTemplateExecRequired);
+			}
+		};
+
+		var createAndPlaceChart = function(chartConfig, thisObj, isQueryTemplateExecRequired) {
+			thisObj.setChartObject(initChart(chartConfig, thisObj.model, thisObj.chartWidth, thisObj.chartHeight, thisObj.chartPosId, thisObj));
+			var hchart = thisObj.getChartObject();
+			if (typeof thisObj.fnOnSelectEvent != com.sap.xmii.common.util.GenericConstants.UNDEFINED) {
+				hchart.fnOnSelectEvent = thisObj.fnOnSelectEvent;//Set handler for chart selection on chart component
+				jQuery.sap.log.info("Set chart selection handler");
+			}
+			if (thisObj.fnOnLegendSelectEvent) {
+				hchart.fnOnLegendSelectEvent = thisObj.fnOnLegendSelectEvent;
+			}
+			for(var event in eventsConfiguration){
+				for(var index in eventsConfiguration[event]){
+					$(hchart).on(event, eventsConfiguration[event][index]);
+				}
+			}
+			oChartLayout = new sap.ui.commons.layout.MatrixLayout();
+			oChartLayout.addEventDelegate({
+				onAfterRendering : function () {
+				sap.ui.core.BusyIndicator.hide();
+				var controlForResize = thisObj.getChartObject().getUI5ChartElement(); 
+				sap.ui.core.ResizeHandler.register(controlForResize, function(){
+					//thisObj.getChartObject().getUI5ChartElement().rerender();
+					if(thisObj.getTitleBar() != undefined)
+						thisObj.getTitleBar().rerender();
+					if(thisObj.getTimeBar() instanceof com.sap.xmii.common.tools.TimeBar)
+						thisObj.getTimeBar().timeBarLayout.rerender();
+					//thisObj.getChartObject().chartReady();
+				});
+			}
+			});
+			var oLayoutRow;
+			var oLayoutCell;
+			var titleBarAdded = false;
+			var messageAreaAdded = false;
+			var ui5ChartTypeObjAdded = false;
+			var timeBarObjAdded = false;
+			var chartTemplate = thisObj.chartTemplate;
+			var fnToBeCalled = thisObj.functionToBeCalledOnSelectData;
+
+			var isItSet = thisObj.getChartObject().chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.SHOW_TIMEBAR);
+
+			for ( var i = 0; i < 4; i++) {
+				oLayoutRow = new sap.ui.commons.layout.MatrixLayoutRow();
+				oChartLayout.addRow(oLayoutRow);
+				oLayoutCell = new sap.ui.commons.layout.MatrixLayoutCell();
+				oLayoutRow.addCell(oLayoutCell);
+				oLayoutCell.setPadding(sap.ui.commons.layout.Padding.None);
+
+				if ((thisObj.getChartObject().getShowTitle() === true
+						|| thisObj.getChartObject().getShowAppToolBar() === true) 
+						&& titleBarAdded === false) {
+					oLayoutCell.addContent(titleBar);
+					titleBarAdded = true;
+
+				} else if (thisObj.getChartObject().getShowMessageArea() === true 
+						&& messageAreaAdded === false) {
+					oLayoutCell.addContent(messageArea);
+					messageAreaAdded = true;
+
+               }else if (ui5ChartTypeObjAdded === false) {
+
+					oLayoutCell.addContent(hchart.getUI5ChartElement());
+					ui5ChartTypeObjAdded = true;
+
+				} else if (thisObj.getQueryObject().isTimeBasedQuery() === true && thisObj.getChartObject().getShowTimeBar() === true && timeBarObjAdded === false) {
+					oLayoutCell.addContent(timeBar.timeBarLayout);
+					timeBarObjAdded = true;
+				}
+			}
+
+			oChartLayout.placeAt(thisObj.chartPosId, 'only');
+
+			//Moved fireUpdateEvent after placeChart i.e after chart initialisation 
+			if (isQueryTemplateExecRequired == true) { 
+				// fire update event
+				fireUpdateEvent(thisObj);
+			} else {
+				if(thisObj.getChartObject().getShowMessageArea() === true) {
+					com.sap.xmii.common.util.MIIi5Util.updateMessageAreaText(thisObj);
+				}
+				thisObj.applyChartPropertiesOnReady();
+			}
+		};
+		// com.sap.xmii.chart.bubble_scatterDataPointArray related pvt functions
+		
+		/*
+		 * @private
+		 */
+		
+		var createSortedDataPointsArray = function() {
+			var datapointArray = $(com.sap.xmii.common.util.ui5Constants.V_DATAPOINT);
+			var dpArrLen = datapointArray.length;
+			return datapointArray.sort(compare);
+		};
+
+		var compare = function(a, b) {
+			var x = a.__data__.x;
+			var y = b.__data__.x;
+			if (x < y) {
+				return -1;
+			}
+			if (x > y) {
+				return 1;
+			}
+			return 0;
+		};
+		
+		/*
+		 * @private
+		 */
+		
+		var getTimeBar = function() {
+			return timeBar;
+		};
+
+		/*
+		 * @private
+		 */
+		
+		var getMessageArea = function() {
+			return messageArea;
+		};
+
+		/*
+		 * @private
+		 */
+		
+		var getTitleBar = function() {
+			return titleBar;
+		};
+
+		/*
+		 * @private
+		 */
+		
+		
+		var setErrorMessage = function(errMsg) {
+			errorMessage = errMsg;
+		};
+
+		/*
+		 * @private
+		 */
+		
+		var getErrorMessage = function() {
+			return errorMessage;
+		};
+
+		/*
+		 * @private
+		 */
+		
+		var getChartLayout = function() {
+			return oChartLayout;
+		};
+
+		/*
+		 * @private
+		 */
+		
+		var hasErrorMessage = function() {
+			if (com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(getErrorMessage())) {
+				return false;
+			} else {
+				return true;
+			}
+		};
+
+		var totalHeight = com.sap.xmii.common.util.GenericConstants.DEFAULT_CHART_HEIGHT;
+
+		var initTitleDetails = function(thisObj) {
+			var chartPropertyConfig = thisObj.chartTemplate.chartPropertyConfig;
+
+			//set the property 
+			if(chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.SHOW_TIMEBAR) == undefined){
+				chartPropertyConfig.setProperty(com.sap.xmii.common.util.ChartPropertyConstants.SHOW_TIMEBAR,true);
+			}
+			//gauge chart does not need time bar, set it as false.
+			if(com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_GAUGE === chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.CHART_TYPE)){
+				chartPropertyConfig.setProperty(com.sap.xmii.common.util.ChartPropertyConstants.SHOW_TIMEBAR,false);
+			}
+
+			var additionalBarsHeight = 0;
+
+			if (chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.SHOW_TITLE) === true
+					|| chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.SHOW_APP_TOOLBAR) === true) {
+				titleBar = initTitleBar(thisObj);
+				additionalBarsHeight = additionalBarsHeight + 28;
+			}
+
+			if (chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.SHOW_MESSAGE_AREA) === true ) {
+				if(messageArea === undefined || messageArea == null) {
+					messageArea = initMessageArea(thisObj.chartWidth,chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.CHART_BACKGROUND_COLOR));//(chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.WIDTH));
+				} else {
+					messageArea.setWidth(thisObj.chartWidth);
+				}
+				if(thisObj.getMessageArea()!=undefined&&thisObj.getMessageArea().height!=undefined&&thisObj.getMessageArea().height!="") {
+				     additionalBarsHeight = additionalBarsHeight + thisObj.getMessageArea().height;
+				} 
+				if(chartPropertyConfig.getProperty("KPIObject") === "true") {
+					additionalBarsHeight = additionalBarsHeight + 35;
+				} else {
+					additionalBarsHeight = additionalBarsHeight + 15;
+				}
+			}
+
+			/*if(!thisObj.hasErrorMessage() && thisObj.getQueryObject().isTimeBasedQuery() === true) {
+			timeBar = initTimeBar(chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.WIDTH), thisObj); // To be changed
+		}*/
+
+			if(!thisObj.hasErrorMessage() && thisObj.getQueryObject().isTimeBasedQuery() === true && chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.SHOW_TIMEBAR) === true){
+				timeBar = initTimeBar(chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.WIDTH), thisObj); // To be changed
+				additionalBarsHeight = additionalBarsHeight + 28;
+				// based on inputs needed for TimeBar
+			}
+
+			return additionalBarsHeight;
+		};
+
+		this.applyChartPropertiesOnReady = function() {
+			/*var that = this;
+			$('#'+this.chartPosId).ready(function(){
+				var thisObj = that;
+				setTimeout(function() {
+					var ui5Obj = thisObj.getChartObject();
+					//ui5Obj.chartReady();
+				},500); //arbitrary value of 400ms
+			});*/
+		};
+
+		var fireUpdateEvent = function(thisObj) {
+			var type = thisObj.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.CHART_TYPE);
+			if (typeof thisObj.fnOnUpdateEvent != com.sap.xmii.common.util.GenericConstants.UNDEFINED) {
+				thisObj.fnOnUpdateEvent();
+			}
+
+			//Registering for events -- for chart dataset functions on ready of "ui5chart"
+			thisObj.applyChartPropertiesOnReady();
+
+			if(thisObj.getChartObject().getShowMessageArea() === true) {
+				com.sap.xmii.common.util.MIIi5Util.updateMessageAreaText(thisObj);
+			}
+		};
+
+		var initializeModel = function(thisObj) {
+			// Initialize the MODELObject here
+			try {
+				if(!thisObj.queryTemplate.getQueryObject().RestrictedPropertyOverride == "true" && !thisObj.getChartObject().UseLocaleFormat == false){
+					thisObj.queryTemplate.getQueryObject().xAxisNumberFormat = thisObj.xAxisNumberFormat;
+				}
+				var timeout = thisObj.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.TIMEOUT);
+				if(!isNaN(timeout) && timeout > 0){
+					thisObj.queryTemplate.getQueryObject().setParameter(com.sap.xmii.common.util.ChartPropertyConstants.TIMEOUT, timeout);
+				}
+				//Don't re-initialize model object only in case of gauge with no QT, in all other cases below code should be called
+				if(!tempGauge) {
+					thisObj.model = new com.sap.xmii.chart.model.i5ChartModel(thisObj.queryTemplate.getQueryObject());
+				}
+				var oResultModelData = thisObj.model.getModelData();
+				var fatalError = oResultModelData.getFatalError();
+				var rowsetData = oResultModelData.getRowset();
+				var rowsData = oResultModelData.getRows();
+				if (fatalError != null && thisObj.getQueryObject().getQueryMetaData().Type == "CatalogQuery" && thisObj.getQueryObject().getQueryMetaData().Mode == "PICAnalysis"){
+					showMessageBox(fatalError.toString(),sap.m.MessageBox.Icon.ERROR, oBundle.getText("XMSG_VALIDATION_FAILED"));
+					throw new com.sap.xmii.common.exception.MIIi5Exception(fatalError.toString());
+				}
+				if (thisObj.getQueryObject().getQueryMetaData().Type == "CatalogQuery" && thisObj.getQueryObject().getQueryMetaData().Mode == "PICAnalysis"){
+					// check whether there will be missing required label colums. If so, add them to label columns and x Dimensions.
+					var chartLabelColumns = (undefined === thisObj.getChartTemplateObject().getProperty("LabelColumns")) ? [] : thisObj.getChartTemplateObject().getProperty("LabelColumns").split(/,/);
+					var missedRequiredLabelColumnList = new Array();
+					if(chartLabelColumns.indexOf("Day") < 0 ){
+						missedRequiredLabelColumnList.push("Day");
+					}
+					if(chartLabelColumns.indexOf("Month") < 0 ){
+						missedRequiredLabelColumnList.push("Month");
+					}
+					if(chartLabelColumns.indexOf("Year") < 0 ){
+						missedRequiredLabelColumnList.push("Year");
+					}
+					if(missedRequiredLabelColumnList.length > 0){
+						var xDimensions = thisObj.getChartObject().getXDimensions().split(/,/);
+						if(rowsData.length > 1){
+							for(var i = 0; i < rowsData.length-1; i++){
+								for(var j = 0; j < missedRequiredLabelColumnList.length; j++){
+									if(rowsData[i][missedRequiredLabelColumnList[j]] != rowsData[i+1][missedRequiredLabelColumnList[j]]) {
+										chartLabelColumns.splice(0, 0, missedRequiredLabelColumnList[j]);
+										xDimensions.splice(0,0,missedRequiredLabelColumnList[j]);
+									}
+								}
+							}
+						} else if(rowsData.length === 1) {
+							var resultDateTime = new Date(rowsData[0].TimeStamp);
+							var startDateTime = new Date(oResultModelData.getStartDate());
+							var endDateTime = new Date(oResultModelData.getEndDate());
+							if(resultDateTime < startDateTime || resultDateTime > endDateTime){
+								for(var i = 0; i < missedRequiredLabelColumnList.length; i++){
+									chartLabelColumns.splice(0, 0, missedRequiredLabelColumnList[i]);
+									xDimensions.splice(0,0,missedRequiredLabelColumnList[i]);
+								}
+							}
+						}
+						chartLabelColumns = com.sap.xmii.common.util.MIIi5Util.uniqueArray(chartLabelColumns);
+						xDimensions = com.sap.xmii.common.util.MIIi5Util.uniqueArray(xDimensions);
+
+						var universalSortedCalendarSet = ["Year","Quarter","Month","Week","Day","Shift","Hour","Min_30","Min_20","Min_15","Min_10","Min_5"];
+						// use universal sorted calendar set to merge and sort label columns and x dimensions
+						var inserctChartLabelColumns = universalSortedCalendarSet.filter(function(v){ return chartLabelColumns.indexOf(v) > -1 });
+						var sortedChartLabelColumns = inserctChartLabelColumns.concat(chartLabelColumns.filter(function(v){return inserctChartLabelColumns.indexOf(v) === -1}));
+						var sortedXDimensions = universalSortedCalendarSet.filter(function(v){ return xDimensions.indexOf(v) > -1 });
+						thisObj.getChartTemplateObject().setProperty("LabelColumns", sortedChartLabelColumns.toString());
+						thisObj.getChartObject().setXDimensions(sortedXDimensions.toString());
+						chartLabelColumns = sortedChartLabelColumns;
+					}
+
+					// validate wether there is undefined columns with label columns in query results.
+					var undefinedColumnsError = null;
+					var columnsData = rowsetData.Columns.Column;
+					var undefinedColumns = new Array();
+					for (var i = 0; i < chartLabelColumns.length; i++){
+						var isContainLabelColumn = false;
+						for (var j = 0; j < columnsData.length; j++){
+							if(columnsData[j].Name === chartLabelColumns[i]) {
+								isContainLabelColumn = true;
+							}
+						}
+						if(!isContainLabelColumn){
+							undefinedColumns.push(chartLabelColumns[i]);
+						}
+					}
+					if(undefinedColumns.length > 0){
+						var tempArr = [];
+						var localizedUndefinedColumnNames = [];
+						// localize displayed time label in error message
+						for(var i = 0; i < undefinedColumns.length; i++){
+							var undefinedColumnName = undefinedColumns[i];
+							switch(undefinedColumnName){
+								case (undefinedColumnName.match(/^Min_/) || {}).input:
+									localizedUndefinedColumnNames.push(oBundle.getText("XLI_KPI_GRAN_MIN"));
+									continue;
+								case "Hour":
+									localizedUndefinedColumnNames.push(oBundle.getText("XLI_KPI_GRAN_HOUR"));
+									continue;
+								case "Day":
+									localizedUndefinedColumnNames.push(oBundle.getText("XLI_KPI_GRAN_DAY"));
+									continue;
+								case "Month":
+									localizedUndefinedColumnNames.push(oBundle.getText("XLI_KPI_GRAN_MONTH"));
+									continue;
+								case "Quarter":
+									localizedUndefinedColumnNames.push(oBundle.getText("XLI_KPI_GRAN_QUARTER"));
+									continue;
+								case "Year":
+									localizedUndefinedColumnNames.push(oBundle.getText("XLI_KPI_GRAN_YEAR"));
+									continue;
+								case "Week":
+									continue;
+							}
+						}
+						if(localizedUndefinedColumnNames.length > 0 ){
+							tempArr.push(localizedUndefinedColumnNames.toString());
+							undefinedColumnsError = oBundle.getText("XMSG_LABEL_COLUMN_NO_EXIST", tempArr)
+						}
+					}
+					if (!com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(undefinedColumnsError)){
+						showMessageBox(undefinedColumnsError.toString(),sap.m.MessageBox.Icon.ERROR, oBundle.getText("XMSG_VALIDATION_FAILED"));
+					}
+				}
+				if (com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(fatalError) && !jQuery.isEmptyObject(rowsetData) && !jQuery.isEmptyObject(rowsData)) {
+					thisObj.originalRows = jQuery.extend(true, new Array(), thisObj.model.getJSONModel().oData.Rowsets.Rowset[0].Row);
+					thisObj.model.modelData.DateFormatPattern = com.sap.xmii.common.util.MIIi5Util.getDateFormatPattern(thisObj.chartTemplate.chartPropertyConfig.getProperty("DateFormat"), 
+							thisObj.queryTemplate.getQueryObject().getQueryMetaData().DateFormat);
+					// Set the Query result on the object
+					thisObj.queryTemplate.getQueryObject().setQueryResult(thisObj.model.getJSONModel().getData());
+					//reset error message
+					setErrorMessage(undefined);
+				} else {
+					//Handle no data/error scenario by showing empty chart with the error message in the message area
+					//thisObj.getChartObject().setChartType("");
+					var message = fatalError;
+					if(com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(fatalError)) {
+						message = com.sap.xmii.common.util.MessageBundle.getText("XLBL_NO_DATA");
+					}
+					setErrorMessage(message);
+					throw new com.sap.xmii.common.exception.MIIi5Exception(message);
+				}
+			} catch (err) {
+				var initMessageArea = function(width,chartBackgroundColor) {
+					jQuery.sap.log.info("Initiliazing message bar");
+					var messageArea = new com.sap.xmii.common.tools.MessageArea(width,chartBackgroundColor);
+					
+					return messageArea.messageArea;
+				};
+				
+				var message = err.message!=undefined?err.message:err;
+				setErrorMessage(message);
+				jQuery.sap.log.error(message);
+				
+				this.draw = function(id) {
+					messageArea = initMessageArea(thisObj.chartWidth);
+					messageArea.mProperties.text = message;
+					
+					var oChartLayout = new sap.ui.commons.layout.MatrixLayout();
+					oChartLayout.createRow(messageArea);
+					oChartLayout.placeAt(id);
+				}
+				
+				this.draw(thisObj.chartPosId);
+				
+				throw new com.sap.xmii.common.exception.MIIi5Exception(message);
+			}
+		};
+
+		var setScaling = function(dataset, chart, chartType, valueColumns, valueColumns2 , compMode , dualYAxis) {
+			var maxNmin = com.sap.xmii.common.util.MIIi5Util.scaleDatasetChart(dataset, valueColumns);
+			if(compMode){
+				chart.getYAxis().getScale().setFixedRange(true);
+				chart.getYAxis().getScale().setMaxValue(Math.ceil(maxNmin.max));
+				chart.getYAxis().getScale().setMinValue(Math.ceil(maxNmin.min));
+			}else{
+				if(chartType === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_BUBBLE || chartType === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_SCATTER){
+					chart.getVizProperties().plotArea.secondaryScale.fixedRange = true;
+					chart.getVizProperties().plotArea.secondaryScale.minValue = Math.ceil(maxNmin.min);
+					chart.getVizProperties().plotArea.secondaryScale.maxValue = Math.ceil(maxNmin.max);
+				}else{
+					chart.getVizProperties().plotArea.primaryScale.fixedRange = true;
+					chart.getVizProperties().plotArea.primaryScale.minValue = Math.ceil(maxNmin.min);
+					chart.getVizProperties().plotArea.primaryScale.maxValue = Math.ceil(maxNmin.max);
+				}
+				if(dualYAxis){
+					var maxNmin = com.sap.xmii.common.util.MIIi5Util.scaleDatasetChart(dataset, valueColumns2);
+					chart.getVizProperties().plotArea.secondaryScale.fixedRange = true;
+					chart.getVizProperties().plotArea.secondaryScale.minValue = Math.ceil(maxNmin.min);
+					chart.getVizProperties().plotArea.secondaryScale.maxValue = Math.ceil(maxNmin.max);
+				}
+			}
+		};
+
+		// Enable the passage of the 'this' object through the JavaScript timers
+		var __nativeSI__ = window.setInterval;
+		window.setInterval = function(vCallback, nDelay) {
+			var oThis = this;
+			return __nativeSI__(vCallback instanceof Function ? function() {
+				vCallback.apply(oThis, null);
+			} : vCallback, nDelay);
+		};
+
+		//moving initialization of chart and query to another function
+		var initTemplates = function(thisObj, jsonTemplateProps ){
+
+			thisObj.initTemplates(chartTemplateName, queryTemplateName, queryDataUrl, jsonTemplateProps, chartType);
+//			try{
+			/*thisObj.chartTemplate = initChartTemplate(chartTemplateName, jsonTemplateProps);
+
+    		if (!com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(chartType)) {
+    			thisObj.chartTemplate.chartPropertyConfig.setProperty(com.sap.xmii.common.util.ChartPropertyConstants.CHART_TYPE, chartType);
+    		}
+
+    		//this.queryTemplateName = queryTemplateName;
+    		if (com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(queryTemplateName)) {
+    			thisObj.queryTemplateName = thisObj.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.QueryConstants.MAPPED_QUERY_TEMPLATE);
+    		}
+
+    		thisObj.queryTemplate = initQueryTemplate(thisObj.queryTemplateName);*/
+//			} catch (err){
+//			}
+		};
+		// **EOF PRIVATE FUNCTIONS**
+
+		// CLASS MEMBER ELEMNTS
+		this.chartPosId = '';
+		this.firstUpdateFired = false;
+		//this.afterLoad = false;
+		this.jsonTemplateProperties = '';
+		this.chartTemplateName = chartTemplateName;
+		this.queryTemplateName = queryTemplateName;
+
+		this.chartHeightAdjusted = false;
+		
+		setUpChartArguments();//This has to be the first statement to be executed
+		if(jsonTemplateProps != undefined) {
+			var jsonObj = com.sap.xmii.common.util.MIIi5Util.evalJSONStr(jsonTemplateProps);
+			//var keys = Object.keys(jsonObj);
+			if ('Width' in jsonObj) { 
+				this.chartWidth = jsonObj["Width"]+"px";
+			}
+
+			if ('Height' in jsonObj) { 
+				this.chartHeight = jsonObj["Height"]+"px";
+				totalHeight = this.chartHeight;
+			}
+		}
+
+		this.chartTemplateName = chartTemplateName;
+		this.queryTemplateName = queryTemplateName;
+		this.chartTemplate;
+//		var that = this;
+		initTemplates(this, jsonTemplateProps);
+
+		/*
+		 * getMessageArea return the message area so that it can be filled with any information outside of chart.
+		 * @private
+		 */
+		
+		this.getMessageAreaToolbar = function() {
+			return messageAreaToolbar;
+		};
+
+		/**
+		 * Refresh
+		 * @return void
+		 */
+		this.refresh = function() {
+			// update(true) does the same as refresh()
+
+			this.update(true);
+		};
+		/**
+		 * set labels for gauge chart
+		 */
+		this.setLabels = function(){
+			this.getChartObject().setStaticLabel(Array.prototype.slice.call(arguments));
+		};
+		/**
+		 * set values for gauge chart
+		 */
+		this.setValues = function(){
+
+			var chartValues = arguments;
+			var columns = this.getChartObject().getValueColumns().split(",");
+
+			var qryData = { Rowsets : { 
+				Rowset : [ 
+				          { Columns : { 
+				        	  Column : [{Name : "DateTime", SourceColumn : "DateTime", Description : "DateTime", SQLDataType : 93, MinRange : 1.0, MaxRange : 1.0 }]},
+				        	  Row : []	
+				          }]
+			}
+			};
+
+			var j = columns.length;
+			var k = chartValues.length;
+			var column = [];
+			var row = null;
+			var stringBuffer = new Array;
+
+			if (j > 0) {
+				var item,value;
+				for (var i = 0; i < j; i++) {
+					item = {Name:columns[i],SourceColumn:columns[i],Description:columns[i], SQLDataType : 93, MinRange : 1, MaxRange : 1 }
+					column.push(item);
+					if (i < k) {
+						value = '"'+columns[i]+ '"' +":"+chartValues[i];
+
+					}
+					else{
+						value = '"'+columns[i]+'"'+":"+ 0;
+					}
+					stringBuffer.push(value);
+				}	
+			}
+
+			row = JSON.parse('{' + stringBuffer.join(",") + '}');
+			qryData.Rowsets.Rowset[0].Columns.Column = jQuery.extend(true,new Array,column);
+			//qryData.Rowsets.Rowset[0].Columns.Column.push({Name : "DateTime", SourceColumn : "DateTime", Description : "DateTime", SQLDataType : 93, MinRange : 1.0, MaxRange : 1.0 });
+			qryData.Rowsets.Rowset[0].Row.push(row);
+
+			if (this.model === undefined || !(this.getChartObject() instanceof com.sap.xmii.chart.ui5.ChartComponent)) {
+				this.model = new com.sap.xmii.chart.model.i5ChartModel(qryData);
+			}
+			else {
+				this.updateUI5ModelAndDataset(qryData);
+			}
+
+		};
+		//This function formats the value of X-axis
+//     	formatNumbers = function(thisObj){     		
+//     		var xAxisColumn = thisObj.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.LABEL_COLUMNS);
+//     		var aRowSets = thisObj.model.getModelData().getRows();
+//     		for(var i=0;i<aRowSets.length;i++){
+//     			aRowSets[i][xAxisColumn] = com.sap.xmii.common.util.MIIi5Util.formatNumber(aRowSets[i][xAxisColumn],thisObj.xAxisNumberFormat);
+//     		}
+//		}
+		
+
+		/**
+		 * Update the Chart
+		 * 
+		 * @param isQueryTemplateExecRequired
+		 *            if query needs to be rexecuted
+		 * @return void           
+		 */
+		this.update = function(isQueryTemplateExecRequired) {
+			//destroying dependents - popups
+			if(this.getChartLayout() !=  undefined)
+				sap.ui.getCore().byId(this.getChartLayout().sId).destroyDependents();
+			setDateTimeNumberFormats(this);
+			if (this.queryTemplate) {
+
+				var additionalBarsHeight;
+
+				//do modifications chart width before placing the chart
+				if(this.chartWidth != undefined && typeof this.chartWidth === "string") {
+					if(!com.sap.xmii.common.util.MIIi5Util.endsWith(this.chartWidth+"", "px") && !com.sap.xmii.common.util.MIIi5Util.endsWith(this.chartWidth+"", "%")) {
+						this.chartWidth = this.chartWidth + "px";
+					}
+				}
+
+				if (isQueryTemplateExecRequired == true) {
+
+					// Initialize the MODELObject here
+					initializeModel(this);
+
+					//initialise message area, tool bar and title bar AFTER the model is updated, if required
+					additionalBarsHeight = initTitleDetails(this);
+					//this.accHeight = additionalBarsHeight;
+
+					if(!(this.getChartObject() instanceof com.sap.xmii.charttemplate.ChartTemplate))
+						this.getChartObject().clearDatasetSelectionMap();
+
+					if (this.firstUpdateFired === false) {
+						if (typeof this.fnOnFirstUpdateEvent != com.sap.xmii.common.util.GenericConstants.UNDEFINED) {
+							// fire firstupdate event
+							this.fnOnFirstUpdateEvent();
+							this.firstUpdateFired = true;
+						} else {
+							this.autoRefreshChart();
+							this.firstUpdateFired = true;
+						}
+					} else {
+						this.autoRefreshChart();
+					}
+				} else {
+					//initialise message area, tool bar and title bar AFTER the model is updated, if required
+					additionalBarsHeight = initTitleDetails(this);
+					this.autoRefreshChart();
+					if(this.model != null  && !jQuery.isEmptyObject(this.model.getModelData().getRowset())) {
+						this.model.getJSONModel().oData.Rowsets.Rowset[0].Row = jQuery.extend(true, new Array(), this.originalRows);
+					}
+				}
+
+				//do modifications chart height AFTER message area, title, tool, time bar initialisations and BEFORE placing the chart
+				if(this.chartHeight != undefined) {
+					//if height string endsWidth "px", then remove "px" 
+					if(typeof totalHeight === "string" && com.sap.xmii.common.util.MIIi5Util.endsWith(totalHeight+"", "px")) {
+						totalHeight = Number(totalHeight.substring(0, totalHeight.length-2));
+					}	
+					this.chartHeight = totalHeight - additionalBarsHeight;
+					//check if height ends with "px"
+					if(!com.sap.xmii.common.util.MIIi5Util.endsWith(this.chartHeight+"", "px") && !com.sap.xmii.common.util.MIIi5Util.endsWith(this.chartHeight+"", "%")) {
+						this.chartHeight = this.chartHeight + "px";
+					}
+				} else {
+					this.chartHeight = (com.sap.xmii.common.util.GenericConstants.DEFAULT_CHART_HEIGHT - additionalBarsHeight) + "px";
+				}
+
+				if(this.chartWidth == undefined) {
+					this.chartWidth = "100%";
+				}
+//				formatNumbers(this);
+				// chart initialisation has already happened hence just placing the chart
+				placeChart(this, isQueryTemplateExecRequired);
+			} else {
+				throw new com.sap.xmii.common.exception.MIIi5Exception(
+						com.sap.xmii.common.util.MessageBundle.getText("XMSG_QT_INITIALIZATION_ERROR"));
+			}
+		};
+
+		/**
+		 * Register the handler for ChartSelectionEvent on the chart
+		 * @return void
+		 */
+		this.registerChartSelectionEventHandler = function(myhandler) {
+			jQuery.sap.log.info("Registering ChartSelectionEvent");
+			this.fnOnSelectEvent = myhandler;
+			var hchart = this.getChartObject();
+			if(hchart instanceof com.sap.xmii.chart.ui5.ChartComponent) {
+				hchart.fnOnSelectEvent = this.fnOnSelectEvent;//Set handler for chart selection on chart component
+				jQuery.sap.log.info("Set chart selection handler");
+			}
+		};
+		
+		/**
+		 * Register the handler for legendSelectionEvent on the chart
+		 * @return void
+		 */
+		this.registerChartLegendSelectionEventHandler = function(myhandler) {
+			jQuery.sap.log.info("Registering ChartSelectionEvent");
+			this.fnOnLegendSelectEvent = myhandler;
+			var hchart = this.getChartObject();
+			if(hchart instanceof com.sap.xmii.chart.ui5.ChartComponent) {
+				hchart.fnOnLegendSelectEvent = this.fnOnLegendSelectEvent;
+				jQuery.sap.log.info("Set chart selection handler");
+			}			
+		};
+
+		/**
+		 * Register the handler for CreattionEvent on the chart
+		 * @return void
+		 */
+		this.registerCreationEventHandler = function(myhandler) {
+			jQuery.sap.log.info("Registering CreattionEvent");
+			this.fnOnCreateEvent = myhandler;
+		};
+		
+		/**
+		 * Register the handler for FirstUpdateEvent on the chart
+		 */
+		this.registerFirstUpdateEventHandler = function(myhandler) {
+			jQuery.sap.log.info("Registering FirstUpdateEvent");
+			this.fnOnFirstUpdateEvent = myhandler;
+		};
+
+		/**
+		 * Register the handler for UpdateEvent on the chart
+		 * @return void
+		 */
+		this.registerUpdateEventHandler = function(myhandler) {
+			jQuery.sap.log.info("Registering UpdateEvent");
+			this.fnOnUpdateEvent = myhandler;
+		};
+
+		/**
+		 * Deregister the handler for ChartSelectionEvent on the chart
+		 * @return void
+		 */
+		this.deregisterChartSelectionEventHandler = function() {
+			jQuery.sap.log.info("Deregistering ChartSelectionEvent");
+			this.fnOnSelectEvent = undefined;
+		};
+
+		/**
+		 * Deregister the handler for CreattionEvent
+		 * @return void
+		 */
+		this.deregisterCreationEventHandler = function() {
+			jQuery.sap.log.info("Deregistering CreattionEvent");
+			this.fnOnCreateEvent = undefined;
+		};
+
+		/**
+		 * Deregister the handler for FirstUpdateEvent
+		 * @return void
+		 */
+		this.deregisterFirstUpdateEventHandler = function() {
+			jQuery.sap.log.info("Deregistering FirstUpdateEvent");
+			this.fnOnFirstUpdateEvent = undefined;
+		};
+
+		/**
+		 * Deregister the handler for UpdateEvent
+		 * @return void
+		 */
+		this.deregisterUpdateEventHandler = function() {
+			jQuery.sap.log.info("Deregistering UpdateEvent");
+			this.fnOnUpdateEvent = undefined;
+		};
+
+		/*
+		 * Sets the additional Props as a JSON Text
+		 * @return void
+		 * @private
+		 */
+		
+		this.setJSONTemplateProperties = function(jsonTemplateProperties) {
+			this.jsonTemplateProperties = jsonTemplateProperties;
+			var jsonTempPropsStr = new String(jsonTemplateProperties);
+			this.chartTemplate.chartPropertyConfig.setAdditionalProps(jsonTempPropsStr);
+		};
+
+		/*
+		 * Gets the Chart Template Object
+		 * @return void
+		 * @private
+		 */
+		
+		this.getChartTemplateObject = function() {
+			return this.chartTemplate.getChartTemplateObject();
+		};
+
+		/**
+		 * Gets the Query Object
+		 * @return void
+		 */
+		this.getQueryObject = function() {
+			return this.queryTemplate.getQueryObject(); // to
+		};
+
+		/**
+		 * Method return the MIIi5Util Object
+		 * @return com.sap.xmii.common.util.MIIi5Util
+		 */
+		this.getUtilityObject = function() {
+			return com.sap.xmii.common.util.MIIi5Util;
+		};
+
+		/**
+		 * Renders the created Chart Object under the element specified
+		 * @return void
+		 */
+		this.draw = function(id) {
+			this.setTimeAware(true);
+
+			// If DT/QT is wrong then error message area is created
+			if(!(tempGauge)&&(com.sap.xmii.common.util.FCCHART == true || com.sap.xmii.common.util.FCQUERY == true)){
+
+				if(com.sap.xmii.common.util.FCCHART == true){
+					var displayMessage = com.sap.xmii.common.util.MessageBundle.getText("XMSG_TEMPLATE_NOT_FOUND")+ " " + chartTemplateName;
+					}
+					if(com.sap.xmii.common.util.FCQUERY == true){
+						var queryMessage = com.sap.xmii.common.util.MessageBundle.getText("XMSG_TEMPLATE_NOT_FOUND")+ " " + queryTemplateName;
+					}
+					var message = displayMessage + "\n" + queryMessage;
+					setErrorMessage(message);
+
+				this.drawErrorMessageArea(id,this.chartWidth, message);
+				throw new com.sap.xmii.common.exception.MIIi5Exception(message);
+			}
+
+			//Code to parse correct start date and end date of query template start
+			
+			var	param1 = {"Mode":"loadParameters","objectname":this.queryTemplateName,"content-type":"text/json","GroupId":"3"};
+			//	var params = {"objectname":this.queryTemplatePath,"class":className,"content-type":"text/json","mode":"LOAD"};
+			var cecatalogURL = com.sap.xmii.common.util.MIIi5Util.buildPostData(com.sap.xmii.common.util.GenericConstants.CECATALOG_URL + "?",param1).url;
+			var parameters = JSON.parse(com.sap.xmii.common.util.MIIi5Util.getOData(cecatalogURL));
+			var isObjectNotNull = com.sap.xmii.common.util.MIIi5Util.isObjectNotNull;
+			if(com.sap.xmii.common.util.MIIi5Util.validateRowsets(parameters) === 1) {
+				var dataArray =parameters.Rowsets.Rowset[0].Row ;
+			    for(var j=0 ; j< dataArray.length; j++){
+	                 if(dataArray[j].Name == "DateFormat" && !isObjectNotNull(this.oldDateFormat)){
+	                	 this.oldDateFormat= dataArray[j].DefaultValue;
+	                 }
+	             }
+			} 
+			
+			if(isObjectNotNull( this.getQueryObject().getParameter("DateFormat")) &&  this.getQueryObject().getParameter("DateFormat")!= ""){
+				
+				if(isObjectNotNull(this.getQueryObject().getParameter("StartDate")) ){
+					var tempStartDate = com.sap.xmii.common.util.MIIi5Util.formatDate(this.getQueryObject().getParameter("StartDate"),this.oldDateFormat, this.getQueryObject().getParameter("DateFormat"));
+					var tempStartDate1 = com.sap.xmii.common.util.MIIi5Util.formatDate(this.getQueryObject().getParameter("StartDate"),"MM/dd/yyyy HH:mm:ss", this.getQueryObject().getParameter("DateFormat"));
+					
+					if(tempStartDate != "" && tempStartDate != "null" && tempStartDate != null){
+						this.getQueryObject().setParameter("StartDate",tempStartDate);
+					}else if(tempStartDate1 != "" && tempStartDate1 != "null" && tempStartDate1 != null){
+						this.getQueryObject().setParameter("StartDate",tempStartDate1);
+					}
+				}
+				if(isObjectNotNull(this.getQueryObject().getParameter("EndDate")) ){
+					
+					var tempEndDate = com.sap.xmii.common.util.MIIi5Util.formatDate(this.getQueryObject().getParameter("EndDate"),this.oldDateFormat, this.getQueryObject().getParameter("DateFormat"));
+					var tempEndDate1 = com.sap.xmii.common.util.MIIi5Util.formatDate(this.getQueryObject().getParameter("EndDate"),"MM/dd/yyyy HH:mm:ss", this.getQueryObject().getParameter("DateFormat"));
+					
+					if(tempEndDate != "" && tempEndDate != "null" && tempEndDate != null){
+						this.getQueryObject().setParameter("EndDate",tempEndDate);
+					}else if(tempEndDate1 != "" && tempEndDate1 != "null" && tempEndDate1 != null){
+						this.getQueryObject().setParameter("EndDate",tempEndDate1);
+					}
+				}
+			}
+			
+			//End
+			
+			
+			
+			jQuery.sap.log.info("chart draw - start");
+			// Call initChart with existing data
+			if (!this.hasErrMessage()) {
+				this.chartPosId = id;
+				jQuery.sap.log.info("chart position Id: " + id);
+				if (typeof this.fnOnCreateEvent != com.sap.xmii.common.util.GenericConstants.UNDEFINED) {
+					this.fnOnCreateEvent();
+				}
+				var initialUpdate = this.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.INITIAL_UPDATE); 
+				if(initialUpdate) {
+					this.update(true);
+				} else {
+					this.update(false);
+				}
+				jQuery.sap.log.info("chart draw - end");
+			}
+		};
+
+		/*
+		 * @private
+		 */
+		
+		this.autoRefreshChart = function() {
+			var refreshRate = this.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.REFRESH_RATE);
+			if (this.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.AUTO_REFRESH) == true &&
+					this.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.ENABLE_AUTO_REFRESH) != false) {
+				if (refreshIntervalId > 0) {
+					clearInterval(refreshIntervalId);
+					refreshIntervalId = 0;
+				}
+				if (refreshRate > 0) {
+					refreshIntervalId = setInterval.call(this, this.refreshData, refreshRate * 1000);
+				}
+
+			} else {
+				if (refreshIntervalId > 0) {
+					clearInterval(refreshIntervalId);
+					refreshIntervalId = 0;
+				}
+			}
+		};
+
+		/*
+		 * @private
+		 */
+		
+		this.refreshData = function() {
+			//toggle show reset button to false
+			this.getChartObject().showResetZoom = false;
+			//if the chart is not ready, do nothing
+			if(this.getChartObject() instanceof com.sap.xmii.charttemplate.ChartTemplate){
+				return;
+			}
+			//If the chart is not present in the html DOM, then clear the interval.
+			if(jQuery.sap.byId(this.getChartObject().getUI5ChartElement().getId()).length == 0){
+				clearInterval(refreshIntervalId);
+				return;
+			}
+			if(this.model === undefined) {
+				// Initialize the MODELObject here
+				initializeModel(this);
+				this.getChartObject().chartModel = this.model;
+				this.getChartObject().chartCompnModel = new com.sap.xmii.chart.model.ChartComponentModel(this.model, this.chartTemplate.chartPropertyConfig);
+				
+				//Set measureName for gauge chart in initialUpdate false scenario
+				var chartType = this.getChartObject().getChartType();
+				
+				if(chartType === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_GAUGE) {
+					var measures = this.getChartObject().getMeasures();
+					
+					if (measures !== undefined && measures !== null && measures !== "") {
+						var gM = this.getChartObject().getUI5ChartElement().getVizProperties().Gauge_Module;
+						gM.measureName = measures.split(",");
+						//this.getChartObject().getUI5ChartElement().getVizProperties().Gauge_Module.measureName = measures.split(",");
+						this.getChartObject().getUI5ChartElement().setVizProperties({Gauge_Module:gM});
+					}
+				}
+				//manipulate chart data
+				normalizeChartData(this);
+				
+				var compMode = this.getChartObject().chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.COMP_MODE);
+				var timeSeries = this.getChartObject().chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.TIME_SERIES);
+				if((chartType ==com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_PIE || 
+						chartType ==com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_GROUP_BAR ||
+						chartType ==com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_HORIZONTAL_GROUP_BAR ||
+						chartType ==com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_HORIZONTAL_BAR ||
+						chartType ==com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_DONUT ||
+						chartType ==com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_STACKED_BAR) && timeSeries == true){
+					timeSeries= false
+				}
+				if(timeSeries === true && compMode === false){
+					var dimensions = this.getChartObject().chartCompnModel.getDataSet().getDimensions();
+					if(dimensions != undefined && dimensions.length == 1 && dimensions[0].getDataType() == 'date') {
+						//set date time format and set time axis properties
+						com.sap.xmii.common.util.MIIi5Util.setDateFormatAndTimeAxisProperties(this.getChartObject());
+					}
+				}
+				var model = this.getChartObject().chartCompnModel.oModel;
+				this.getChartObject().getUI5ChartElement().setModel(model);
+
+				var dataset = this.getChartObject().chartCompnModel.getDataSet();
+				//set the dataSet on the ui5chart object
+				this.getChartObject().getUI5ChartElement().setDataset(dataset);
+				var dualYAxis = this.getChartObject().chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.DUAL_YAXIS);
+				var valueColumnOne = this.getChartObject().chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.VALUE_COLUMNS).split(",").length;
+				//var timeSeries = this.getChartObject().chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.TIME_SERIES);
+				var initialUpdate = this.getChartObject().chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.INITIAL_UPDATE);
+				if(!compMode && !initialUpdate){
+					var chartType = this.getChartObject().chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.CHART_TYPE);
+					com.sap.xmii.common.util.MIIi5Util.addFeed(dataset, this.getChartObject().getUI5ChartElement(), chartType,dualYAxis, valueColumnOne, timeSeries);
+					com.sap.xmii.common.util.MIIi5Util.applyFormatRulesforMeasures(this.getChartObject().chartPropertyConfig,this.getChartObject().getUI5ChartElement());
+				}
+				//CR: js error in SSCE Dashboard tag trend (1368260)
+				var timeBarLayout = this.getTimeBar().timeBarLayout;
+				if(timeBarLayout != undefined && this.getQueryObject().isTimeBasedQuery() === true && this.getChartObject().getShowTimeBar() === true) {
+					var parent = timeBarLayout.oParent;
+					parent.removeContent(this.getTimeBar().timeBarLayout);
+					timeBar = initTimeBar(this.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.WIDTH), this);
+					parent.addContent(timeBar.timeBarLayout);
+				}
+				// fire update event
+				fireUpdateEvent(this);
+			} else {
+				var url = this.queryTemplate.getQueryObject().buildPostData(com.sap.xmii.common.util.Modes.QT_JSON_MODE).url;
+				var jsonText;
+				if(url.indexOf('XMII/IlluminatorOData') != -1) {
+					jsonText = com.sap.xmii.common.util.MIIi5Util.getIllumOData(url);
+				} else {
+					originalRow = this.model.getModelData().getRows()[0];
+					com.sap.xmii.common.util.MIIi5Util.getOData(url, this.updateUI5ModelAndDataset, this.updateUI5ModelAndDataset, this);
+					this.getChartObject().getUI5ChartElement().setBusy(true);
+					jQuery.sap.log.info("after getOData");
+				}
+			}
+		};
+
+		/*
+		 * @private
+		 * @param jsonObj
+		 */
+		
+		this.updateUI5ModelAndDataset = function(jsonObj) {
+
+				this.model.update(jsonObj, this.getQueryObject());
+				setDateTimeNumberFormats(this);
+				
+				if(this.model != undefined) {
+					
+					var chartType = this.getChartObject().getChartType();
+					
+					if(chartType === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_GAUGE) {
+						var measures = this.getChartObject().getMeasures();
+						
+						if (measures !== undefined && measures !== null && measures !== "") {
+							var gM = this.getChartObject().getUI5ChartElement().getVizProperties().Gauge_Module;
+							gM.measureName = measures.split(",");
+							//this.getChartObject().getUI5ChartElement().getVizProperties().Gauge_Module.measureName = measures.split(",");
+							this.getChartObject().getUI5ChartElement().setVizProperties({Gauge_Module:gM});
+						}
+					}
+					
+					var fatalError = this.model.getModelData().getFatalError();
+					var rowsetData = this.model.getModelData().getRowset();
+					var rowsData = this.model.getModelData().getRows();
+					if (com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(fatalError) && !jQuery.isEmptyObject(rowsetData) && !jQuery.isEmptyObject(rowsData)) {
+						this.originalRows = jQuery.extend(true, new Array(), this.model.getJSONModel().oData.Rowsets.Rowset[0].Row);
+						
+						//manipulate chart data
+						normalizeChartData(this);
+						if(this.getChartObject().chartCompnModel.chartModel == undefined){
+							this.getChartObject().chartCompnModel = new com.sap.xmii.chart.model.ChartComponentModel(this.model, this.chartTemplate.chartPropertyConfig);
+						}
+						//create new data set for updated data of slider
+						this.getChartObject().chartCompnModel.createDataSet();
+
+						//jsonModel bound to the ui5Chart is set explicitly with the new model for the new dataSet
+						var model = this.getChartObject().chartCompnModel.oModel;
+						this.getChartObject().getUI5ChartElement().setModel(model);
+
+						var dataset = this.getChartObject().chartCompnModel.getDataSet();
+						//set the dataSet on the ui5chart object
+						this.getChartObject().getUI5ChartElement().setDataset(dataset);
+						
+						var compMode = this.getChartObject().chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.COMP_MODE);
+						var timeSeries = this.getChartObject().chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.TIME_SERIES);
+						if((chartType ==com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_PIE || 
+								chartType ==com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_GROUP_BAR ||
+								chartType ==com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_HORIZONTAL_GROUP_BAR ||
+								chartType ==com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_HORIZONTAL_BAR ||
+								chartType ==com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_DONUT ||
+								chartType ==com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_STACKED_BAR) && timeSeries == true){
+							timeSeries= false
+						}
+						if(timeSeries === true && compMode === false){
+							var dimensions = this.getChartObject().chartCompnModel.getDataSet().getDimensions();
+							if(dimensions != undefined && dimensions.length == 1 && dimensions[0].getDataType() == 'date') {
+								//set date time format and set time axis properties
+								com.sap.xmii.common.util.MIIi5Util.setDateFormatAndTimeAxisProperties(this.getChartObject());
+							}
+						}
+
+						if(chartType !== com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_GAUGE) {
+							var dualYAxis = this.getChartObject().chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.DUAL_YAXIS);
+							var valueColumnOne = this.getChartObject().chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.VALUE_COLUMNS).split(",").length;
+							
+							var initialUpdate = this.getChartObject().chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.INITIAL_UPDATE);
+							if(!compMode){
+								com.sap.xmii.common.util.MIIi5Util.addFeed(dataset, this.getChartObject().getUI5ChartElement(), chartType,dualYAxis, valueColumnOne, timeSeries);
+							}
+							this.getChartObject().getUI5ChartElement().setBusy(false);
+							//com.sap.xmii.common.util.MIIi5Util.applyFormatRulesforMeasures(this.getChartObject().chartPropertyConfig,this.getChartObject().getUI5ChartElement());
+							
+							//reset y-axis scaling
+							var useScaling = (this.getChartObject().chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.YAXIS_USE_SCALING) == true);
+							var autoScaling = (this.getChartObject().chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.AUTO_SCALING) == true);
+							if(!useScaling && autoScaling) {
+								var dataset = this.model.getModelData().getRowset(0).Row;
+								var compMode = this.getChartObject().chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.COMP_MODE);
+								var dualYAxis = this.getChartObject().chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.DUAL_YAXIS);
+								var valueColumns = this.getChartObject().chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.VALUE_COLUMNS);
+								var valueColumns2 = this.getChartObject().chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.VALUE_COLUMNS_2);
+								setScaling(dataset, this.getChartObject().ui5ChartElement, chartType, valueColumns , valueColumns2 , compMode , dualYAxis);
+							}
+							//update slider and datepickers if its a time based query and show time bar option is checked 
+							if(this.getQueryObject().isTimeBasedQuery() === true && this.getChartObject().getShowTimeBar() === true && this.getTimeBar().updateSliderAndDatePickers != undefined){
+								this.getTimeBar().updateSliderAndDatePickers();
+							}
+						} 
+						else {
+						this.getChartObject().getUI5ChartElement().setBusy(false);
+						}
+						
+					} else {//set error message
+						if(!com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(fatalError))
+							setErrorMessage(fatalError);
+						this.getChartObject().getUI5ChartElement().setModel(null);
+						//set the dataSet on the ui5chart object
+						this.getChartObject().getUI5ChartElement().setDataset(null);
+						//fatalError = com.sap.xmii.common.util.MessageBundle.getText("XLBL_NO_DATA");
+						this.model = undefined;
+						this.update(false);
+					}
+
+				// fire update event
+				fireUpdateEvent(this);
+				if(chartType == com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_GAUGE){
+					var index= JSON.stringify(this.model.modelData.getRows()[0]).indexOf("_formatted")-2;
+                    var length=JSON.stringify(this.model.modelData.getRows()[0]).length;
+					
+					var originalRow_index=JSON.stringify(originalRow).indexOf("_formatted")-2;
+					var originalRow_length=JSON.stringify(originalRow).length;
+					
+                    var result= JSON.stringify(originalRow).substring(0,originalRow_index)+JSON.stringify(originalRow).substring(originalRow_length-1,originalRow_length)==JSON.stringify(this.model.modelData.getRows()[0]).substring(0,index)+JSON.stringify(this.model.modelData.getRows()[0]).substring(length-1,length);
+					if(!result)
+					this.update(true);
+				}
+			}
+		};
+
+
+		/*
+		 * Returns the formatted date IS THIS FUNCTION NEEDED HERE
+		 * @return void
+		 * @private
+		 */
+		
+		this.formatDate = function(sourceDate, sourceFormat, dateFormat) {
+			var formattedDate = com.sap.xmii.common.util.MIIi5Util.formatDate(sourceDate,
+					sourceFormat, dateFormat);
+			return formattedDate;
+		};
+
+		/*
+		 * Returns the formatted number IS THIS FUNCTION NEEDED HERE
+		 * @return void
+		 * @private
+		 */
+		
+		this.formatNumber = function(value, format) {
+			var formattedNumber = com.sap.xmii.common.util.MIIi5Util.formatNumber(value, format);
+			return formattedNumber;
+		};
+
+		/*
+		 * Returns the TimeBar
+		 * @return
+		 * @private
+		 */
+		
+		this.getTimeBar = function() {
+			return getTimeBar();
+		};
+
+		/*
+		 * Returns an instance of the MessageArea
+		 * @return
+		 * @private
+		 */
+		
+		this.getMessageArea = function() {
+			return getMessageArea();
+		};
+
+		/*
+		 * Returns an instance of the Chart layout
+		 * @return
+		 * @private
+		 */
+		
+		this.getChartLayout = function() {
+			return getChartLayout();
+		};
+
+		/*
+		 * Returns an instance of the MessageArea
+		 * @return
+		 * @private
+		 */
+		
+		this.setMessageArea = function(newMessageArea) {
+			messageArea = newMessageArea;
+			this.isCustomMessageArea = true;
+		};
+
+		/*
+		 * Returns an instance of the TitleBar
+		 * @return
+		 * @private
+		 */
+		
+		this.getTitleBar = function() {
+			return getTitleBar();
+		};
+
+		/**
+		 * 
+		 * @returns
+		 */
+		this.isTimeAware = function() {
+			return this.timeAware;
+		};
+		
+
+		/*
+		 * @private
+		 */
+		
+		this.setTimeAware = function(newTimeAware) {
+			this.timeAware = newTimeAware;
+		};
+		
+		/**
+		 * 
+		 * @returns
+		 */
+		this.getKpiViewObj = function() {
+			return this.kpiViewObj;
+		};
+		
+		/**
+		 * @private
+		 */
+		this.setKpiViewObj = function(newKpiViewObj) {
+			this.kpiViewObj = newKpiViewObj;
+		};
+		
+		/*
+		 * @private
+		 */
+		
+		this.setCallBackData = function(callBackData){
+			this.callBackData = callBackData;
+		};
+
+		/*
+		 * Called From MIIUI5Visualization - getErrMessage()
+		 * @private
+		 * @return
+		 */
+		
+		this.getErrMessage = function() {
+			return getErrorMessage();
+		};
+
+		/*
+		 * 
+		 * Called From MIIUI5Visualization - hasErrorMessage()
+		 * @private
+		 * @return
+		 */
+		
+		this.hasErrMessage = function() {
+			return hasErrorMessage();
+		};
+
+		/*
+		 * Update the ChartTemplate Name and initializes the
+		 * Chart Template Object again.
+		 * Called from MIIUI5Visualization - SetChartTemplate()
+		 * @return
+		 * @private
+		 */
+		
+		this.updateDisplayTemplate = function() {
+			this.chartTemplate = initChartTemplate(this.chartTemplateName, jsonTemplateProps);
+			if (!com.sap.xmii.common.util.MIIi5Util.isEmpty(this.getChartObject())) {
+				this.getChartObject().chartPropertyConfig = this.chartTemplate.chartPropertyConfig;
+			}
+
+		};
+
+		/*
+		 * Update the QueryTemplate Name and initializes the
+		 * Query Template Object again.
+		 * Called from MIIUI5Visualization - SetQueryTemplate()
+		 * @return
+		 * @private
+		 */
+		
+		this.updateQueryTemplate = function() {
+			if (this.queryTemplate.queryTemplateName != this.queryTemplateName) {
+				this.queryTemplate = initQueryTemplate(this.queryTemplateName);
+			}
+		};
+
+		/**
+		 * Sets height as number (not percentage)
+		 * @param height
+		 * @return void
+		 */
+		this.setChartHeight = function(height) {
+			this.chartHeight = height;// + 'px';
+			totalHeight = height;
+		};
+
+		/**
+		 * Sets the Chart Width as number (not percentage)
+		 * @param width
+		 * @return void
+		 */
+		this.setChartWidth = function(width) {
+			this.chartWidth = width;// + 'px';
+		};
+
+		/**
+		 * Sets the Chart Size
+		 * @param width
+		 * @param height
+		 * @return void
+		 */
+		this.setChartSize = function(width, height) {
+			this.setChartWidth(width);
+			this.setChartHeight(height);
+		};
+
+		/*
+		 * This function is responsible to add the toolBar items to the Array
+		 * @private
+		 * @return
+		 */
+		
+		this.setAdditionalTitleBarItems = function(buttonItemArray){
+			//Checking if the itemArray is Array or not
+			if(Array.isArray(buttonItemArray)){
+				addtionalToolBarArray =	addtionalToolBarArray.concat(buttonItemArray);
+			}else{
+				addtionalToolBarArray = addtionalToolBarArray.push(buttonItemArray);
+			}
+		};
+
+		/*
+		 * This function is responsible to add the item to the array
+		 * @private
+		 * @param buttonItem
+		 * @return
+		 */
+		
+		this.addTitleBarItem = function(buttonItem){
+			addtionalToolBarArray.push(buttonItem);
+		};
+		
+		/*
+		 * This function is responsible to remove item from the array
+		 * @private
+		 * @param buttonItem
+		 * @return
+		 */
+		
+		this.removeTitleBarItem = function(buttonItem){
+			for(var i = 0 ; i < addtionalToolBarArray.length ; i++){
+				if(addtionalToolBarArray[i].getId() == buttonItem.getId()){
+					addtionalToolBarArray.slice(i, 1);
+					buttonItem.destroy();
+					break;
+				}
+			}
+		};
+		
+		/*
+		 * @private 
+		 */
+		
+		this.removeAllAdditionalTitleBarItem = function(){
+			for(var i = 0 ; i < addtionalToolBarArray.length ; i++){
+				addtionalToolBarArray[i].destroy();
+			}
+			addtionalToolBarArray= [];
+		};
+		
+		/*
+		 * This function is responsible to return the additional toolbar item array
+		 * @private
+		 * @return
+		 */
+		
+		this.getAdditionalTiteBarItems = function(){
+			return addtionalToolBarArray;
+		};
+		//To be checked further
+		/*this.getAdditionalHeight = function() {
+			return this.accHeight;
+		};*/
+
+		/*
+		 * @private
+		 */
+		
+		this.getOriginalRows = function() {
+			return this.originalRows;
+		};
+
+		//below functions are to support the event framework
+		
+		/*
+		 * @private
+		 */
+		
+		this.attachEventHandler = function(eventName, fnHandler) {
+			var validateEvent = true;
+			if(!eventsConfiguration[eventName]){
+				eventsConfiguration[eventName] = [];
+			}
+			switch (eventName) {
+			case "onSelectDatapoint":
+				$(this.getChartObject()).on(eventName, fnHandler);
+				eventsConfiguration[eventName].push(fnHandler);
+				break;
+			case "onSelectLegend":
+				$(this.getChartObject()).on(eventName, fnHandler);
+				eventsConfiguration[eventName].push(fnHandler);
+				break;
+			case "onFirstUpdate":
+				this.registerFirstUpdateEventHandler(fnHandler);
+				break;
+			case "onUpdate":
+				this.registerUpdateEventHandler(fnHandler);
+				break;
+			default:
+				validateEvent = false;
+			break;
+			}
+		};
+
+		/* 
+		 * @private
+		 * @param id
+		 * @param width
+		 * @param error
+		 */
+		
+		this.drawErrorMessageArea = function(id, width,error){
+			if(com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(com.sap.xmii.common.util.ERRORMESSAGE)){
+				if(com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(error.message)){
+					message = error;
+				} else { 
+					message = error.message;
+				}
+			} else {
+				message = com.sap.xmii.common.util.ERRORMESSAGE;
+			}
+
+			messageArea = initMessageArea(width);
+			messageArea.mProperties.text = message;
+			oChartLayout = new sap.ui.commons.layout.MatrixLayout();
+			oChartLayout.createRow(messageArea);
+			oChartLayout.placeAt(id);
+		};
+
+		/*
+		 * Get text of selected legend
+		 * 
+		 * @EventProperty
+		 * @return
+		 */
+		
+		this.getSelectedLegend =  function() {
+			return this.getChartObject().getSelectedLegendValue();
+		};
+
+		/**
+		 * Get value of data point
+		 * 
+		 * @EventProperty
+		 * @return
+		 */
+		this.getSelectedDataPointValue = function(){
+			return this.getChartObject().getSelectedDataPointValue();
+		},
+
+		/**
+		 * Get property set of selected data
+		 * 
+		 * @EventProperty(structMethod="getDataPointPropertyKeys")
+		 * @return
+		 */
+		this.getSelectedDataPointProperties = function(){
+			return this.getChartObject().getSelectedDataPointProperties();
+		},
+
+		/*
+		 * 
+		 * @returns
+		 */
+		
+		this.getDataPointPropertyKeys = function() {
+			return this.getChartObject().getDataPointPropertyKeys();
+		};
+
+		/*
+		 * @private
+		 */
+		
+		setDateTimeNumberFormats = function(thisObj){
+
+			var dateFormatForXAxis = thisObj.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.DateTimeConstants.XAXIS_DATE_FORMAT);
+			var timeFormatForXAxis = thisObj.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.DateTimeConstants.XAXIS_TIME_FORMAT);
+			var dateFormatFromDisplayTemp = thisObj.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.DateTimeConstants.DATE_FORMAT);
+
+			if(!com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(dateFormatForXAxis) && !com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(timeFormatForXAxis)){
+				dateFormatFromDisplayTemp = dateFormatForXAxis+" "+timeFormatForXAxis;
+			} else if(com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(dateFormatForXAxis) && !com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(timeFormatForXAxis)) {
+				dateFormatFromDisplayTemp = timeFormatForXAxis;
+			} else if(!com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(dateFormatForXAxis) && com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(timeFormatForXAxis)){
+				dateFormatFromDisplayTemp = dateFormatForXAxis;
+			}
+
+			//query date format = if DateFormat passed in overrides then use that else query metadata DateFormat 
+			var qDateFormat = com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(thisObj.queryTemplate.getQueryObject().overrides.DateFormat) ? thisObj.queryTemplate.getQueryObject().getQueryMetaData().DateFormat : thisObj.queryTemplate.getQueryObject().overrides.DateFormat;  
+			
+			//thisObj.dateFormat = com.sap.xmii.common.util.MIIi5Util.getDateTimeFormatForMIII5Viz(thisObj.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.DateTimeConstants.USE_LOCALE_FORMAT), dateFormatFromDisplayTemp, thisObj.queryTemplate.getQueryObject().getQueryMetaData().DateFormat);
+			thisObj.dateFormat = com.sap.xmii.common.util.MIIi5Util.getDateTimeFormatForMIII5Viz(thisObj.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.DateTimeConstants.USE_LOCALE_FORMAT), dateFormatFromDisplayTemp, qDateFormat);
+
+			//set number format X-axis
+			if(thisObj.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.DateTimeConstants.USE_LOCALE_FORMAT) == true){
+				thisObj.xAxisNumberFormat = com.sap.xmii.common.util.numberformatPatternForLocale;
+			}else {
+				thisObj.xAxisNumberFormat = com.sap.xmii.common.util.MIIi5Util.getNumberFormatPattern(thisObj.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.DateTimeConstants.XAXIS_NUMBER_FORMAT),
+						thisObj.queryTemplate.getQueryObject().getQueryMetaData().NumberFormat);
+			}	
+			thisObj.numberFormatter = com.sap.xmii.common.util.MIIi5Util.getNumberFormatterForLocale(thisObj.xAxisNumberFormat, com.sap.xmii.common.util.loggedInUserLocale);	
+			
+			//set number format for Y-axis
+			if(thisObj.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.DateTimeConstants.USE_LOCALE_FORMAT) == true){
+				thisObj.yAxisNumberFormat = com.sap.xmii.common.util.numberformatPatternForLocale;
+			}else {
+				thisObj.yAxisNumberFormat = com.sap.xmii.common.util.MIIi5Util.getNumberFormatPattern(thisObj.chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.DateTimeConstants.YAXIS_NUMBER_FORMAT),
+						thisObj.queryTemplate.getQueryObject().getQueryMetaData().NumberFormat);
+			}
+
+		};
+	} catch(err){
+		var initMessageArea = function(width,chartBackgroundColor) {
+			jQuery.sap.log.info("Initiliazing message bar");
+			var messageArea = new com.sap.xmii.common.tools.MessageArea(width,chartBackgroundColor);
+			
+			return messageArea.messageArea;
+	    };
+	    
+		this.draw = function(id) {
+			message = "Error: " + err.message;
+	    	messageArea = initMessageArea(this.chartWidth);
+	    	messageArea.mProperties.text = message;
+			
+	    	var oChartLayout = new sap.ui.commons.layout.MatrixLayout();
+			oChartLayout.createRow(messageArea);
+			oChartLayout.placeAt(id);
+		}
+	}
+};
+//}// EOF Constructor
+
+
+//* Inheriting MIIUI5Visualization
+com.sap.xmii.chart.hchart.i5Chart.prototype = parentObj;
+com.sap.xmii.chart.hchart.i5Chart.prototype.constructor = com.sap.xmii.chart.hchart.i5Chart;

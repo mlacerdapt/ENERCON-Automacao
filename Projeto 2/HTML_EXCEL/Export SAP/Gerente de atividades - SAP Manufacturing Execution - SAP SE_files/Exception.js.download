@@ -1,0 +1,98 @@
+/* (c) Copyright 2008 SAP AG. All rights reserved. */
+
+/* "$Revision: 1$" */
+
+/*
+    Exception.js
+
+    This object represents an exception object thrown from JavaScript functions and
+    methods.  This is the base exception object; it is expected that new exception objects
+    will be derived from this one.
+
+    This object only contains a configurable error message - something all exception objects
+    should offer.  The exception automatically gets a stack trace.  Use the getStackTrace()
+    method to access this functionality.
+
+    Example Usage:
+
+       try
+       {
+          .
+          .
+          .
+          if ( key == null ) {
+             throw new Exception( "No 'key' parameter was specified" );
+          }
+       }
+       catch ( exception )
+       {
+          alert( exception.getMessage() );
+          break;
+       }
+*/
+
+/*
+$Log: Exception.js $
+Revision 1.2  2001/09/07 22:09:34Z  rasmussene
+Fixed a bug in the constructor that prevented the setting of the error message.
+Revision 1.1  2001/09/06 04:34:36Z  rasmussene
+Initial revision
+*/
+
+//
+// Exception Constructor
+// ---------------------
+// Constructs a new Exception object and initializes the exception message and stack trace.
+//
+// Implementation:
+//   1. If message was passed in, initialize the message member with the value
+//   2. Build the caller stack trace
+//
+function Exception( message )
+{
+    if ( ( message != null ) && ( typeof( message ) == "string" ) ) {
+        this.message = message;
+    } else {
+        this.message = "";
+    }
+
+    // This inner method gets the name of a function, given the function's handle.  If the
+    // function has no name, "anonymous" is substituted.  This can happen, for instance,
+    // when a function gets called by an event handler like 'onLoad'.
+    function getFunctionName( func )
+    {
+        var s = func.toString().match( /function (\w*)/)[1];
+        if ( ( s == null ) || ( s.length == 0 ) ) {
+            s = "anonymous";
+        }
+        return s;
+    }
+
+    this.stackTrace = "[Method Stack]\n------------------------------------------------\n";
+    for ( var a = arguments.caller; a != null; a = a.caller ) {
+        this.stackTrace += getFunctionName( a.callee ) + "\n";
+    }
+}
+
+//
+// getMessage
+// ----------
+// Gets the error message for this exception object.
+//
+function Exception_getMessage()
+{
+    return this.message;
+}
+Exception.prototype.getMessage = Exception_getMessage;
+
+//
+// getStackTrace
+// -------------
+// Gets a stack trace for this exception.
+//
+function Exception_getStackTrace()
+{
+    return this.stackTrace;
+}
+Exception.prototype.getStackTrace = Exception_getStackTrace;
+

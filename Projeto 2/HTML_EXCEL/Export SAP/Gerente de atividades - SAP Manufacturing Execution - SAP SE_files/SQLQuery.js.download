@@ -1,0 +1,90 @@
+function getJSDoc() {
+	var x = '';
+	function getAddMethods() {
+		var addMethodStr = '';
+		var propNames = [ 'Query', 'QueryParams', 'RowCount', 'SaveDate',
+				'Server', 'Service', 'SortExpr', 'StartDate', 'Time',
+				'TimePeriod', 'Trace', 'FilterExpr', 'Group', 'GroupingExpr',
+				'Columns', 'DateColumn', 'CacheDuration', 'CacheDurationUnits',
+				'JoinExpr', 'Mask', 'Method', 'Mode', 'NumberFormat', 'Tables',
+				'UseTypedParams', 'DateFormat', 'AllowBuffering',
+				'AllowFuture', 'Connector', 'IsCachable' ];
+
+		for (prop in propNames) {
+			var getStr = 'String:' + 'get' + propNames[prop] + ';';
+			var setStr = 'void:' + 'set' + propNames[prop] + '(val)' + ';';
+			addMethodStr = addMethodStr + getStr + setStr;
+		}
+
+		return addMethodStr;
+	}
+	;
+	x = x + getAddMethods();
+	return x;
+};
+
+/**
+ * @Namespace
+ */
+com.sap.xmii.querytemplate.query = com.sap.xmii.querytemplate.query || {};
+
+// FOR INHERITANCE
+var parentQueryObj = new com.sap.xmii.querytemplate.query.Query();
+
+/***
+ * 
+ * SQL Query Class
+ * @constructor
+ */
+com.sap.xmii.querytemplate.query.SQLQuery = function(queryTemplateName,
+		queryMetaData) {
+
+	this.setQueryMetaData(queryMetaData);
+	this.setQueryTemplateName(queryTemplateName);
+	this.addGettersAndSetters(com.sap.xmii.common.util.SQLQueryPropNames);
+
+	this.MODE_FIXEDQUERY = com.sap.xmii.common.util.QueryConstants.FIXED_QUERY;
+	this.MODE_FIXEDQUERYWITHOUTPUT = com.sap.xmii.common.util.QueryConstants.FIXED_QUERY_WITH_OUTPUT;
+	this.MODE_COMMAND = com.sap.xmii.common.util.QueryConstants.COMMAND;
+
+}
+
+// Inheritance
+com.sap.xmii.querytemplate.query.SQLQuery.prototype = parentQueryObj;
+com.sap.xmii.querytemplate.query.SQLQuery.prototype.constructor = com.sap.xmii.querytemplate.query.SQLQuery;
+
+com.sap.xmii.querytemplate.query.SQLQuery.prototype.isTimeBasedQuery = function() {
+
+	// is this a fixed query type mode?
+	if (this.MODE_FIXEDQUERY.toUpperCase() == this.getMode().toUpperCase()
+			|| this.MODE_FIXEDQUERYWITHOUTPUT.toUpperCase() == this.getMode()
+					.toUpperCase()
+			|| this.MODE_COMMAND.toUpperCase() == this.getMode().toUpperCase()) {
+
+		if (com.sap.xmii.common.util.MIIi5Util.containsTimeIndicators(this
+				.getQuery())) {
+			return true;
+		}
+		if (com.sap.xmii.common.util.MIIi5Util.containsTimeIndicators(this
+				.getQueryParams())) {
+			return true;
+		}
+
+	} else if (!com.sap.xmii.common.util.QueryConstants.MODE_QUERY.toUpperCase() == this.getMode().toUpperCase()) {
+
+		if (com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(this
+				.getDateColumn())) {
+			return true;
+		}
+		if (com.sap.xmii.common.util.MIIi5Util.containsTimeIndicators(this
+				.getJoinExpr())) {
+			return true;
+		}
+		if (com.sap.xmii.common.util.MIIi5Util.containsTimeIndicators(this
+				.getFilterExpr())) {
+			return true;
+		}
+	}
+
+	return false;
+}

@@ -1,0 +1,1416 @@
+window.onerror = function (msg, url, lineNo, column, errorObj) {
+    console.error(errorObj);
+    if (isObjectNotNull(errorObj.stack))
+        console.error(errorObj.stack);
+    parent.window.showNotificationBarMsg(3, msg);
+    hideBusyIndicator();
+    return true;
+};
+
+sap.mii = {};
+sap.mii.ce = {};
+sap.mii.ce.appdata = {
+    layout: {
+        layoutSelected: "",
+        rows: "",
+        columns: "",
+        usedTemplate: ""
+    },
+    template: {
+        layoutSelected: "",
+        rows: "",
+        columns: ""
+    }
+};
+
+//Implementing Module Pattern for hiding the global variables
+var ssceApplication = (function () {
+    var templatePathHoldForSave = "";
+    var newPatternHoldForChange = "";
+
+    return {
+        getTemplatePathHoldForSave: function () {
+            return templatePathHoldForSave;
+        },
+
+        setTemplatePathHoldForSave: function (templatePath) {
+            templatePathHoldForSave = templatePath;
+        },
+
+        getNewPatternHoldForChange: function () {
+            return newPatternHoldForChange;
+        },
+
+        setNewPatternHoldForChange: function (newPattern) {
+            newPatternHoldForChange = newPattern;
+        },
+
+        isValidIlluminatorResponse: function (data) {
+            if (isObjectNotNull(data) && isObjectNotNull(data.Rowsets) && isArrayNotEmpty(data.Rowsets.Rowset) && isObjectNotNull(data.Rowsets.Rowset[0]) && isArrayNotEmpty(data.Rowsets.Rowset[0].Row)) {
+                return true;
+            }
+            return false;
+        }
+    };
+}());
+
+//Storing the session parameters
+var SSCESession = {};
+SSCESession.Parameters = [];
+SSCESession.Schedule = [];
+SSCESession.TimePeriod =[];
+var ssceLayout = {};
+ssceLayout.changelayout = {
+    isChangeLayout: false
+};
+//Flag to know dashboard in runtime The value is false meaning it is runtime
+//In design time its easy to change the flag not in runtime
+//Hence making it false(setting runtime as true) always, just that when populate is called it will be true
+ssceLayout.isDesign = false;
+//variable to know all the time which pane was opened. so that if user goes to preview and comes back to design, he should able to see the same pane opened
+ssceLayout.openedPaneName = 'PI_MIICONTENT'; 
+var SSCEConstants = {};
+SSCEConstants.UIELEMENTS_NAME = oBundle.getText("PANE_UI_ELEMENTS");
+SSCEConstants.UIELEMENTS_NAME_RAW = "UIElements";
+
+var vdsFileProgress = 0;
+var i5GRID_TYPES = null;
+var i5SPC_CHART_TYPES = null;
+var i5CHART_TYPES = null;
+var cacheUrl = "";
+var TAG_REFRESH_PARAM = "tagRefreshInterval";
+var ALERT_REFRESH_RATE = "alertRefreshRate";
+var generatedCodeArea = null;
+var generatedCodeAreaJS = null;
+var userEditCodeArea = null;
+sap.mii.ce.dashBoardTitle = "";
+var newPatternHoldForSave = "";
+var newTitleHoldForSave = "";
+var newTemplatePatternHoldForSave = "";
+sap.mii.ce.clipboardData = [];
+var globalGeneratedScript = "";
+var globalUserScript = "";
+var globalUserFiles = "";
+var includeFileList = {
+    data: []
+};
+var globalSecurityData = [{
+        "Permission": "read",
+        "ObjectName": "SAP_XMII_User",
+        "ObjectType": "Role"
+    },
+    {
+        "Permission": "all",
+        "ObjectName": "SAP_XMII_Administrator",
+        "ObjectType": "Role"
+    },
+    {
+        "Permission": "all",
+        "ObjectName": "SAP_XMII_Developer",
+        "ObjectType": "Role"
+    },
+    {
+        "Permission": "all",
+        "ObjectName": "SAP_XMII_Super_Administrator",
+        "ObjectType": "Role"
+    }];
+
+var XMII_SSCE_JS_DOC_URL = window.location.protocol + "//" + window.location.host + "/XMII/JSDOC/i5ChartAllClasses.html";	
+var XMII_ILLUMINATOR_URL = window.location.protocol + "//" + window.location.host + "/XMII/Illuminator";
+var XMII_CECATALOG_URL = window.location.protocol + "//" + window.location.host + "/XMII/CECatalog";
+var XMII_CATALOG_URL = window.location.protocol + "//" + window.location.host + "/XMII/Catalog";
+var XMII_SSCECATALOG_URL = window.location.protocol + "//" + window.location.host + "/XMII/SSCECatalog";
+var XMII_PIC_ODATA_URL = window.location.protocol + "//" + window.location.host + "/XMII/IlluminatorOData/Catalog";
+var XMII_KPI_ODATA_URL = window.location.protocol + "//" + window.location.host + "/XMII/IlluminatorOData/KPI";
+var XMII_MDO_ODATA_URL = window.location.protocol + "//" + window.location.host + "/XMII/IlluminatorOData/MDO";
+var XMII_PERM_CHECK_URL = window.location.protocol + "//" + window.location.host + "/XMII/PermissionCheck";
+var XMII_PROP_ACCESS_SERVLET_URL = window.location.protocol + "//" + window.location.host + "/XMII/PropertyAccessServlet";
+var CURRENT_SESSION_XSRF_ID = null;
+
+//Variable for lock/unlock scenario
+var revertCurrentChanges = false; //When the flag is true; revert the changes
+var lockAcquiredOnCurrentFileByUser = false; // flag is set to true when user has aquired the lock on the opened dashboard
+var fileLockedBy = "NA"; //gives userId when file is locked 
+
+//Array for Undo and Redo 
+var undoArray = new Array();
+var redoArray = new Array();
+var CURRENT_FILE_PATH = null;
+var CURRENT_TEMPLATE_FILE_PATH = null;
+var IS_SAVE_AS_CLICKED = false;
+var PUSH_UNDO = false;
+var PREVENT_PUSH_UNDO = false;
+var currentSelectedWorkSetItem = null;
+var currentRightPaneIntervalId = null;
+var globalOpenRightPaneSectionId = 0;
+var SELECTED_ROW_FILE_PATH = null;
+var countPreferencePageError = 0;
+var countTemplatesPreferencePageError = 0;
+var extensionNames = [];
+var faultyExtension = [];
+var extensionNameClassMap = {};
+var extensionsList = {};
+var extensionJSFiles = [];
+var isPaneOpenedOnMerge = true;
+
+var SSCEStructuralParamaters = {};
+SSCEStructuralParamaters.globalValueColumns = []; //Storing the value Columns so that it can be accessed
+SSCEStructuralParamaters.globalDataSeries = []; //Storing the Data Series value
+SSCEStructuralParamaters.globalPenType = []; //Storing the PenType value
+SSCEStructuralParamaters.globalDisplayColumns = {}; //Storing the displayColumns data
+SSCEStructuralParamaters.globalColorContext = {}; //Storing the color context data
+SSCEStructuralParamaters.globalSelectedTags ={ isCatalogQuery : "NA"}; //Storing the selected tags data
+//For PIC Analysis
+SSCEStructuralParamaters.globalTagSelection = {};
+SSCEStructuralParamaters.globalPICAnalysisParam = {};
+SSCEStructuralParamaters.globalPICAnalysisParam["UOM"] = [];
+SSCEStructuralParamaters.globalPICAnalysisParam["AvailableTagCategory"] = [];
+SSCEStructuralParamaters.globalPICAnalysisParam["AvailableNodeCategory"] = [];
+SSCEStructuralParamaters.globalPICAnalysisParam["Categories"] = [];
+
+SSCEStructuralParamaters.globalPEColsMap = {};
+SSCEStructuralParamaters.globalPICAnalysisParam["AvailablePEName"] = [];
+
+var preferenesParamCount = 0;
+
+//stores the current instance of the used custom plugin
+function SSCEExtension() {
+    SSCEExtension.extension = null;
+    SSCEExtension.data = null;
+}
+
+
+//This method will manage 5 object in RedoQueue
+function manageRedoQueue(data) {
+    if (revertCurrentChanges != true) {
+        if (redoArray.length < 5) {
+            redoArray.push(data);
+        } else if (redoArray.length >= 5) {
+            redoArray.shift();
+            redoArray.push(data);
+        }
+    }
+}
+//This method will manage 5 object in UnddoQueue
+function manageUndoQueue(data) {
+    if (undoArray.length < 5) {
+        undoArray.push(data);
+    } else if (undoArray.length >= 5) {
+        undoArray.shift();
+        undoArray.push(data);
+    }
+}
+
+function getUndoQueue() {
+    return undoArray;
+}
+
+function getRedoQueue() {
+    return redoArray;
+}
+
+function resetUndoAndRedoArray() {
+    redoArray.length = 0;
+    undoArray.length = 0;
+}
+(function () {
+    var PageSettings, SSCEUIElement;
+    initializePageSettings();
+    initializeTemplatePageSettings();
+})();
+
+function initializePageSettings() {
+    removeParametersWindowReference();
+    PageSettings = {
+        General: {
+            Header: {
+                URL: "",
+                Height: ""
+            },
+            Footer: {
+                URL: "",
+                Height: ""
+            },
+            ShowAlert: "N",
+            TagRefreshRate: "",
+            PageStyle: {
+                CSSFile: "/XMII/JavaScript/resources/lightBlue.css",
+                CellStyleClass: "",
+                CellTitleStyleClass: ""
+            },
+            MobilePageView: 0,
+            JsSeparation : false,
+            Parameters: [],
+            Events: [],
+			ParametersSettings: {"SkipUserInput":false,"AllowUserInput":false}
+        },
+        Security: jQuery.extend(true, [], globalSecurityData)
+    };
+}
+
+function initializeTemplatePageSettings() {
+    TemplatePageSettings = {
+        General: {
+            Header: {
+                URL: "",
+                Height: ""
+            },
+            Footer: {
+                URL: "",
+                Height: ""
+            },
+            ShowAlert: "N",
+            TagRefreshRate: "",
+            PageStyle: {
+                CSSFile: "",
+                CellStyleClass: "",
+                CellTitleStyleClass: ""
+            },
+            MobilePageView: 0,
+            Parameters: []
+        },
+        Security: jQuery.extend(true, [], globalSecurityData)
+    };
+}
+
+function generateDesignTimeGlobalParameters() {
+    //Setting the Design time as true
+    ssceLayout.isDesign = true;
+    if (PageSettings == undefined || PageSettings.General == undefined)
+        initializePageSettings();
+    //Show alerts parameter
+    window["showAlert"] = PageSettings.General.ShowAlert;
+    //global parameter for tag refresh rate
+    window["tagRefreshInterval"] = PageSettings.General.TagRefreshRate;
+
+    if (typeof PageSettings != "undefined" && isObjectNotNull(PageSettings.General) && isArrayNotEmpty(PageSettings.General.Parameters)) {
+        for (var i = 0; i < PageSettings.General.Parameters.length; i++) {
+            var paramName = PageSettings.General.Parameters[i].Name;
+            var paramType = PageSettings.General.Parameters[i].Type;
+            var paramValue = PageSettings.General.Parameters[i].Value;
+            var paramContext = PageSettings.General.Parameters[i].Context;
+            if (paramName === undefined || paramName == null || paramName == "")
+                continue;
+            if (paramType == oBundle.getText("XSNT_BOOLEAN")) {
+                if (paramValue == "true") {
+                    window[paramName] = true;
+                } else if (paramValue == "false") {
+                    window[paramName] = false;
+                }
+            } else if (paramType == oBundle.getText("XLBL_STRING") && paramContext == SSCE_CONTEXT.SESSION_PARAMETER) {
+                //Checking for the session parameter, since the value it hold is parameter name
+                //We need to get the value of it
+                if (isObjectNull(SSCESession.Parameters) || isArrayEmpty(SSCESession.Parameters)) {
+                    //Creation of parameters
+                    var urlParameter = {
+                        Mode: "list",
+                        "content-type": "text/json"
+                    };
+                    //Getting the data
+                    var data = getDataFromServer(XMII_PROP_ACCESS_SERVLET_URL, urlParameter);
+                    //Checking whether the data has rows or not
+                    if (isObjectNotNull(data) && isObjectNotNull(data.Rowsets) && isObjectNotNull(data.Rowsets.Rowset) &&
+                        isArrayNotEmpty(data.Rowsets.Rowset) && isObjectNotNull(data.Rowsets.Rowset[0]) && isObjectNotNull(data.Rowsets.Rowset[0].Row)) {
+                        SSCESession.Parameters = data.Rowsets.Rowset[0].Row;
+                    }
+                }
+                for (var j = 0; j < SSCESession.Parameters.length; j++) {
+                    if (SSCESession.Parameters[j].Name == paramValue) {
+                        window[paramName] = SSCESession.Parameters[j].Value;
+                        break;
+                    }
+                }// 
+            }  else if (paramType == oBundle.getText("XLBL_STRING") && paramContext == SSCE_CONTEXT.OPACITY) {
+            	if(parseFloat(paramValue)>1.0){
+            	 window[paramName] = parseFloat(paramValue)/100;
+            	 PageSettings.General.Parameters[i].Value = parseFloat(paramValue)/100;
+            	}
+            } 
+            else {
+                //isNaN returns false even if the value is ""
+                if (isNaN(paramValue) || paramValue == "") {
+                    window[paramName] = paramValue;
+                } else {
+                    window[paramName] = parseInt(paramValue);
+                }
+            }
+        }
+    }
+}
+
+//This functions creates the Select Field on the basis of incoming context  
+function createFieldByContext(context, spcChartType, i5ChartType, i5GridType, defaultValueField) {
+    jQuery.sap.registerModulePath('Contexts', '/XMII/CompositionEnvironment/js');
+    jQuery.sap.require("Contexts.contextTypes");
+    if (context == SSCE_CONTEXT.FONT_STYLE) { // Context --> Font Style
+        var fontStyles = FONT_STYLE.split(",");
+        for (var j = 0; j < fontStyles.length; j++) {
+            oItem = new sap.ui.core.ListItem();
+            oItem.setText(fontStyles[j]);
+            if (fontStyles[j] == "Plain")
+                oItem.setKey("0");
+            else if (fontStyles[j] == "Bold")
+                oItem.setKey("1");
+            else if (fontStyles[j] == "Italic")
+                oItem.setKey("2");
+            else if (fontStyles[j] == "Bold Italic")
+                oItem.setKey("3");
+            defaultValueField.addItem(oItem);
+            if (defaultValueField.getSelectedKey() == "") {
+                defaultValueField.setSelectedKey(oItem.getKey());
+            }
+        }
+    } else if (context == SSCE_CONTEXT.FONT_FACE) { // Context --> Font Face
+        var ui5FontFace = UI5_FONT_FACE.split(",");
+        var fontFace = FONT_FACE.split(",");
+        for (var j = 0; j < fontFace.length; j++) {
+            var oItem = new sap.ui.core.ListItem();
+            oItem.setText(fontFace[j]);
+            oItem.setKey(fontFace[j]);
+            defaultValueField.addItem(oItem);
+            if (defaultValueField.getSelectedKey() == "") {
+                defaultValueField.setSelectedKey(oItem.getKey());
+            }
+        }
+        for (var k = 0; k < ui5FontFace.length; k++) {
+            var ui5FontFaceItem = new sap.ui.core.ListItem();
+            ui5FontFaceItem.setText(ui5FontFace[k]);
+            ui5FontFaceItem.setKey(ui5FontFace[k]);
+            defaultValueField.addItem(ui5FontFaceItem);
+        }
+    } else if (context == SSCE_CONTEXT.CHART_TYPE) { // Context-- > ChartType
+        for (var i = 0; i < i5ChartType.Rowsets.Rowset[0].Row.length; i++) {
+            var oItem = new sap.ui.core.ListItem();
+            oItem.setKey(i5ChartType.Rowsets.Rowset[0].Row[i].Key);
+            oItem.setText(i5ChartType.Rowsets.Rowset[0].Row[i].Value);
+            defaultValueField.addItem(oItem);
+            if (defaultValueField.getSelectedKey() == "") {
+                defaultValueField.setSelectedKey(oItem.getKey());
+            }
+        }
+        for (var i = 0; i < spcChartType.Rowsets.Rowset[0].Row.length; i++) {
+            var oItem = new sap.ui.core.ListItem();
+            oItem.setKey(spcChartType.Rowsets.Rowset[0].Row[i].Key);
+            oItem.setText(spcChartType.Rowsets.Rowset[0].Row[i].Value);
+            defaultValueField.addItem(oItem);
+        }
+    } else if (context == SSCE_CONTEXT.GRID_TYPES) { // Context -- > i5GridType
+        for (var i = 0; i < i5GridType.Rowsets.Rowset[0].Row.length; i++) {
+            var oItem = new sap.ui.core.ListItem();
+            oItem.setKey(i5GridType.Rowsets.Rowset[0].Row[i].Key);
+            oItem.setText(i5GridType.Rowsets.Rowset[0].Row[i].Value);
+            defaultValueField.addItem(oItem);
+            if (defaultValueField.getSelectedKey() == "") {
+                defaultValueField.setSelectedKey(oItem.getKey());
+            }
+        }
+    } else if (context == SSCE_CONTEXT.MARKER_STYLE) { // Context --> Marker Style
+        var markerStyle = MARKER_STYLE;
+        for (j = 0; j < markerStyle.length; j++) {
+            oItem = new sap.ui.core.ListItem();
+            oItem.setText(markerStyle[j]);
+
+            if (markerStyle[j].indexOf("(") != -1) {
+                key = markerStyle[j].substring(0, markerStyle[j].indexOf("("));
+                key = key.trim();
+                oItem.setKey(key);
+            }
+            defaultValueField.addItem(oItem);
+            if (defaultValueField.getSelectedKey() == "") {
+                defaultValueField.setSelectedKey(oItem.getKey());
+            }
+        }
+    } else if (context == SSCE_CONTEXT.ITEM_SELECTION) { // Context --> Item Selection
+        var itemSelection = ITEM_SELECTION.split(",");
+        for (j = 0; j < itemSelection.length; j++) {
+            oItem = new sap.ui.core.ListItem();
+            oItem.setText(itemSelection[j]);
+            if (itemSelection[j].indexOf("(") != -1) {
+                key = itemSelection[j].substring(0, itemSelection[j].indexOf("("));
+                key = key.trim();
+                oItem.setKey(key);
+            }
+            defaultValueField.addItem(oItem);
+            if (defaultValueField.getSelectedKey() == "") {
+                defaultValueField.setSelectedKey(oItem.getKey());
+            }
+        }
+    } else if (context == SSCE_CONTEXT.DATE_FORMAT) { // Context --> Date Format
+        var dateFormats = DATE_FORMATS.split(",");
+        for (var j = 0; j < dateFormats.length; j++) {
+            oItem = new sap.ui.core.ListItem();
+            oItem.setText(dateFormats[j]);
+            oItem.setKey(dateFormats[j]);
+            defaultValueField.addItem(oItem);
+            if (defaultValueField.getSelectedKey() == "") {
+                defaultValueField.setSelectedKey(oItem.getKey());
+            }
+        }
+    } else if (context == SSCE_CONTEXT.TIME_FORMAT) { // Context --> Time Format
+        var timeFormats = TIME_FORMATS.split(",");
+        for (var j = 0; j < timeFormats.length; j++) {
+            oItem = new sap.ui.core.ListItem();
+            oItem.setText(timeFormats[j]);
+            oItem.setKey(timeFormats[j]);
+            defaultValueField.addItem(oItem);
+            if (defaultValueField.getSelectedKey() == "") {
+                defaultValueField.setSelectedKey(oItem.getKey());
+            }
+        }
+    } else if (context == SSCE_CONTEXT.NUMBER_FORMAT) { // Context --> Number Format
+        var numberFormats = NUMBER_FORMATS.split(",");
+        for (var j = 0; j < numberFormats.length; j++) {
+            oItem = new sap.ui.core.ListItem();
+            oItem.setText(numberFormats[j]);
+            oItem.setKey(numberFormats[j]);
+            defaultValueField.addItem(oItem);
+            if (defaultValueField.getSelectedKey() == "") {
+                defaultValueField.setSelectedKey(oItem.getKey());
+            }
+        }
+    } else if (context == SSCE_CONTEXT.ALIGNMENT) { // Context --> Alignment/Text Position
+        var alignment = ALIGNMENT;
+        for (var j = 0; j < alignment.length; j++) {
+            oItem = new sap.ui.core.ListItem();
+            oItem.setText(alignment[j]);
+            oItem.setKey(alignment[j]);
+            defaultValueField.addItem(oItem);
+            if (defaultValueField.getSelectedKey() == "") {
+                defaultValueField.setSelectedKey(oItem.getKey());
+            }
+        }
+    } else if (context == SSCE_CONTEXT.DATE_TIME_FORMAT) { // Context --> DateTimeFormats
+        var dateFormats = VALID_DATE_TIME_FORMATS.split(",");
+        for (var j = 0; j < dateFormats.length; j++) {
+            oItem = new sap.ui.core.ListItem();
+            oItem.setText(dateFormats[j]);
+            oItem.setKey(dateFormats[j]);
+            defaultValueField.addItem(oItem);
+            if (defaultValueField.getSelectedKey() == "") {
+                defaultValueField.setSelectedKey(oItem.getKey());
+            }
+        }
+    } else if (context == SSCE_CONTEXT.TEXT_ORIENTATION) { // Context --> Text Orientation
+        var textOrientation = TEXT_ORIENTATION.split(",");
+        for (var j = 0; j < textOrientation.length; j++) {
+            oItem = new sap.ui.core.ListItem();
+            oItem.setText(textOrientation[j]);
+            oItem.setKey(textOrientation[j]);
+            defaultValueField.addItem(oItem);
+            if (defaultValueField.getSelectedKey() == "") {
+                defaultValueField.setSelectedKey(oItem.getKey());
+            }
+        }
+    } else if (context == SSCE_CONTEXT.LEGEND_ORIENTATION) { // Context --> Legend Orientation
+        var legendOrientation = LEGEND_ORIENTATION.split(",");
+        for (var j = 0; j < legendOrientation.length; j++) {
+            oItem = new sap.ui.core.ListItem();
+            oItem.setText(legendOrientation[j]);
+            oItem.setKey(legendOrientation[j]);
+            defaultValueField.addItem(oItem);
+            if (defaultValueField.getSelectedKey() == "") {
+                defaultValueField.setSelectedKey(oItem.getKey());
+            }
+        }
+    } else if (context == SSCE_CONTEXT.ROTATION_ANGLE) { // Context --> RotationAngle
+        var rotationAngle = ROTATION_ANGLE.split(",");
+        for (var j = 0; j < rotationAngle.length; j++) {
+            oItem = new sap.ui.core.ListItem();
+            oItem.setText(rotationAngle[j]);
+            oItem.setKey(rotationAngle[j]);
+            defaultValueField.addItem(oItem);
+            if (defaultValueField.getSelectedKey() == "") {
+                defaultValueField.setSelectedKey(oItem.getKey());
+            }
+        }
+    } else if (context == SSCE_CONTEXT.LINE_STYLE) { // Context --> LineStyles
+        var lineStyles = LINE_STYLES;
+        for (var j = 0; j < lineStyles.length; j++) {
+            oItem = new sap.ui.core.ListItem();
+            oItem.setText(lineStyles[j]);
+            oItem.setKey(lineStyles[j]);
+            defaultValueField.addItem(oItem);
+            if (defaultValueField.getSelectedKey() == "") {
+                defaultValueField.setSelectedKey(oItem.getKey());
+            }
+        }
+    } else if (context == SSCE_CONTEXT.VERTICAL_MARKER_LINE_STYLE) { // Context --> VerticalMarkerLineType
+        var verticalMarkerLineType = VERTICAL_MARKER_LINE_TYPE.split(",");
+        for (var j = 0; j < verticalMarkerLineType.length; j++) {
+            oItem = new sap.ui.core.ListItem();
+            oItem.setText(verticalMarkerLineType[j]);
+            oItem.setKey(verticalMarkerLineType[j]);
+            defaultValueField.addItem(oItem);
+            if (defaultValueField.getSelectedKey() == "") {
+                defaultValueField.setSelectedKey(oItem.getKey());
+            }
+        }
+    } else if (context == SSCE_CONTEXT.PEN_TYPE_1) { // Context --> PenTypes
+        var penType = PEN_TYPE;
+        for (var j = 0; j < penType.length; j++) {
+            oItem = new sap.ui.core.ListItem();
+            oItem.setText(penType[j]);
+            oItem.setKey(penType[j]);
+            defaultValueField.addItem(oItem);
+            if (defaultValueField.getSelectedKey() == "") {
+                defaultValueField.setSelectedKey(oItem.getKey());
+            }
+        }
+    } else if (context == SSCE_CONTEXT.TIME_POSITION) { // Context --> TimePosition
+        var timePosition = TIME_POSITION.split(",");
+        for (var j = 0; j < timePosition.length; j++) {
+            oItem = new sap.ui.core.ListItem();
+            oItem.setText(timePosition[j]);
+            oItem.setKey(timePosition[j]);
+            defaultValueField.addItem(oItem);
+            if (defaultValueField.getSelectedKey() == "") {
+                defaultValueField.setSelectedKey(oItem.getKey());
+            }
+        }
+    } else if (context == SSCE_CONTEXT.CACHE_DURATION) { // Context --> CacheDuration
+        var cacheDuration = CACHE_DURATION_UNITS.split(",");
+        var oItem = new sap.ui.core.ListItem();
+        for (var j = 0; j < cacheDuration.length; j++) {
+            var oItem = new sap.ui.core.ListItem();
+            if (cacheDuration[j].indexOf("(") != -1) {
+                key = cacheDuration[j].substring(0, cacheDuration[j].indexOf("("));
+                key = key.trim();
+                oItem.setKey(key);
+                //if(oContext.getObject().Value != key) {
+                oItem.setText(cacheDuration[j]);
+                oItem.setKey(key);
+                defaultValueField.addItem(oItem);
+                if (defaultValueField.getSelectedKey() == "") {
+                    defaultValueField.setSelectedKey(oItem.getKey());
+                }
+                //}					
+            }
+        }
+    } else if (context == SSCE_CONTEXT.GRANULARITY) { // Context --> Granularity
+        var granularity = GRANULARITY.split(",");
+        for (var j = 0; j < granularity.length; j++) {
+            oItem = new sap.ui.core.ListItem();
+            oItem.setText(granularity[j]);
+            oItem.setKey(granularity[j]);
+            defaultValueField.addItem(oItem);
+            if (defaultValueField.getSelectedKey() == "") {
+                defaultValueField.setSelectedKey(oItem.getKey());
+            }
+        }
+    } else if (context == SSCE_CONTEXT.PCO_VIEW) { // Context --> PCo View Parameter
+        var view = PCO_VIEW.split(",");
+        for (var j = 0; j < view.length; j++) {
+            oItem = new sap.ui.core.ListItem();
+            oItem.setText(view[j]);
+            oItem.setKey(view[j]);
+            defaultValueField.addItem(oItem);
+            if (defaultValueField.getSelectedKey() == "") {
+                defaultValueField.setSelectedKey(oItem.getKey());
+            }
+        }
+    } else if (context == SSCE_CONTEXT.VERTICAL_TEXT_ALIGNMENT) { // Context --> VerticalTextAlignment
+        var verticalTextAlignment = VERTICAL_TEXT_ALIGNMENT.split(",");
+        for (var j = 0; j < verticalTextAlignment.length; j++) {
+            oItem = new sap.ui.core.ListItem();
+            oItem.setText(verticalTextAlignment[j]);
+            oItem.setKey(verticalTextAlignment[j]);
+            defaultValueField.addItem(oItem);
+            if (defaultValueField.getSelectedKey() == "") {
+                defaultValueField.setSelectedKey(oItem.getKey());
+            }
+        }
+    } else if (context == SSCE_CONTEXT.HORIZONTAL_TEXT_ALIGNMENT) { // Context --> HorizontalTextAlignment
+        var horizontalTextAlignment = HORIZONTAL_TEXT_ALIGNMENT.split(",");
+        for (var j = 0; j < horizontalTextAlignment.length; j++) {
+            oItem = new sap.ui.core.ListItem();
+            oItem.setText(horizontalTextAlignment[j]);
+            if (horizontalTextAlignment[j] == "Left")
+                oItem.setKey("L");
+            else if (horizontalTextAlignment[j] == "Center")
+                oItem.setKey("C");
+            else if (horizontalTextAlignment[j] == "Right")
+                oItem.setKey("R");
+            defaultValueField.addItem(oItem);
+            if (defaultValueField.getSelectedKey() == "") {
+                defaultValueField.setSelectedKey(oItem.getKey());
+            }
+        }
+    } else if (context == SSCE_CONTEXT.AGGREGATION_MODE) {
+        var aggregationMode = AGGREGATION_LOGIC;
+        for (var j = 0; j < aggregationMode.length; j++) {
+            oItem = new sap.ui.core.ListItem();
+            oItem.setText(aggregationMode[j]);
+            oItem.setKey(aggregationMode[j]);
+            defaultValueField.addItem(oItem);
+            if (defaultValueField.getSelectedKey() == "") {
+                defaultValueField.setSelectedKey(oItem.getKey());
+            }
+        }
+    }else if(context == SSCE_CONTEXT.SCHEDULE){
+    	if(isArrayEmpty(SSCESession.Schedule)){
+    		var param = {"Mode" : "ValueHelpList" , "Name" : "Schedule" ,  "content-type": "text/json"};
+    		var data = getDataFromServer(XMII_CECATALOG_URL,param);
+
+    		if(isObjectNotNull(data) && isObjectNotNull(data.Rowsets) && isArrayNotEmpty(data.Rowsets.Rowset) &&
+    				isObjectNotNull(data.Rowsets.Rowset[0]) && isObjectNotNull(data.Rowsets.Rowset[0].Row)){
+    			SSCESession.Schedule = data.Rowsets.Rowset[0].Row;
+    		}else{
+    			return;
+    		}
+    	}
+    	for (var j = 0; j < SSCESession.Schedule.length; j++) {
+    		 oItem = new sap.ui.core.ListItem();
+             oItem.setText(SSCESession.Schedule[j].Value);
+             oItem.setKey(SSCESession.Schedule[j].Key);
+             
+             defaultValueField.addItem(oItem);
+             if (defaultValueField.getSelectedKey() == "") {
+                 defaultValueField.setSelectedKey(oItem.getKey());
+             }
+    	}
+
+
+    }else if(context == SSCE_CONTEXT.TIME_PERIOD){
+    	if(isArrayEmpty(SSCESession.TimePeriod)){
+    		var param = {"Mode" : "ValueHelpList" , "Name" : "TimePeriod" ,  "content-type": "text/json"};
+    		var data = getDataFromServer(XMII_CECATALOG_URL,param);
+
+    		if(isObjectNotNull(data) && isObjectNotNull(data.Rowsets) && isArrayNotEmpty(data.Rowsets.Rowset) &&
+    				isObjectNotNull(data.Rowsets.Rowset[0]) && isObjectNotNull(data.Rowsets.Rowset[0].Row)){
+    			SSCESession.TimePeriod = data.Rowsets.Rowset[0].Row;
+    		}else{
+    			return;
+    		}
+    	}
+    	for (var j = 0; j < SSCESession.TimePeriod.length; j++) {
+    		 oItem = new sap.ui.core.ListItem();
+             oItem.setText(SSCESession.TimePeriod[j].Value);
+             oItem.setKey(SSCESession.TimePeriod[j].Key);
+             
+             defaultValueField.addItem(oItem);
+             if (defaultValueField.getSelectedKey() == "") {
+                 defaultValueField.setSelectedKey(oItem.getKey());
+             }
+    	}
+
+
+    
+    }
+    return defaultValueField;
+}
+var global_isDesignTimeMode = false;
+var global_isFirstTime = true;
+//Commented below code as it requires design change
+//var ssce_tab = '';
+
+var global_defaultQueryProperties = [
+    {
+        Name: "EndDate",
+        Value: "NA",
+        DefaultValue: "",
+        DataType: 3,
+        Context: 3,
+        Description: "End Date",
+        isSelected: true
+    },
+    {
+        Name: "Mode",
+        Value: "NA",
+        DefaultValue: "Current",
+        DataType: 1,
+        Context: 2,
+        Description: "Modes",
+        isSelected: true
+    },
+    {
+        Name: "Server",
+        Value: " NA ",
+        DefaultValue: " Simulator ",
+        DataType: 1,
+        Context: 1,
+        Description: " Server ",
+        isSelected: true
+    },
+    {
+        Name: " RowCount ",
+        Value: " NA ",
+        DefaultValue: " 60 ",
+        DataType: 1,
+        Context: 1,
+        Description: " Row Count ",
+        isSelected: true
+    },
+    {
+        Name: " StartDate ",
+        Value: " NA ",
+        DefaultValue: " ",
+        DataType: 3,
+        Context: 3,
+        Description: " Row Count ",
+        isSelected: true
+    }];
+
+//placeholders for SSCE level permisssions 
+sap.mii.ce.hasReadPermission = false;
+sap.mii.ce.hasChangePermission = false;
+sap.mii.ce.hasAllPermissions = false;
+sap.mii.ce.hasAllMIIContentPermissions = false;
+sap.mii.ce.hasDisplayTemplatePermission = false;
+sap.mii.ce.hasQueryTemplatePermission = false;
+sap.mii.ce.hasDataObjectsPermission = false;
+sap.mii.ce.hasResourceFilesPermission = false;
+sap.mii.ce.hasUIElementsPermission = false;
+sap.mii.ce.hasPICPermission = false;
+sap.mii.ce.hasDeveloperPermission = false;
+sap.mii.ce.hasMIIAdminRole = false;
+
+//This fix is to make sure that the chart fits the cell height.
+if (com.sap.xmii.common.util.GenericConstants.DEFAULT_CHART_HEIGHT)
+    com.sap.xmii.common.util.GenericConstants.DEFAULT_CHART_HEIGHT = 100;
+
+var CIRCLE = "circle";
+var POLY = "poly";
+var RECTANGLE = "rect";
+
+//Different paneViews for different paneBar items
+var paneViewClipboard;
+var paneViewCatalog;
+var paneViewUIElements;
+var paneViewPlugin;
+var paneViewContent;
+
+/* Colors and their codes defined for their use in tag-color-picker.js.
+   UI5 currently supports 100 values in the drop-down. Therefore only the first 100 values
+   will be available in the drop-down, in this case till color PaleVioletRed.  
+*/
+var colorAndCodes = [{
+        color: "Red",
+        code: "#FF0000"
+    },
+    {
+        color: "Green",
+        code: "#008000"
+    },
+    {
+        color: "Blue",
+        code: "#0000FF"
+    },
+    {
+        color: "White",
+        code: "#FFFFFF"
+    },
+    {
+        color: "Black",
+        code: "#000000"
+    },
+    {
+        color: "Yellow",
+        code: "#FFFF00"
+    },
+    {
+        color: "Cyan",
+        code: "#00FFFF"
+    },
+    {
+        color: "Purple",
+        code: "#800080"
+    },
+    {
+        color: "Violet",
+        code: "#EE82EE"
+    },
+    {
+        color: "Orange",
+        code: "#FFA500"
+    },
+    {
+        color: "Gray",
+        code: "#808080"
+    },
+    {
+        color: "Pink",
+        code: "#FFC0CB"
+    },
+    {
+        color: "Tan",
+        code: "#D2B48C"
+    },
+    {
+        color: "Teal",
+        code: "#008080"
+    },
+    {
+        color: "Gold",
+        code: "#FFD700"
+    },
+    {
+        color: "Navy",
+        code: "#000080"
+    },
+    {
+        color: "Lime",
+        code: "#00FF00"
+    },
+    {
+        color: "Turquoise",
+        code: "#40E0D0"
+    },
+    {
+        color: "Silver",
+        code: "#C0C0C0"
+    },
+    {
+        color: "Olive",
+        code: "#808000"
+    },
+    {
+        color: "SkyBlue",
+        code: "#00CCFF"
+    },
+    {
+        color: "Sienna",
+        code: "#A0522D"
+    },
+    {
+        color: "Maroon",
+        code: "#800000"
+    },
+    {
+        color: "Orchid",
+        code: "#DA70D6"
+    },
+    {
+        color: "Wheat",
+        code: "#F5DEB3"
+    },
+    {
+        color: "Magenta",
+        code: "#FF00FF"
+    },
+    {
+        color: "Brown",
+        code: "#A52A2A"
+    },
+    {
+        color: "Indigo",
+        code: "#4B0082"
+    },
+    {
+        color: "Ivory",
+        code: "#FFFFF0"
+    },
+    {
+        color: "Aliceblue",
+        code: "#F0F8FF"
+    },
+    {
+        color: "AntiqueWhite",
+        code: "#FAEBD7"
+    },
+    {
+        color: "Aquamarine",
+        code: "#7FFFD4"
+    },
+    {
+        color: "Azure",
+        code: "#F0FFFF"
+    },
+    {
+        color: "Beige",
+        code: "#F5F5DC"
+    },
+    {
+        color: "BlanchedAlmond",
+        code: "#FFEBCD"
+    },
+    {
+        color: "BlueViolet",
+        code: "#8A2BE2"
+    },
+    {
+        color: "BrickRed",
+        code: "#CC3300"
+    },
+    {
+        color: "BurlyWood",
+        code: "#DEB887"
+    },
+    {
+        color: "CadetBlue",
+        code: "#5F9EA0"
+    },
+    {
+        color: "Chocolate",
+        code: "#D2691E"
+    },
+    {
+        color: "Coral",
+        code: "#FF7F50"
+    },
+    {
+        color: "CornflowerBlue",
+        code: "#6495ED"
+    },
+    {
+        color: "Cornsilk",
+        code: "#FFF8DC"
+    },
+    {
+        color: "Crimson",
+        code: "#DC143C"
+    },
+    {
+        color: "DarkBlue",
+        code: "#00008B"
+    },
+    {
+        color: "DarkGoldenRod",
+        code: "#B8860B"
+    },
+    {
+        color: "DarkGreen",
+        code: "#006400"
+    },
+    {
+        color: "DarkCyan",
+        code: "#008B8B"
+    },
+    {
+        color: "DarkKhaki",
+        code: "#BDB76B"
+    },
+    {
+        color: "DarkMagenta",
+        code: "#8B008B"
+    },
+    {
+        color: "DarkOliveGreen",
+        code: "#556B2F"
+    },
+    {
+        color: "DarkOrchid",
+        code: "#9932CC"
+    },
+    {
+        color: "DarkRed",
+        code: "#8B0000"
+    },
+    {
+        color: "DarkSalmon",
+        code: "#E9967A"
+    },
+    {
+        color: "DarkSeaGreen",
+        code: "#8FBC8F"
+    },
+    {
+        color: "DarkSlateBlue",
+        code: "#483D8B"
+    },
+    {
+        color: "DarkSlateGray",
+        code: "#2F4F4F"
+    },
+    {
+        color: "DarkViolet",
+        code: "#9400D3"
+    },
+    {
+        color: "DeepSkyBlue",
+        code: "#00BFFF"
+    },
+    {
+        color: "DodgerBlue",
+        code: "#1E90FF"
+    },
+    {
+        color: "DimGray",
+        code: "#696969"
+    },
+    {
+        color: "Feldspar",
+        code: "#D19275"
+    },
+    {
+        color: "FireBrick",
+        code: "#B22222"
+    },
+    {
+        color: "FloralWhite",
+        code: "#FFFAF0"
+    },
+    {
+        color: "ForestGreen",
+        code: "#228B22"
+    },
+    {
+        color: "GhostWhite",
+        code: "#F8F8FF"
+    },
+    {
+        color: "GreenYellow",
+        code: "#ADFF2F"
+    },
+    {
+        color: "HoneyDew",
+        code: "#F0FFF0"
+    },
+    {
+        color: "HotPink",
+        code: "#FF3399"
+    },
+    {
+        color: "IndianRed",
+        code: "#CD5C5C"
+    },
+    {
+        color: "Khaki",
+        code: "#F0E68C"
+    },
+    {
+        color: "LemonChiffon",
+        code: "#FFFACD"
+    },
+    {
+        color: "LightBlue",
+        code: "#ADD8E6"
+    },
+    {
+        color: "LightCoral",
+        code: "#F08080"
+    },
+    {
+        color: "LightCyan",
+        code: "#E0FFFF"
+    },
+    {
+        color: "LightGoldenRodYellow",
+        code: "#FAFAD2"
+    },
+    {
+        color: "lightGray",
+        code: "#D3D3D3"
+    },
+    {
+        color: "LightGreen",
+        code: "#90EE90"
+    },
+    {
+        color: "lightGreen",
+        code: "#33CC66"
+    },
+    {
+        color: "LightPink",
+        code: "#FFB6C1"
+    },
+    {
+        color: "LightSalmon",
+        code: "#FFA07A"
+    },
+    {
+        color: "LightSeaGreen",
+        code: "#20B2AA"
+    },
+    {
+        color: "LightSkyBlue",
+        code: "#87CEFA"
+    },
+    {
+        color: "LightSlateBlue",
+        code: "#8470FF"
+    },
+    {
+        color: "LightSlateGray",
+        code: "#778899"
+    },
+    {
+        color: "LightSteelBlue",
+        code: "#B0C4DE"
+    },
+    {
+        color: "LightYellow",
+        code: "#FFFFE0"
+    },
+    {
+        color: "LimeGreen",
+        code: "#32CD32"
+    },
+    {
+        color: "Linen",
+        code: "#FAF0E6"
+    },
+    {
+        color: "MediumAquaMarine",
+        code: "#66CDAA"
+    },
+    {
+        color: "MediumBlue",
+        code: "#0000CD"
+    },
+    {
+        color: "MediumSeaGreen",
+        code: "#00FA9A"
+    },
+    {
+        color: "MidnightBlue",
+        code: "#191970"
+    },
+    {
+        color: "MistyRose",
+        code: "#FFE4E1"
+    },
+    {
+        color: "NavajoWhite",
+        code: "#FFDEAD"
+    },
+    {
+        color: "OldLace",
+        code: "#FDF5E6"
+    },
+    {
+        color: "OrangeRed",
+        code: "#FF4500"
+    },
+    {
+        color: "PaleGreen",
+        code: "#98FB98"
+    },
+    {
+        color: "PaleTurquoise",
+        code: "#AFEEEE"
+    },
+    {
+        color: "PaleVioletRed",
+        code: "#D87093"
+    },
+    {
+        color: "PaleYellow",
+        code: "#FFFF66"
+    },
+    {
+        color: "PapayaWhip",
+        code: "#FFEFD5"
+    },
+    {
+        color: "PeachPuff",
+        code: "#FFDAB9"
+    },
+    {
+        color: "Plum",
+        code: "#DDA0DD"
+    },
+    {
+        color: "PowderBlue",
+        code: "#B0E0E6"
+    },
+    {
+        color: "Pumpkin",
+        code: "#FF9900"
+    },
+    {
+        color: "RosyBrown",
+        code: "#BC8F8F"
+    },
+    {
+        color: "RoyalBlue",
+        code: "#4169E1"
+    },
+    {
+        color: "SaddleBrown",
+        code: "#8B4513"
+    },
+    {
+        color: "Salmon",
+        code: "#FA8072"
+    },
+    {
+        color: "SandyBrown",
+        code: "#F4A460"
+    },
+    {
+        color: "SeaGreen",
+        code: "#33CC99"
+    },
+    {
+        color: "SeaShell",
+        code: "#FFF5EE"
+    },
+    {
+        color: "SlateBlue",
+        code: "#6A5ACD"
+    },
+    {
+        color: "Snow",
+        code: "#FFFAFA"
+    },
+    {
+        color: "SpringGreen",
+        code: "#00FF7F"
+    },
+    {
+        color: "SteelBlue",
+        code: "#4682B4"
+    },
+    {
+        color: "Thistle",
+        code: "#D8BFD8"
+    },
+    {
+        color: "Tomato",
+        code: "#FF6347"
+    },
+    {
+        color: "VioletRed",
+        code: "#D02090"
+    },
+    {
+        color: "WhiteSmoke",
+        code: "#F5F5F5"
+    },
+    {
+        color: "YellowGreen",
+        code: "#9ACD32"
+    },
+	                    ];
+var hexCodeValidator = new RegExp(/(^#[0-9A-F]{6}$)|(^#[0-9A-F]{3}$)/i);
+// Enable the passage of the 'this' object through the JavaScript timers
+var __nativeSI__ = window.setInterval;
+window.setInterval = function (vCallback, nDelay) {
+    var oThis = this;
+    return __nativeSI__(vCallback instanceof Function ? function () {
+        vCallback.apply(oThis, null);
+    } : vCallback, nDelay);
+};
+/**
+ * This function is responsible to delete the winode referenced parameters before deleting the parameter
+ * @return
+ */
+function removeParametersWindowReference() {
+    if (typeof PageSettings !== "undefined" && isObjectNotNull(PageSettings) && isObjectNotNull(PageSettings.General) && isObjectNotNull(PageSettings.General.Parameters) && isArrayNotEmpty(PageSettings.General.Parameters)) {
+    	//Getting all cellIds
+    	var cellIdArray = [];
+    	var layoutData = getLayoutRowData();
+    	for(var i = 0 ; i < layoutData.length ; i++){
+    		for(var j = 0 ; j < layoutData[i].CellData.length ; j++){
+    			cellIdArray.push(layoutData[i].CellData[j].PanelId);
+    		}
+    	}
+    	var layoutContent = getGridcontent(); // getting the layout's data
+        var parameters = PageSettings.General.Parameters;
+        //Looping through the parameters to delete from places where it is used and also delete its window's reference
+        for (var i = 0; i < parameters.length; i++) {
+        	deleteInputParameterReference(parameters[i].Name, cellIdArray , layoutContent ); // deleting data from cells
+        	deleteInputParameterReference(parameters[i].Name ,null, sap.mii.ce.clipboardData); // deleting data from clipboard
+            delete window[parameters[i].Name];
+        }
+    }
+}
+/**
+ * This function removes the deleted input parameter reference from all the cells
+ * @param paramName
+ * @param cellIdArray
+ * @param layoutContent
+ * @return
+ */
+function deleteInputParameterReference(paramName , cellIdArray ,layoutContent){
+	//Deleting the places where the parameter has been used
+	for(var i = 0; i < layoutContent.length ; i++){
+		if(cellIdArray != null)
+			var cellContent = layoutContent[i][""+cellIdArray[i]+""];
+		else
+			var cellContent = layoutContent[i];
+		if(isObjectNotNull(cellContent.Object) && isObjectNotNull(cellContent.Object.InputParameters)){
+			//looping through the InputParameters and checking if the parameter(which is going to be deleted) is used
+			for(var j = cellContent.Object.InputParameters.length - 1  ; j >= 0  ; j--){
+				if(paramName == cellContent.Object.InputParameters[j].ParamName){
+					//Setting the parameter value to ""
+					updateInputParam(cellContent , cellContent.Object.InputParameters[j].Path);
+					//In case of UIElement, making the Default value also ""
+					if(cellContent.Object.FileType == FILE_TYPE_UIELEMENT){
+						var path = cellContent.Object.InputParameters[j].Path;
+						var defaultValuePath = path.substring(0,path.lastIndexOf(">")) + ">DefaultValue";
+						updateInputParam(cellContent , defaultValuePath);
+					}
+					cellContent.Object.InputParameters.splice(j,1);
+				}
+			}
+		}
+	}
+}
+/**
+ * This function is responsible to go to input parameter used location and set the value to "" 
+ * @param cellContent
+ * @param path
+ * @return
+ */
+function updateInputParam(cellContent , path){
+	var stack = path.split('>');
+	while(stack.length>1){
+		cellContent = cellContent[stack.shift()];
+	}
+	cellContent[stack.shift()] = "";
+}
+
+//setting the progress bar
+jQuery.sap.byId("progressBar").css("max-width", "60%");
+
+//contexts
+var SSCE_CONTEXT = {};
+SSCE_CONTEXT.STRING_NONE = "0";
+SSCE_CONTEXT.FONT_STYLE = "1";
+SSCE_CONTEXT.FONT_FACE = "2";
+SSCE_CONTEXT.CHART_TYPE = "3";
+SSCE_CONTEXT.GRID_TYPES = "4";
+SSCE_CONTEXT.MARKER_STYLE = "5";
+SSCE_CONTEXT.ITEM_SELECTION = "6";
+SSCE_CONTEXT.DATE_FORMAT = "7";
+SSCE_CONTEXT.TIME_FORMAT = "8";
+SSCE_CONTEXT.NUMBER_FORMAT = "9";
+SSCE_CONTEXT.ALIGNMENT = "10";
+SSCE_CONTEXT.DATE_TIME_FORMAT = "11";
+SSCE_CONTEXT.QUERY_COLUMNS = "12";
+SSCE_CONTEXT.COLOR = "13";
+SSCE_CONTEXT.TEXT_ORIENTATION = "14";
+SSCE_CONTEXT.LEGEND_ORIENTATION = "15";
+SSCE_CONTEXT.ROTATION_ANGLE = "16";
+SSCE_CONTEXT.LINE_STYLE = "17";
+SSCE_CONTEXT.VERTICAL_MARKER_LINE_STYLE = "18";
+SSCE_CONTEXT.PEN_TYPE_1 = "19";
+SSCE_CONTEXT.TIME_POSITION = "20";
+SSCE_CONTEXT.AVAILABLE_SERVER = "21";
+SSCE_CONTEXT.MODE = "22";
+SSCE_CONTEXT.CACHE_DURATION = "24";
+SSCE_CONTEXT.SCHEDULE = "25";
+SSCE_CONTEXT.TIME_PERIOD = "26";
+SSCE_CONTEXT.GRANULARITY = "27";
+SSCE_CONTEXT.PCO_VIEW = "30";
+SSCE_CONTEXT.VERTICAL_TEXT_ALIGNMENT = "31";
+SSCE_CONTEXT.LIMIT_COLUMN = "32";
+SSCE_CONTEXT.HORIZONTAL_TEXT_ALIGNMENT = "33";
+SSCE_CONTEXT.QUERYTEMPLATE = "34";
+SSCE_CONTEXT.DATA_SERIES = "35";
+SSCE_CONTEXT.PEN_TYPE = "36";
+SSCE_CONTEXT.COLOR_CONTEXT = "38";
+SSCE_CONTEXT.COLOR_INDICATOR = "39";
+SSCE_CONTEXT.SESSION_PARAMETER = "40";
+SSCE_CONTEXT.TAG_SELECTION = "41";
+SSCE_CONTEXT.SELECTED_GROUP_CATE = "42";
+SSCE_CONTEXT.SCOPE_PROP_EXP = "43";
+SSCE_CONTEXT.SEL_GROUP_BY_PROP = "44";
+SSCE_CONTEXT.AGGREGATION_MODE = "45";
+SSCE_CONTEXT.NODE_SEL_EXP = "46";
+SSCE_CONTEXT.SELECTED_NODES = "47";
+SSCE_CONTEXT.OPACITY = "48";
+SSCE_CONTEXT.SCOPE_PE_EXP = "49";
+SSCE_CONTEXT.I5CHART_ROTATION_ANGLE = "50";
+SSCE_CONTEXT.SCOPE_KPI_DIM_EXP = "51";
+SSCE_CONTEXT.UI5_CHART_FONT_FACE = "52";
+SSCE_CONTEXT.UI5_CHART_FONT_STYLE = "53";
+
+//dataTypes
+var SSCE_DATA_TYPE = {};
+SSCE_DATA_TYPE.STRING = "1";
+SSCE_DATA_TYPE.BOOLEAN = "2";
+SSCE_DATA_TYPE.TIMESTAMP = "3";
+SSCE_DATA_TYPE.NUMERIC = "4";
+SSCE_DATA_TYPE.DECIMAL = "5";

@@ -1,0 +1,15 @@
+
+com.sap.xmii.common = com.sap.xmii.common || {}; 
+
+com.sap.xmii.common.tools = {
+		
+			AppToolBar : function(){
+		}
+}
+
+
+com.sap.xmii.common.tools.AppToolBar.prototype = {
+		chartPropertyConfig : '',
+		titleBar:''
+}
+

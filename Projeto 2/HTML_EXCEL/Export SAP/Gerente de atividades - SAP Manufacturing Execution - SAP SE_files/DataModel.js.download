@@ -1,0 +1,98 @@
+/**
+ * ChartModel which would hold a representation of the Data to be bound to the
+ * Chart
+ * 
+ * THIS Model holds a representation of the MII Query ResultSet Data Model
+ */
+//document.write('<scr' + 'ipt type="text/javascript" src="/XMII/JavaScript/com/sap/xmii/common/model/ModelMetaData.js"></scr' + 'ipt>');
+//document.write('<scr' + 'ipt type="text/javascript" src="/XMII/JavaScript/com/sap/xmii/common/model/ModelData.js"></scr' + 'ipt>');
+//document.write('<scr' + 'ipt type="text/javascript" src="/XMII/JavaScript/com/sap/xmii/chart/model/ChartComponentModel.js"></scr' + 'ipt>');
+com.sap.xmii.common = com.sap.xmii.common || {};
+
+com.sap.xmii.common.model = {
+
+    // This model would hold a json model
+		DataModel : function(modelURL, postContent) {
+		if(modelURL != undefined) {
+			this.jsonModel = new sap.ui.model.json.JSONModel();
+			// INSTEAD OF PASSING THE JSON TEXT,THE URL IS SUFFICIENT AND WOULD GET
+			// THE
+			// MODEL DATA.WITH THE URL MODEL IS NOT GETTING LOADED
+			// AS A WORKAROUND THE JSON TEXT IS BEING PASSED
+			try {
+				if(modelURL !== undefined){
+					if(modelURL.indexOf('XMII/IlluminatorOData') != -1) {
+						this.jsonText = com.sap.xmii.common.util.MIIi5Util.getIllumOData(modelURL);
+					} else {
+						this.jsonText = com.sap.xmii.common.util.MIIi5Util.getOData(modelURL,null,null,null, postContent);
+					}
+					
+				}
+				this.jsonModel.setJSON(this.jsonText);
+				
+			} catch (err) {
+				// Comes Here When there is an Error during Query
+				// Execution
+				var message = err.message;
+				throw new com.sap.xmii.common.exception.MIIi5Exception(message);
+				jQuery.sap.log.error(message);
+			}
+			
+		}
+		else{
+			this.jsonModel = new sap.ui.model.json.JSONModel();
+		}
+		
+		this.modelData = new com.sap.xmii.common.model.ModelData(this.jsonModel);
+		this.modelMetaData = new com.sap.xmii.common.model.ModelMetaData(this.modelData);
+    }
+};
+
+com.sap.xmii.common.model.DataModel.prototype = {
+    modelURL : '',
+    jsonModel : '',
+    modelData : '',
+    modelMetaData : '',
+    jsonText:'',
+    getJSONText: function(){
+		return this.jsonText;
+	},
+    getModelData : function() {
+		return this.modelData;
+    },
+    getModelMetaData : function() {
+    	return this.modelMetaData;
+    },
+    getJSONModel : function() {
+    	return this.jsonModel;
+    },
+    update : function(input, queryObj) {
+
+		// Check if the input is a string,or object and update accordingly
+	    if (input && typeof input == com.sap.xmii.common.util.GenericConstants.STRING) {
+		    this.modelURL = input;
+		    var queryParams = queryObj.overrides;
+		    this.jsonText = com.sap.xmii.common.util.MIIi5Util.getOData(this.modelURL, null, null, null, queryParams);
+		    if (JSON.parse(this.jsonText) === com.sap.xmii.common.util.GenericConstants.POST) {
+		    	this.jsonText = com.sap.xmii.common.util.MIIi5Util.getIllumOData(this.modelURL);
+		    }
+		} else if (input && typeof input == com.sap.xmii.common.util.GenericConstants.OBJECT) {
+			//Convert JSON object to JSON string
+			this.jsonText = JSON.stringify(input);
+		}
+	    var jsonObj = com.sap.xmii.common.util.MIIi5Util.evalJSONStr(this.jsonText);
+	    this.jsonModel.setJSON(this.jsonText);
+	    this.jsonModel.setData(jsonObj);
+	    this.modelData.update(this.jsonModel);
+	    this.modelMetaData.update(this.modelData);
+
+    },
+	updateJSONModelData : function(data) {
+		this.jsonModel.setData(data);
+		this.modelData.update(this.jsonModel);
+		this.modelMetaData.update(this.modelData);
+	},
+	getProperty : function(path) {
+		return this.jsonModel.getProperty(path);
+	}
+};

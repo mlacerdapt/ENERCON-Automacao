@@ -1,0 +1,131 @@
+com.sap.xmii.chart.ui5 = com.sap.xmii.chart.ui5 || {};
+
+var parentChartComponent = new com.sap.xmii.chart.ui5.ChartComponent();
+
+/**
+ * Bubble Chart Constructor
+ * 
+ * @param chartConfig
+ * @param qryResultData
+ */
+com.sap.xmii.chart.ui5.BubbleChart = function(chartConfig, model) {
+	this.chartPropertyConfig = chartConfig;
+
+	this.chartModel = model;
+
+	this.chartCompnModel = new com.sap.xmii.chart.model.ChartComponentModel(
+			this.chartModel, this.chartPropertyConfig);
+	this.parent.init.call(this, chartConfig, model, this);
+
+	this.addGettersAndSetters();
+}
+
+/**
+ * BUBBLE CHART CLASS
+ */
+com.sap.xmii.chart.ui5.BubbleChart.prototype = parentChartComponent;
+com.sap.xmii.chart.ui5.BubbleChart.prototype.constructor = com.sap.xmii.chart.ui5.BubbleChart;
+com.sap.xmii.chart.ui5.BubbleChart.prototype.parent = com.sap.xmii.chart.ui5.ChartComponent.prototype;
+
+/**
+ * Bubble Chart create Method
+ * 
+ * @return
+ */
+com.sap.xmii.chart.ui5.BubbleChart.prototype.create = function() {
+
+	// Backwards compatibility with iChart applet
+	if (this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.GRID_LINE_COLOR) == undefined) {
+		var gridLineColor = this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.HORIZONTAL_GRID_COLOR);
+		this.chartPropertyConfig.setProperty(com.sap.xmii.common.util.ChartPropertyConstants.GRID_LINE_COLOR, gridLineColor);
+	}
+	
+	var gridColor = this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.GRID_LINE_COLOR);
+	var backgroundColor = this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.CHART_BACKGROUND_COLOR);
+	var cssText = '.v-gridline{  stroke: ' + gridColor + '; } .v-background-body{  fill: '+ backgroundColor +'; }';
+
+	var useXaxisFixedScaling = this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.XAXIS_USE_SET_RANGES);
+	var xaxisStart = this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.XAXIS_START);
+	var xaxisEnd = this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.XAXIS_END);
+
+	this.ui5ChartElement = new sap.viz.ui5.Bubble( {
+		width : this.width,//this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.WIDTH),
+		height : this.height,//height : this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.HEIGHT),
+
+		plotArea : {
+			drawingEffect : this.chartPropertyConfig.getChartLook(this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.GLOSSY))
+		},
+		legend : {
+			visible : JSON.parse(this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.SHOW_LEGEND)),
+			ishierarchical : true,
+			isScrollable : true,
+			title : {
+				visible : true,
+				text : this.chartPropertyConfig
+						.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.LEG_DESC_LABEL)
+			}
+		},
+		interaction : {
+			selectability : {
+				mode : this.chartPropertyConfig.getSelectionType(this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.ENABLE_ITEM_SEL))
+			}
+		},
+		dataLabel: {
+			visible: JSON.parse(this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.SHOW_VAL_MARKER))
+		},
+		title : {
+			visible : false
+		},
+		yAxis : {
+		    visible : JSON.parse(this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.SHOW_YAXIS)),
+		    color : '#DFDFDF', // color of yAxis
+		    title : {
+				visible : this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.SHOW_YAXIS_LABEL),
+				text :  this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.YAXIS_LABEL),
+				applyAxislineColor : false
+		    },
+		    gridline : {
+		    	visible : ((this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.SHOW_GRID_LINE) == true)			// i5Chart
+						|| (this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.SHOW_HORIZONTAL_GRID) == true)),	// iChart
+				showFirstLine : true,
+				showLastLine : true,
+				size : 1
+		    },
+		    scale: {
+				fixedRange : this.applyScaling,
+				minValue : this.min,
+				maxValue : this.max
+			}
+		},
+
+		xAxis : {
+			visible : JSON.parse(this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.SHOW_XAXIS)),
+			color : '#DFDFDF',
+			title : {
+				visible : this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.SHOW_XAXIS_LABEL),
+				text : this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.XAXIS_LABEL),
+				applyAxislineColor : true
+			},
+			scale: { 
+				fixedRange : useXaxisFixedScaling,
+				minValue : xaxisStart,
+				maxValue : xaxisEnd
+			}
+		},
+		css : cssText,
+		dataset : this.chartCompnModel.dataset
+	});
+	
+	//setting color for Data series
+    var colorPalette = this.ui5ChartElement.getPlotArea().getColorPalette();
+    var maxPenCount = 32;
+    for(var i=0; i<maxPenCount; i++) {
+          colorPalette[i] = this.chartPropertyConfig.getProperty("PenColor." + (i+1));
+    }
+    this.ui5ChartElement.getPlotArea().setColorPalette(colorPalette);
+    
+	this.ui5ChartElement.getToolTip().setVisible(this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.SHOW_TOOLTIP) == true);
+	this.ui5ChartElement.setModel(this.chartCompnModel.oModel);
+	return this.ui5ChartElement;
+
+}

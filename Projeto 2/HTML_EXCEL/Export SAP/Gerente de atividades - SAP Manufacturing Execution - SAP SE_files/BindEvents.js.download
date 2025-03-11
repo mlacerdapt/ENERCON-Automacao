@@ -1,0 +1,275 @@
+com.sap.xmii.common.util = com.sap.xmii.common.util || {};
+com.sap.xmii.common.util.event = {};
+
+com.sap.xmii.common.util.event.RadioButtonGroupReady = false;
+/*
+ * the entrance to bind the events @that reference from the original page, used
+ * to find the control item reference @eventSetting events setting :
+ * Settings.General.Events
+ */
+com.sap.xmii.common.util.event.bindEvent = function(eventSetting) {
+	var that = this;
+
+	/*
+	 * the common handle function
+	 */
+	function handleFunction(oEvent, handlerSetting) {
+		var handleIndex, singleHandler, handlerContent, handleItem, handleAction, parameters;
+		for (handleIndex in handlerSetting) {
+			singleHandler = handlerSetting[handleIndex];
+			if (singleHandler.IsActive) {
+				if(!singleHandler.HasCondition || checkHandlerCondition(singleHandler.Condition, oEvent)){
+					if (singleHandler.IsCustom && singleHandler.CustomHandler) {
+						// run the customer function
+						if(singleHandler.CustomHandler.trim){
+							singleHandler.CustomHandler = singleHandler.CustomHandler.trim();
+						}
+						if (window[singleHandler.CustomHandler]) {
+							window[singleHandler.CustomHandler].apply(window, [oEvent]);
+						}
+					} else if (singleHandler.Handler) {
+						var lastIndex = singleHandler.Handler.lastIndexOf(".");
+						handleItem = singleHandler.Handler.substring(0,lastIndex);
+						handleItem  = that.getItemByName(handleItem);
+						handlerContent = singleHandler.Handler.split(".");
+					//	handleItem = that.getItemByName(handlerContent[0]);
+						if (handleItem && handleItem.executeHandler && $.isFunction(handleItem.executeHandler)) {
+							parameters = getParameters(oEvent, singleHandler.Parameters);
+							handleItem.executeHandler(singleHandler.Handler.substring(lastIndex+1), parameters);
+						}
+					}
+				}
+			}
+		}
+	}
+
+	/*
+	 * check handler condition
+	 */
+	function checkHandlerCondition(condition, oEvent){
+		var result, value;
+		result = true;
+		if (condition) {
+			value = that.getValueByExp(condition, oEvent);
+			result = com.sap.xmii.common.util.MIIi5Util.dataTransfer(value, "boolean");
+		}
+		
+		return result;
+	}
+	/*
+	 * check the condition
+	 */
+	function checkCondition(triggerItem, handlerSetting, oEvent) {
+		var result = true;
+		if (oEvent && oEvent.oSource) {
+			// check for the radio button group, only the selected button trigger
+			// the event
+			if (oEvent.oSource instanceof sap.m.RadioButton) {
+				if (oEvent.mParameters && oEvent.mParameters.selected === false) {
+					result = false;
+				}
+			}
+		}
+		return result;
+	}
+
+	/*
+	 * attach the event based on the trigger item and trigger event
+	 */
+	function attachTriggerEvent(triggerItem, triggerEvent, handlerSetting) {
+		var validateEvent = true;
+		var uiElement;
+		// create the handler function according the setting
+		var theHandleFunction = function(oEvent) {
+			var isConditionTrue = checkCondition(triggerItem, handlerSetting, arguments[0]);
+			if (isConditionTrue) {
+				try {
+					handleFunction(oEvent, handlerSetting);
+				} catch (err) {
+					jQuery.sap.log.warning("Failed to execute event handler, please check the event configuration. Error details: " + err);
+				}				
+			}
+		};
+		
+		if(triggerItem.attachEventHandler){
+			triggerItem.attachEventHandler(triggerEvent, theHandleFunction);
+			return;
+		}
+
+		if (!validateEvent) {
+			jQuery.sap.log.warning("an invalid event: " + triggerEvent);
+		}
+	}
+
+	// generate the parameters using the setting
+	function getParameters(oEvent, parmSetting) {
+		//the parameters are divided into the types
+		var parameters = {};
+		var setting, paramterValue, parameterKey;
+		for (var index in parmSetting) {
+			setting = parmSetting[index];
+			if (setting.Target) {
+				paramterValue = that.getValueByExp(setting.Source, oEvent);
+				setting.Target = $.trim(setting.Target);
+				var position = setting.Target.indexOf(".");
+				if(setting.Target.substr(0, position) === "DashboardParameters") {
+					parameterKey = setting.Target.substr(position + 1, setting.Target.length - position);
+					if (window[parameterKey] && typeof window[parameterKey] !== 'function' && typeof window[parameterKey] !== 'object') {
+						window[parameterKey] = paramterValue;
+					}
+				}
+				else if(position !== -1) {
+					parameters[setting.Target.substr(0, position)] = parameters[setting.Target.substr(0, position)] || {};
+					parameters[setting.Target.substr(0, position)][setting.Target.substr(position + 1)] = paramterValue;
+				} else {
+					parameters["args"] = parameters["args"] || {};
+					parameters["args"][setting.Target] = paramterValue;
+				}
+			}
+		}
+
+		return parameters;
+	}
+	
+	var index, singleEvent, arrContent, triggerEvent, triggerItem, handlers;
+	for (index in eventSetting) {
+		singleEvent = eventSetting[index];
+		arrContent = singleEvent.EventTrigger.split(".");
+		triggerEvent = arrContent[1];
+		// get the triggerItem refrence from window
+		triggerItem = that.getItemByName(arrContent[0]);
+		handlers = singleEvent.Handlers;
+
+		// when the triggerItem exists, attach the eventHandler
+		if (triggerItem) {
+			attachTriggerEvent(triggerItem, triggerEvent, singleEvent.Handlers);
+		}
+	}
+};
+
+/*
+ * create a radio button object
+ */
+com.sap.xmii.common.util.event.createRadioButtonGroup = function(groupName, radioButtons) {
+	var radioButtonGroup = {
+		"Name" : groupName,
+		"controlType" : "RadioButtonGroup",
+		"buttons" : radioButtons,
+		registerSelectEvent : function(handleEvent) {
+			var index, button;
+			for (index in this.buttons) {
+				button = this.buttons[index];
+				button.getAggregation("RadioButton").attachSelect(handleEvent);
+			}
+		},
+		getSelectedValue : function() {
+			var index;
+			for (index in this.buttons) {
+				if (this.buttons[index].isSelected()) {
+					return this.buttons[index].getTextValue();
+				}
+			}
+		},
+		setSelectedValue: function (value) {
+			var index;
+			for (index in this.buttons) {
+				if (this.buttons[index].getTextValue() == value) {
+					this.buttons[index].setSelected(true);
+				}
+			} 
+		},
+		attachEventHandler : function(eventName, Handler) {
+			if (eventName === "onSelect") {
+				this.registerSelectEvent(Handler);
+			}
+		}
+	};
+
+	return radioButtonGroup;
+};
+
+/*
+ * get the control item's reference using it's name if the name is a group,
+ * initial a group object first
+ */
+com.sap.xmii.common.util.event.getItemByName = function(name) {
+	// find out all the radio button group
+	var radioButtonInfo = {};
+	var groupNamePrefix = com.sap.xmii.common.util.RadioButtonGroup.GROUP_NAME_PREFIX;
+	var that = this;
+	var miiEleemntRegex = /_c\d+c\d+$/;
+	if (!that.RadioButtonGroupReady) {
+		//if the uielement resource is loaded, search all the radio button element from global
+		if (com.sap.xmii.ui && com.sap.xmii.ui.UIElementRadioButtonM) {
+			for (var key in window) {
+				if (miiEleemntRegex.test(key) && window[key] instanceof com.sap.xmii.ui.UIElementRadioButtonM) {
+					if (!radioButtonInfo[window[key].getGroupName()]) {
+						radioButtonInfo[window[key].getGroupName()] = [];
+					}
+					radioButtonInfo[window[key].getGroupName()].push(window[key]);
+				}
+			}
+			for (var key in radioButtonInfo) {
+				//create the radio button group
+				window[groupNamePrefix + key] = that.createRadioButtonGroup(key, radioButtonInfo[key]);
+			}
+		}
+		that.RadioButtonGroupReady = true;
+	}
+	var pos = name.lastIndexOf("_") + 1;
+	var itemNamePreview = itemNameRuntime = name;
+	if ( pos > 0 && name.substr(0, groupNamePrefix.length) !== groupNamePrefix)  {
+		itemNameRuntime = name.substr(0, pos) + name.substr(pos).replace(/p/g, "c");
+	}
+	return window[itemNameRuntime] || window[itemNamePreview];
+};
+
+/*
+ * get the runtime value according the expression
+ */
+com.sap.xmii.common.util.event.getValueByExp = function(exp, oEvent) {
+	var globalSettings = window["Settings"] || window["PageSettings"];
+	var nameRegex = /[A-Za-z_][0-9a-zA-Z_]*_p\d+p\d+/g;
+	var replaceRegex = /[A-Za-z_][0-9a-zA-Z_]*_p\d+p\d+/;
+	// var globalRegex = /^PageSettings.|\WPageSettings./g;
+	var globalRegex = /^PageSettings.|\WPageSettings./;
+	var sourceArr, evalStr, result;
+	var itemArr = [];
+	var evalRun = false;
+	
+	// replace the control itme string
+	sourceArr = exp.match(nameRegex);
+	evalStr = exp;
+	for(index in sourceArr) {
+		itemArr[index] = this.getItemByName(sourceArr[index]);
+		evalStr = evalStr.replace(replaceRegex, 'itemArr[' + index + ']');
+		evalRun = true;
+	}
+	
+	// replace the global setting string
+	while (evalStr.match(globalRegex)) {
+		evalStr = evalStr.replace(globalRegex, 'globalSettings.');
+		evalRun = true;
+	}
+	
+	try {
+		// eval the source string to get the result
+		//Replacing eval code
+		//result = eval(evalStr);
+		result = Function('itemArr','return '+evalStr)(itemArr);
+		//end of code
+	} catch (err) {
+		if (evalRun) {
+			// if nameRegex or globalRegex matches, log an error and ignore this parameter
+			jQuery.sap.log.warning("evaluate souce failed : " + exp);
+		} else {
+			// if the eval() failed, but no nameRegex or globalRegex
+			// matches, just assign the string to parameter
+			result = evalStr;
+		}
+	}
+	
+	return result;
+};
+
+

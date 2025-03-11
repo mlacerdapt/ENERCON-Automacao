@@ -1,0 +1,65 @@
+function getJSDoc() {
+	var x = '';
+	function getAddMethods() {
+		var addMethodStr = '';
+		var propNames = [ 'Mode', 'Query', 'QueryParams', 'Attributes',
+				'DateColumn', 'JoinExpr', 'FilterExpr', 'GroupingExpr',
+				'SortExpr', 'IsCached', 'AllowFuture' ];
+
+		for (prop in propNames) {
+			var getStr = 'String:' + 'get' + propNames[prop] + ';';
+			var setStr = 'void:' + 'set' + propNames[prop] + '(val)' + ';';
+			addMethodStr = addMethodStr + getStr + setStr;
+		}
+
+		return addMethodStr;
+	}
+	;
+	x = x + getAddMethods();
+	return x;
+};
+
+/**
+ * @Namespace
+ */
+com.sap.xmii.querytemplate.query = com.sap.xmii.querytemplate.query || {};
+
+// FOR INHERITANCE
+var parentQueryObj = new com.sap.xmii.querytemplate.query.Query();
+
+/***
+ * OLAPQUERY CLASS
+ * 
+ * @constructor
+ * 
+ * @param queryTemplateName
+ * @param queryMetaData
+ * @return
+ */
+com.sap.xmii.querytemplate.query.OLAPQuery = function OLAPQuery(
+		queryTemplateName, queryMetaData) {
+
+	this.setQueryMetaData(queryMetaData);
+	this.setQueryTemplateName(queryTemplateName);
+	this.addGettersAndSetters(com.sap.xmii.chart.OLAPQueryPropNames);
+
+	this.mode = queryMetaData.Mode;
+
+	this.getQuery = function() {
+		return queryMetaData.Query;
+	}
+}
+// Inheritance
+com.sap.xmii.querytemplate.query.OLAPQuery.prototype = parentQueryObj;
+com.sap.xmii.querytemplate.query.OLAPQuery.prototype.constructor = com.sap.xmii.querytemplate.query.OLAPQuery;
+
+com.sap.xmii.querytemplate.query.OLAPQuery.prototype.isTimeBasedQuery = function() {
+	
+	if (com.sap.xmii.common.util.QueryConstants.MODE_QUERY.toUpperCase() == this
+			.getMode().toUpperCase()
+			&& com.sap.xmii.common.util.MIIi5Util.containsTimeIndicators(this
+					.getQuery())) {
+		return true;
+	}
+	return false;
+}

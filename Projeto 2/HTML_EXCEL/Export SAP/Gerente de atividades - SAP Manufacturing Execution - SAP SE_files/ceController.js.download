@@ -1,0 +1,85 @@
+com.sap.ce = {
+	controller : function() {
+		this.miiUI5Objects = {};
+		this.addObject = function(cellId, object) {
+			this.miiUI5Objects[cellId] = object;
+		};
+		this.deleteObject = function(cellId) {
+			if (this.miiUI5Objects[cellId] != undefined && this.miiUI5Objects[cellId] != null) {
+				this.miiUI5Objects[cellId].destroy();
+				this.miiUI5Objects[cellId] = null;
+
+			}
+		};
+		this.deleteAllObjects = function() {
+			for ( var cellId in this.miiUI5Objects) {
+				if (isObjectNotNull(this.miiUI5Objects[cellId]))
+					this.miiUI5Objects[cellId].destroy();
+			}
+			this.miiUI5Objects = {};
+		};
+		this.updateUI5Objects = function() {
+			for (key in this.miiUI5Objects) {
+				this.updateUI5Object(key);
+			}
+		};
+		this.updateUI5Object = function(key) {
+			if (this.miiUI5Objects[key]) {
+				var obj = this.miiUI5Objects[key];
+				if (obj instanceof com.sap.xmii.chart.hchart.i5Chart
+						//Replacing eval code
+						//|| (eval('com.sap.xmii.chart.hchart.i5SPCChart') !== undefined && obj instanceof com.sap.xmii.chart.hchart.i5SPCChart)) {
+					|| (Function('return com.sap.xmii.chart.hchart.i5SPCChart')() !== undefined && obj instanceof com.sap.xmii.chart.hchart.i5SPCChart)) {
+					//end of code
+					var divId = obj.chartPosId;
+					if (jQuery.sap.byId(divId).height() != null && jQuery.sap.byId(divId).height() > 0)
+						obj.setChartHeight(jQuery.sap.byId(divId).height());
+					else
+						return;
+					try {
+						obj.update(false);
+					} catch (err) {
+						console.log("An error has occured " + err.name + " - " + err.message);
+					}
+					//Replacing eval code
+				//} else if (eval('com.sap.xmii.ssce') !== undefined && eval('com.sap.xmii.ssce.PICTree') !== undefined && obj instanceof com.sap.xmii.ssce.PICTree) {
+					} else if (Function('return com.sap.xmii.ssce')() !== undefined && Function('return com.sap.xmii.ssce.PICTree')() !== undefined && obj instanceof com.sap.xmii.ssce.PICTree) {	
+					//end of code
+						if (ceController.miiUI5Objects[key].uiObject && ceController.miiUI5Objects[key].uiObject instanceof sap.ui.commons.Tree) {
+						if (ssceLayout && ssceLayout.isDesign) {
+							ceController.miiUI5Objects[key].uiObject.setHeight(jQuery.sap.byId(key).height() - 55 + "px");
+						} else {
+							ceController.miiUI5Objects[key].uiObject.setHeight(jQuery.sap.byId(key).height() - 25 + "px");
+						}
+					} else if (ceController.miiUI5Objects[key].uiObject && ceController.miiUI5Objects[key].uiObject instanceof sap.ui.vbm.GeoMap) {
+						ceController.miiUI5Objects[key].uiObject.setHeight(jQuery.sap.byId(key).height());
+					}
+				}
+			}
+		};
+	}
+
+};
+ceController = new com.sap.ce.controller();
+
+$(window).bind('load', function() {
+	ceController.updateUI5Objects();
+});
+
+// This code will handle the session invalidation redirection and other error
+// conditions from server.
+
+$(document).ajaxError(function(event, jqXHR, ajaxSettings, thrownError) {
+	console.log("Triggered ajaxError handler. The ajax status was: " + jqXHR.status + " ajax error was: " + thrownError);
+	if (jqXHR.status == 200 && jqXHR.responseText != null && jqXHR.responseText.match(/<html>/gi) != null) {
+		document.body.innerHTML = jqXHR.responseText;
+		if (jqXHR.responseText.match(/id=\"logonForm\"/gi) != null) {
+			window.location.reload(true);
+		}
+	} else if (jqXHR.status != 404 && jqXHR.responseText != null && jqXHR.responseText.match(/<html>/gi) != null) {
+		document.body.innerHTML = jqXHR.responseText;
+	}
+});
+
+//setting the progress bar
+jQuery.sap.byId("progressBar").css("max-width", "55%");

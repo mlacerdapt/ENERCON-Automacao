@@ -1,0 +1,731 @@
+
+function onDocumentReady(){
+	//generateGlobalParameters();
+	if(typeof ssceBorderClass != "undefined" && ssceBorderClass != ""){
+		if("borderWhite" !== ssceBorderClass) {
+			$(".borderWhite").addClass(ssceBorderClass);
+			$('.'+ssceBorderClass+ '').removeClass("borderWhite");
+		}
+	}
+	if(typeof ssceCellTitleClass != "undefined" && ssceCellTitleClass != ""){
+		if("cellTitle" !== ssceCellTitleClass) {
+			$(".cellTitle").addClass(ssceCellTitleClass);
+			$('.'+ssceCellTitleClass+ '').removeClass("cellTitle"); 
+		}		 
+	}
+
+	showToolBar();
+	createParameterDialog();
+
+}
+function bindEvent(settings) {
+	com.sap.xmii.common.util.event.bindEvent(settings);
+}
+ 
+function generateGlobalParameters(){
+	//Show alerts parameter
+	window["showAlert"] = Settings.General.ShowAlert;
+	window["timeAware"] = Settings.General.TimeAware;
+	window["timePeriod"] = Settings.General.TimePeriod;
+	window["picTree"] = Settings.General.PicTree;
+
+	window["pageHeight"] = "96";
+	//global parameter for tag refresh rate
+	window["tagRefreshInterval"]= Settings.General.TagRefreshRate;
+	window["alertRefreshInterval"]= Settings.General.AlertRefreshRate;
+
+	if(typeof Settings != "undefined" && Settings.General.Parameters.length >0){
+		for(var i = 0; i < Settings.General.Parameters.length ; i++ ){
+			var paramName = Settings.General.Parameters[i].Name;
+			var paramContext = Settings.General.Parameters[i].Context;
+			var paramValue = Settings.General.Parameters[i].Value;
+			if(paramName === undefined || paramName == null || paramName == "")
+				continue;
+			var uriParamValue = jQuery.sap.getUriParameters().get(paramName);
+			//Checking for the session parameter, since the value it hold is parameter name
+			//We need to get the value of it
+			if(paramContext == SSCE_CONTEXT.SESSION_PARAMETER){
+				//if in the URL, values are given then directly create the window parameter
+				var uriParamValue = jQuery.sap.getUriParameters().get(paramName);
+				if(isObjectNotNull(uriParamValue)){
+					window[paramName] = uriParamValue;
+				}else{
+					//Creation of parameters
+					var urlParameter  = {Mode: "list" , "content-type" :"text/json"};
+					//Getting the data
+					var data = getDataFromServer(XMII_PROP_ACCESS_SERVLET_URL,urlParameter);
+					//Checking whether the data has rows or not
+					if(isObjectNotNull(data) && isObjectNotNull(data.Rowsets) && isObjectNotNull(data.Rowsets.Rowset) &&
+							isArrayNotEmpty(data.Rowsets.Rowset) && isObjectNotNull(data.Rowsets.Rowset[0]) && isObjectNotNull(data.Rowsets.Rowset[0].Row)){
+						SSCESession.Parameters = data.Rowsets.Rowset[0].Row;
+					}
+
+					for(var j = 0 ; j < SSCESession.Parameters.length ; j++){
+						if(SSCESession.Parameters[j].Name == paramValue){
+							window[paramName] = SSCESession.Parameters[j].Value;
+							break;
+						}
+					}
+				}
+			}else{
+				if(isObjectNotNull(uriParamValue)){
+					window[paramName] = uriParamValue;
+				}else{
+					window[paramName] = paramValue;
+				}
+			}
+		}
+	}
+	if(typeof Settings != "undefined" && typeof Settings.General.PageStyle.CSSFile != "undefined" && Settings.General.PageStyle.CSSFile != ""){
+		var cssFile = Settings.General.PageStyle.CSSFile;
+		var csslink = '<link rel="stylesheet" type="text/css" href="' + cssFile + '"></link>';
+		$('head').append(csslink);
+	}
+	if(typeof Settings != "undefined" && typeof Settings.General.PageStyle != "undefined" && Settings.General.PageStyle.CellStyleClass != ""){
+		var ssceBorderClass = Settings.General.PageStyle.CellStyleClass;
+		window["ssceBorderClass"] = ssceBorderClass;
+
+	}
+	if(typeof Settings != "undefined" && typeof Settings.General.PageStyle != "undefined" && Settings.General.PageStyle.CellTitleStyleClass != ""){
+		var ssceCellTitleClass = Settings.General.PageStyle.CellTitleStyleClass;
+		window["ssceCellTitleClass"] = ssceCellTitleClass;
+	}
+}
+ 
+function updateQueryStringParameter(uri, key, value) {
+	var regexValue = new RegExp("([?|&])" + key + "=.*?(&|#|$)", "i");
+	if (uri.match(regexValue)) {
+		return uri.replace(regexValue, '$1' + key + "=" + value + '$2');
+	} else {
+		var hash =  '';
+		var separator = uri.indexOf('?') !== -1 ? "&" : "?";    
+		return uri + separator + key + "=" + value + hash;
+	}
+}
+function createParameterDialog(allowInput){
+
+	sap.ui.getCore().loadLibrary("sap.m");
+	var showDialog = jQuery.sap.getUriParameters().get("showParamDialog");
+	var skipUserInput = false;
+	var openDialog = false;
+	if(window["Settings"].General.ParametersSettings && window["Settings"].General.ParametersSettings.SkipUserInput){
+		skipUserInput = true;
+	}
+	if(skipUserInput){
+		openDialog = allowInput;
+	} else{
+		if(!allowInput && showDialog == "false"){
+			openDialog = false;
+		} else {
+			openDialog = true;
+		}
+	}
+	if( openDialog && (Settings.General.Parameters.length>0)){
+		//Get the i5SPC Chart types from back end
+		var spcParam = {"Mode":"ValueHelpList","content-type":"text/json","Name":"ChartType","TemplateTypeName":"i5SPCChart"};
+		var rawDataSpcChart = getDataFromServer(XMII_CECATALOG_URL, spcParam);
+		//Get the i5Chart types from back end
+		var i5ChartParam = {"Mode":"ValueHelpList","content-type":"text/json","Name":"ChartType","TemplateTypeName":"i5Chart"};
+		var rawDatai5Chart = getDataFromServer(XMII_CECATALOG_URL, i5ChartParam);
+		//Get the i5Grid types from back end
+		var i5GridParam = {"Mode":"ValueHelpList","content-type":"text/json","Name":"GridType","TemplateTypeName":"i5Grid"};
+		var rawDatai5Grid = getDataFromServer(XMII_CECATALOG_URL, i5GridParam);
+		//Assign then to global variables
+		i5GRID_TYPES = rawDatai5Grid;
+		i5SPC_CHART_TYPES = rawDataSpcChart;
+		i5CHART_TYPES = rawDatai5Chart;
+
+		//when port is not available 
+		if(window.location.port == "") {
+		     var originalURL = window.location.protocol + "//" + window.location.hostname + window.location.pathname;
+		} else {
+		    var originalURL = window.location.protocol + "//" + window.location.hostname + ":" + window.location.port + window.location.pathname;
+		}
+		
+		var metadataParamsDialog = new sap.m.Dialog({
+			title : oBundle.getText("XLBL_PARAMETERS"),
+			leftButton: new sap.m.Button("parameterSubmit",{
+				text: oBundle.getText("XBUT_SUBMIT"),
+				press: function () {
+				var existingURL = window.location.href;
+				for(var i = 0; i < Settings.General.Parameters.length ; i++ ){
+					var paramName = Settings.General.Parameters[i].Name;
+					var paramValue = Settings.General.Parameters[i].Value;
+					var paramType = Settings.General.Parameters[i].Type;
+					var paramContext = Settings.General.Parameters[i].Context;
+					if(paramName === undefined || paramName == null || paramName == "")
+						continue;
+					if(paramType == "Boolean" || (paramType == "String" && (paramContext == "1" || paramContext == "2" || paramContext == "3" || paramContext == "4" || paramContext == "5" || paramContext == "6" || paramContext == "7" || paramContext == "8" || paramContext == "9" || paramContext == "10" || paramContext == "11"  || paramContext == "14" || paramContext == "15" || paramContext == "16" || paramContext == "17" || paramContext == "18" || paramContext == "19" || paramContext == "20" || paramContext == "21" || paramContext == "24" || paramContext == "25" || paramContext == "26" || paramContext == "27" || paramContext == "30" || paramContext == "31" || paramContext == "33" ))){
+						if(paramType == "Boolean"){
+							var tempBoolVlaue = sap.ui.getCore().byId(paramName).getSelectedKey();
+							if(tempBoolVlaue == "true"){
+								window[paramName] = true;
+							}else if(tempBoolVlaue == "false"){
+								window[paramName] = false;
+							}
+						}else{
+							if(isNaN(sap.ui.getCore().byId(paramName).getSelectedKey())){
+								window[paramName] = sap.ui.getCore().byId(paramName).getSelectedKey();
+							}else{
+								window[paramName] = parseInt(sap.ui.getCore().byId(paramName).getSelectedKey());
+							}
+							// window[paramName] = sap.ui.getCore().byId(paramName).getSelectedKey();
+						}
+						existingURL= updateQueryStringParameter(existingURL,paramName,sap.ui.getCore().byId(paramName).getSelectedKey());
+					}else if(paramType == "String" && paramContext  == "13"){
+						var hashColorCode = sap.ui.getCore().byId(paramName).getHexcode();
+						window[paramName] = escape(hashColorCode);
+						existingURL= updateQueryStringParameter(existingURL,paramName,escape(hashColorCode));
+					}else if(paramType == "String" && paramContext  == "48"){
+						window[paramName] = (sap.ui.getCore().byId(paramName).getValue())/100;
+						existingURL= updateQueryStringParameter(existingURL,paramName,escape(window[paramName]));
+					}
+					else if(paramType == "String" && paramContext  == SSCE_CONTEXT.QUERYTEMPLATE){
+						var paramField = sap.ui.getCore().byId(paramName);
+						if(paramField.getMetadata()._sClassName == "sap.m.Select"){
+							window[paramName] = paramField.getSelectedKey();
+						}else{
+							window[paramName] = paramField.getValue();
+						}
+						existingURL= updateQueryStringParameter(existingURL,paramName,escape(window[paramName]));
+					}
+					//Adding condition for the session parameters
+					else if(paramType == "String" && paramContext  == SSCE_CONTEXT.SESSION_PARAMETER){
+						var paramField = sap.ui.getCore().byId(paramName);
+						window[paramName] = paramField.getValue();
+						existingURL= updateQueryStringParameter(existingURL,paramName,escape(window[paramName]));
+					}
+					else{
+						window[paramName] = escape(sap.ui.getCore().byId(paramName).getValue());
+						existingURL= updateQueryStringParameter(existingURL,paramName,escape(sap.ui.getCore().byId(paramName).getValue()));
+					}
+				}
+				existingURL= updateQueryStringParameter(existingURL,"showParamDialog","false");
+				metadataParamsDialog.close();
+				if(validateURL(originalURL,existingURL)){
+					window.location.href = encodeURI(existingURL);
+				}
+			}
+			}),
+			rightButton: new sap.m.Button("parameterCancel",{
+				text: oBundle.getText("XBUT_CANCEL"),
+				press: function () {
+				metadataParamsDialog.close();
+				// destroy the exist object
+				if(sap.ui.getCore().byId("parameterSubmit")){
+					sap.ui.getCore().byId("parameterSubmit").destroy();
+				}
+				if(sap.ui.getCore().byId("parameterCancel")){
+					sap.ui.getCore().byId("parameterCancel").destroy();
+				}
+				for(var j = 0; j < Settings.General.Parameters.length ; j++ ){
+					var name = Settings.General.Parameters[j].Name;
+					if(sap.ui.getCore().byId(name)){
+						sap.ui.getCore().byId(name).destroy();
+					}
+				}
+			}
+			})
+		});
+		var list = new sap.m.List({
+			columns :[ new sap.m.Column({ width :"40%" ,header: new sap.m.Label({text :oBundle.getText("XTLT_PARAM_NAME")})}),
+			           new sap.m.Column({ width :"40%", header: new sap.m.Label({text :oBundle.getText("XLBL_DEFAULT_VALUE")})})
+			]});
+		list.addStyleClass("sapUiSizeCompact");
+
+		for(var i = 0; i < Settings.General.Parameters.length ; i++ ){
+			var paramName = Settings.General.Parameters[i].Name;
+			var paramValue = Settings.General.Parameters[i].Value;
+			var type = Settings.General.Parameters[i].Type;
+			var context = Settings.General.Parameters[i].Context;
+			if(paramName === undefined || paramName == null || paramName == ""){
+				continue;
+			} else {
+				var inputListItem;
+				if (type != "" && type == "String") {
+					inputListItem = new sap.m.ColumnListItem();
+					var label = new sap.m.Label( {
+						text : paramName
+					});
+					var defaultValue = paramValue;
+					var uriStringValue = jQuery.sap.getUriParameters().get(paramName);
+					if(uriStringValue != null && uriStringValue != "" && uriStringValue != undefined ){
+						defaultValue = uriStringValue;
+					}
+					var stringInput= null;
+
+					if(context == "0" || context == "12" || context == "22" || context == "23" || context == "28" || context == "29" || context == "32" ||  context == "42" ||  context == "43" ||  context == "44" ||  context == "46"|| context == "47") {
+
+						stringInput = new sap.m.Input(paramName, {value : defaultValue , width : "200px" });
+
+					} else if(context == "13") {  // Context --> Color Picker
+						if(defaultValue != "" && defaultValue != undefined && defaultValue != null){	
+							stringInput = new com.sap.mii.ui.composite.TagColorPicker(paramName,{hexcode:defaultValue});
+						}else{
+							stringInput = new com.sap.mii.ui.composite.TagColorPicker(paramName);
+						}
+					}else if(context == "48") {  // Context --> Opacity
+						if(defaultValue != "" && defaultValue != undefined && defaultValue != null){	
+							stringInput = new sap.ui.commons.Slider({
+								id :paramName,
+								tooltip: oBundle.getText("XCKL_OPACITY"),
+								min: 1,
+								max: 100,
+								value: (parseFloat(defaultValue)*100),
+								totalUnits: 10,
+								smallStepWidth: 10
+							}
+							);
+						}else{
+							stringInput = new sap.ui.commons.Slider({
+								id : 'opacitySlider',
+								tooltip: 'Opacity Slider',
+								min: 1,
+								max: 100,
+								value: 100,
+								totalUnits: 10,
+								smallStepWidth: 10
+							}
+							);
+						}
+					}
+					else if(context == SSCE_CONTEXT.QUERYTEMPLATE){
+						var queryObject = Settings.General.Parameters[i].QueryObject;
+						stringInput = createFieldForQueryData(paramName,queryObject, defaultValue);
+
+					}else if (context == SSCE_CONTEXT.SESSION_PARAMETER){
+						//Getting the value to be shown for the session parameter
+						var defaultValue = window[paramName];
+						var uriStringValue = jQuery.sap.getUriParameters().get(paramName);
+						if(uriStringValue != null && uriStringValue != "" && uriStringValue != undefined ){
+							defaultValue = uriStringValue;
+						}
+						//For Session parameter creation of value help
+						stringInput = new sap.m.Input(paramName, {value : defaultValue ,width : "200px" });
+					}
+					else{					
+						stringInput = new sap.m.Select(paramName, {selectedKey : defaultValue , width : "200px"});
+
+						stringInput = createFieldByContext(context, i5SPC_CHART_TYPES, i5CHART_TYPES, i5GRID_TYPES, stringInput);
+					}
+					inputListItem.addCell(label);
+					inputListItem.addCell(stringInput);
+				} else if (type != "" && type == oBundle.getText("XSNT_INTEGER")) {
+					var defalultIntegerValue = paramValue;
+
+					var uriIntegerValue = jQuery.sap.getUriParameters().get(paramName);
+					inputListItem = new sap.m.ColumnListItem();
+					var label = new sap.m.Label( {
+						text : paramName
+					});
+					if(uriIntegerValue != "" && uriIntegerValue != undefined ){
+						defalultIntegerValue = uriIntegerValue;
+					}
+					if(defalultIntegerValue != undefined && defalultIntegerValue != "" && defalultIntegerValue != null){
+						var isValid =validateIntegerField(defalultIntegerValue);
+						var integerInput = new sap.m.Input(paramName, {
+							width : "200px", value:defalultIntegerValue
+						});
+					}else{
+
+						var integerInput = new sap.m.Input(paramName, {
+							width : "200px"
+						});
+
+					}
+					if(isValid !== undefined && !isValid){
+						integerInput.setValueState(sap.ui.core.ValueState.Error);
+					}
+					integerInput.attachChange(function(event){
+						event.preventDefault();
+						if(integerInput.getValue() != ""){
+							var valid =validateIntegerField(integerInput.getValue()); 
+							if(valid){
+								sap.ui.getCore().byId(integerInput.getId()).setValueState(sap.ui.core.ValueState.None);
+								sap.ui.getCore().byId("parameterSubmit").setEnabled(true);
+							}else{
+								sap.ui.getCore().byId(integerInput.getId()).setValueState(sap.ui.core.ValueState.Error);
+								sap.ui.getCore().byId("parameterSubmit").setEnabled(false);
+							}}else{
+								sap.ui.getCore().byId(integerInput.getId()).setValueState(sap.ui.core.ValueState.None);
+							}
+
+					});
+					inputListItem.addCell(label);
+					inputListItem.addCell(integerInput);
+				} else if (type != "" && type == oBundle.getText("XSNT_DOUBLE")) {
+					var defaultDoubleValue = paramValue;
+					var uriDoubleValue = jQuery.sap.getUriParameters().get(paramName);
+					inputListItem = new sap.m.ColumnListItem();
+					var label = new sap.m.Label( {
+						text : paramName
+					});
+					if(uriDoubleValue != "" && uriDoubleValue != undefined && uriDoubleValue != null){
+						defaultDoubleValue = uriDoubleValue;
+					}
+					if(defaultDoubleValue != "" && defaultDoubleValue != undefined && defaultDoubleValue != null){
+						var isValid =validateDoubleField(defaultDoubleValue);
+						var doubleInput = new sap.m.Input(paramName, {
+							width : "200px", value:defaultDoubleValue
+						});
+					}else{
+
+						var doubleInput = new sap.m.Input(paramName, {
+							width : "200px"
+						});
+
+					}
+					if(isValid !== undefined && !isValid){
+						doubleInput.setValueState(sap.ui.core.ValueState.Error);
+					}
+					doubleInput.attachChange(function(event){
+						event.preventDefault();
+						if(doubleInput.getValue() != ""){
+							var valid =validateDoubleField(doubleInput.getValue()); 
+							if(valid){
+								sap.ui.getCore().byId(doubleInput.getId()).setValueState(sap.ui.core.ValueState.None);
+								sap.ui.getCore().byId("parameterSubmit").setEnabled(true);
+							}else{
+								sap.ui.getCore().byId(doubleInput.getId()).setValueState(sap.ui.core.ValueState.Error);
+								sap.ui.getCore().byId("parameterSubmit").setEnabled(false);
+							}
+						}else {
+							sap.ui.getCore().byId(doubleInput.getId()).setValueState(sap.ui.core.ValueState.None);
+						}
+
+					});
+					inputListItem.addCell(label);
+					inputListItem.addCell(doubleInput);
+				} else if (type != "" && type == oBundle.getText("XSNT_BOOLEAN")) {
+					var defaultBooleanVlaue = paramValue;
+					var uriBooleanValue = jQuery.sap.getUriParameters().get(paramName);
+					inputListItem = new sap.m.ColumnListItem();
+					var label = new sap.m.Label( {
+						text : paramName
+					});
+					if(uriBooleanValue != "" && uriBooleanValue != undefined && uriBooleanValue != null){
+						defaultBooleanVlaue = uriBooleanValue;
+					}
+					if(defaultBooleanVlaue != "" && defaultBooleanVlaue != undefined && defaultBooleanVlaue != null){
+						var dropDown = new sap.m.Select(paramName, {selectedKey:defaultBooleanVlaue,
+							items : [ new sap.ui.core.Item( {
+								key : "true",
+								text : oBundle.getText("XLBL_TRUE")
+							}), new sap.ui.core.Item( {
+								key : "false",
+								text : oBundle.getText("XLBL_FALSE")
+							}) ]
+						});
+					}else{
+
+						var dropDown = new sap.m.Select(paramName, {
+							items : [ new sap.ui.core.Item( {
+								key : "true",
+								text : oBundle.getText("XLBL_TRUE")
+							}), new sap.ui.core.Item( {
+								key : "false",
+								text : oBundle.getText("XLBL_FALSE")
+							}) ]
+						});
+
+					}
+					inputListItem.addCell(label);
+					inputListItem.addCell(dropDown);
+
+				} else if(type !="" && type== oBundle.getText("XLBL_TIMESTAMP")){
+
+					var uriDateTimeValue = jQuery.sap.getUriParameters().get(paramName);
+					var defaultDateTimeValue = paramValue;
+					inputListItem = new sap.m.ColumnListItem();
+					var label = new sap.m.Label( {
+						text : paramName
+					});
+					if(uriDateTimeValue != "" && uriDateTimeValue != undefined && uriDateTimeValue != null){
+						defaultDateTimeValue = uriDateTimeValue;
+					}
+					if(defaultDateTimeValue != "" && defaultDateTimeValue != undefined && defaultDateTimeValue != null){	
+
+						var  valueTypeFiled = new sap.m.DateTimeInput(paramName,{type:"DateTime" ,value:defaultDateTimeValue, displayFormat: "MM/dd/yyyy HH:mm:ss" , valueFormat:"MM/dd/yyyy HH:mm:ss"});
+					}else{
+						var  valueTypeFiled = new sap.m.DateTimeInput(paramName,{type:"DateTime" ,displayFormat: "MM/dd/yyyy HH:mm:ss" , valueFormat:"MM/dd/yyyy HH:mm:ss"});
+					}
+
+					inputListItem.addCell(label);
+					inputListItem.addCell(valueTypeFiled);
+
+				}
+				list.addItem(inputListItem);
+			}
+		}
+		metadataParamsDialog.addContent(list);
+		metadataParamsDialog.open();
+	}
+}
+ 
+function showAlerts(){
+	if(typeof showAlert == "undefined" || showAlert == "N" ){
+		return;
+	}
+	jQuery.sap.require("sap.m.library");
+	jQuery.sap.registerModulePath("CompositionEnvironment.Views", "/XMII/CompositionEnvironment/Views"); 
+	sap.ui.localResources("CompositionEnvironment");
+	var alertsView = sap.ui.view({
+		viewName: 'CompositionEnvironment.Views.Alerts',
+		width: '100%',
+		height: '100%',
+		type: sap.ui.core.mvc.ViewType.JS
+	});
+}
+function showToolBar(){
+
+	var allowUserInput = Settings.General.ParametersSettings && Settings.General.ParametersSettings.AllowUserInput;
+	if((isObjectNotNull(showAlert) && showAlert == "Y") ||  (isObjectNotNull(timePeriod) && timePeriod) || ((isObjectNotNull(picTree) && picTree)) || ((isObjectNotNull(allowUserInput) && allowUserInput))){
+		$("#parentDiv").before("<div id=\"runtimeToolBar\"></div>");
+
+		jQuery.sap.registerModulePath("CECustomControls", "/XMII/CompositionEnvironment/js/customControls");
+		jQuery.sap.require("CECustomControls.RuntimeToolbar");
+		toolBar_runtimeToolBar =  new com.sap.mii.ui.RuntimeToolbar("toolBar_runtimeToolBar1",{height :"30px",timePeriod :timePeriod, picTree :picTree, objectType : Settings.General.ObjectType, selectedNode : Settings.General.SelectedNode, groupName : Settings.General.GroupName});
+		var toolbarLayout = new sap.ui.layout.VerticalLayout("Runtime_toolbar_layout",{ width:"100%"});
+		toolbarLayout.addContent(toolBar_runtimeToolBar);
+		showAlerts();
+		toolbarLayout.placeAt("runtimeToolBar");
+
+	}
+
+}
+
+function getSSCEMessageBundle(){
+	
+}
+
+function executeQueryTemplate(queryTemplatePath, parameters){
+	var queryURL = "/XMII/Illuminator?service=CombineQueryRowsets&content-type=text/json&QueryTemplate=";
+	var queryURL = queryURL + queryTemplatePath;
+	if(isObjectNotNull(parameters) == false)
+		parameters = {};
+	var data = getDataFromServer(queryURL, parameters);
+	if(isObjectNotNull(data) && isObjectNotNull(data.Rowsets) && isObjectNotNull(data.Rowsets.Rowset)){
+		hideBusyIndicator();
+		return data.Rowsets.Rowset[0];
+	}
+	hideBusyIndicator();
+}
+
+function createFieldForQueryData(paramName,queryObject, defaultValue){
+	var displayField;
+
+	//get parameters to pass to query
+	var parameters = {};
+	if(isObjectNotNull(queryObject) || (isObjectNotNull(queryObject) && isObjectNotNull(queryObject.Parameters))){
+		for(var i in queryObject.Parameters ){
+			var item = queryObject.Parameters[i];
+			parameters[item.Name] = item.Value;
+		}
+	}else{
+		displayField = new sap.m.Input(paramName,{value: defaultValue});
+		return displayField;
+	}
+	//Get the data from the query.
+	var rowset = executeQueryTemplate(queryObject.Path  + "/" + queryObject.Name, parameters);
+	var columnName = -1;
+	if(isObjectNotNull(rowset) && isObjectNotNull(rowset.Columns) && isObjectNotNull(rowset.Columns.Column)){
+		for(var c=0; c < rowset.Columns.Column.length; c++){
+			var column = rowset.Columns.Column[c];
+			if(column.SourceColumn == queryObject.column){
+				columnName = column.Name;
+				break;
+			}
+		}
+	}
+
+	var rows = rowset.Row;
+
+	if(isObjectNotNull(rows)){
+		var listModel = new sap.ui.model.json.JSONModel();
+		listModel.setData({modelData:rows});
+	}
+	var setDataOnSelectDialog = function(){
+		listModel.setData({modelData:rows});
+	};
+	var onSearch = function(event){
+		setDataOnSelectDialog();
+		var filterValue = event.getParameter("value");
+		var items = event.getSource().getBinding("items").oList;
+
+		//replace * in filterValue with \\S*
+		if(filterValue.indexOf("*") > -1) {
+			filterValue = filterValue.replace("*", "\\S*");
+		}
+		var re = new RegExp(filterValue,'i');
+
+		var newList = jQuery.grep(items, function(element, index){
+			return re.test(element[columnName]);
+		});
+		//set new jsonmodel to data
+		listModel.setData({modelData:newList});
+	};
+	//create a value help field or select field depending on the configuration.
+	if(isObjectNotNull(queryObject.showAs) && queryObject.showAs == "valueHelp"){
+		//Create the list item template
+		var itemTemplate = new sap.m.StandardListItem({
+			path: "/",
+			title : "{"+columnName+"}"
+		});
+		var createSelectDialog = function(){
+			var selectDialog = new sap.m.SelectDialog({
+				title: columnName,
+				noDataText:"No Data",
+				confirm : function(oEvent) {
+				displayField.setValue(oEvent.getParameter("selectedItems")[0].mProperties.title);
+			},
+			search: onSearch,
+			multiSelect: false
+			}).addStyleClass("sapUiSizeCompact").bindAggregation("items","/modelData",itemTemplate);
+			selectDialog.setModel(listModel);
+			selectDialog.open();
+
+		};
+		displayField = new sap.m.Input(paramName,{value: defaultValue, showValueHelp: true, valueHelpRequest: function(event){
+			createSelectDialog();
+		}});
+	}else{
+		//Create the list item template
+		var itemTemplate = new sap.ui.core.ListItem({
+			path: "/",
+			key : "{"+columnName+"}",
+			text: "{"+columnName+"}"
+		});
+		displayField = new sap.m.Select(paramName, {width : "200px"});
+		listModel.getData().modelData.splice(0,0,blankSelection);
+		displayField.setModel(listModel);
+		displayField.bindItems("/modelData",itemTemplate);
+		var blankSelection = {};
+		blankSelection[columnName] = "";
+		displayField.setSelectedKey(defaultValue);
+
+	}
+	return displayField;
+}
+/**
+ * Function responsible to create the value help request dialog for the session parameters
+ * @param inputField
+ * @return
+ */
+function createValueHelpDialogForSessionParameter(inputField){
+	//Creation of dialog
+	var valueHelpDialog = new sap.m.Dialog({title : oBundle.getText("XLBL_SESSION_PARAMETERS")});
+	//Attach after close function
+	valueHelpDialog.attachAfterClose(function(){
+		valueHelpDialog.destroyContent();
+		valueHelpDialog.destroyButtons();
+	}, valueHelpDialog);
+
+	//Template for list
+	var listTemplate = new sap.m.ColumnListItem({
+		cells: [ new sap.m.Label({text : "{Name}"})]
+	});
+	//Creation of list
+	var contentList = new sap.m.List({width :"100%",
+		mode : sap.m.ListMode.SingleSelectMaster,
+		columns :[ new sap.m.Column({ width :"40%"}) /*,header: new sap.m.Label({text :oBundle.getText("XLBL_SESSION_PARAMETERS")}).addStyleClass("pageStyleClass")})*/
+		]})/*.addStyleClass("addLayoutPopupPadding").addStyleClass("sapUiAcd")*/;
+	var jsonModel = new sap.ui.model.json.JSONModel();
+	//if the parameter is already provided just update model data
+	if(isObjectNotNull(SSCESession.Parameters) && isArrayEmpty(SSCESession.Parameters)){
+		//Creation of parameter
+		var urlParameter = {"Mode" :"list" , "content-type" :"text/json"};
+		//Getting the data
+		var data = getDataFromServer(XMII_PROP_ACCESS_SERVLET_URL,urlParameter);
+		//Checking whether the data has rows or not
+		if(isObjectNotNull(data) && isObjectNotNull(data.Rowsets) && isObjectNotNull(data.Rowsets.Rowset) &&
+				isArrayNotEmpty(data.Rowsets.Rowset) && isObjectNotNull(data.Rowsets.Rowset[0]) && isObjectNotNull(data.Rowsets.Rowset[0].Row)){
+			SSCESession.Parameters = data.Rowsets.Rowset[0].Row;
+			jsonModel.setData({modelData : SSCESession.Parameters});
+		}
+	}else{
+		jsonModel.setData({modelData : SSCESession.Parameters});
+	}
+
+	contentList.setModel(jsonModel);
+	//Setting the column list items to the table's items and giving the path to get the value to render the rows
+	contentList.bindAggregation("items", {
+		path: "/modelData",
+		template : listTemplate
+	});
+
+
+	//if the input field has value, set that items in content list selected
+	if(inputField.getValue() != ""){
+		var indexOfItem = -1;
+		var modelData = contentList.getModel().getData().modelData;
+		for(var i = 0 ; i < modelData.length ; i++){
+			if(modelData[i].Name == inputField.getValue()){
+				indexOfItem = i;
+				break;
+			}
+		}
+		if(indexOfItem != -1){
+			var itemToBeSelected = contentList.getItems()[i];
+			contentList.setSelectedItem(itemToBeSelected);
+		}
+	}
+	// add filter for search
+	var searchField = new sap.m.SearchField({placeholder: oBundle.getText("XLBL_SEARCH_PARAM"),  search: function (oEvt) {
+		var aFilters = [];
+		var sQuery = oEvt.getSource().getValue();
+		if (sQuery && sQuery.length > 0) {
+			var filter = new sap.ui.model.Filter("Name", sap.ui.model.FilterOperator.Contains, sQuery);
+			aFilters.push(filter);
+		}
+		// update list binding
+		var binding = contentList.getBinding("items");
+		binding.filter(aFilters, "Application");
+	}});
+	//Adding the content
+	valueHelpDialog.addContent(searchField);
+	valueHelpDialog.addContent(contentList);
+
+	//opening the dialog
+	valueHelpDialog.open();
+	//Creation of OK button
+	valueHelpDialog.addButton(new sap.m.Button({text: oBundle.getText("XBUT_OK"),press  : function(){
+		if(isArrayNotEmpty(contentList.getSelectedContexts())){
+			//Getting the item selected
+			var path = contentList.getSelectedContexts()[0].getPath();
+			var index = path.substring(path.lastIndexOf("/")+1);
+
+			var modelData = contentList.getSelectedContexts()[0].getModel().getData().modelData[index];
+			//Setting the value back to the input field
+			inputField.setValue(modelData.Name);
+			inputField.fireChange({"SessionParameter" :"true"});
+		}
+		valueHelpDialog.close();
+	}}));
+	//Creation of CANCEL button
+	valueHelpDialog.addButton(new sap.m.Button({text: oBundle.getText("XBUT_CANCEL"),press  : function(){
+		valueHelpDialog.close();
+	}}));
+
+}
+
+function validateURL(originalURL,existingURL){
+	if(existingURL.substring(0, originalURL.length) === originalURL){
+		return true;
+	}else{
+		return false;
+	}
+} 
+function validateIntegerField(paramValue){
+	return /^[0-9]{1,10}$/.test(paramValue);
+}
+
+function validateDoubleField(paramValue){
+	return /^[+-]?\d+(\.\d+)?$/.test(paramValue);	
+}
+
+function validateColorField(paramValue){
+	return /^#[a-f0-9]{6}$/i.test(paramValue);
+}
+function validateStringField(paramValue){
+	return !(/["^:$\[\]|%@#&/\\,\.()=;+'<>\?!\*`~{}]/.test(paramValue));
+}

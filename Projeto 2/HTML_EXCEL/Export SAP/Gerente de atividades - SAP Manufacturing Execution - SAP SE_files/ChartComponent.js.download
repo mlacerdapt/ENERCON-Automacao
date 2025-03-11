@@ -1,0 +1,2064 @@
+function getJSDoc() {
+	var x = '';
+	function getAddMethods() {
+		var addMethodStr = '';
+		var propNames = [ 'ShowMessageArea:boolean', 'Title:String', 'GridLineColor:Color', 'ShowGridLine:boolean', 'MarkerSize:int', 'MarkerStyle:int', 
+		                  'LegendDescriptionLabel:String', 'EnableItemSelection:boolean', 'ShowValueByMarker:boolean', 'ShowAppToolBar:boolean',
+		                  'TitleFontSize:int', 'TitleFontFace:String', 'TitleColor:Color', 'ShowTitle:boolean', 'LabelColumns:String',
+		                  'ValueColumns:String', 'AllowSpecificationLimitAlarm:boolean', 'UpperLimitColumn:String', 'CenterLimitColumn:String',
+		                  'LowerLimitColumn:String', 'UpperLimit:double', 'CenterLimit:double', 'LowerLimit:double', 'UpperLimitLineColor:Color', 'CenterLimitLineColor:Color',
+		                  'LowerLimitLineColor:Color','ChartType:String', 'TitleFontStyle:int', 'TitlePosition:String',
+		                  'Glossy:boolean','ShowToolTip:boolean', 'GlobalAutoScale:boolean:YAxisIndex', 'UseScaling:boolean:YAxisIndex', 'GlobalMinRange:double:YAxisIndex', 'GlobalMaxRange:double:YAxisIndex',
+		                  'ChartBorderColor:Color','ChartBackgroundColor:Color','UseLocaleFormat:boolean','DateFormat:String','ShowLegend:boolean','ShowTimeBar:boolean',
+		                  'ShowXAxis:boolean','XAxisLabel:String','XAxisLabelColor:Color','XAxisFontFace:String','XAxisFontSize:int','XAxisFontStyle:int','XAxisTickColor:Color',
+		                  'XAxisDateFormat:String','XAxisTimeFormat:String','XAxisNumberFormat:String','ShowYAxis:boolean:YAxisIndex','ShowYAxisLabel:boolean:YAxisIndex','YAxisLabel:String:YAxisIndex','YAxisLabelColor:Color:YAxisIndex',
+		                  'YAxisFontFace:String:YAxisIndex','YAxisFontSize:int:YAxisIndex','YAxisFontStyle:int:YAxisIndex','YAxisTickColor:Color:YAxisIndex','YAxisNumberFormat:String','EnableAutoRefresh:boolean','AutoRefresh:boolean','RefreshRate:int','ShowXAxisLabel:boolean',
+		                  'InitialUpdate:boolean','ChartShape:String','HorizontalGridLineCount:int','NumberofVerticalGridLines:int','XAxisStart:double','XAxisEnd:double',
+		                  'XAxisUnitLabel:String','MajorTicks:int','MinorTicks:int','ColorIndicator:String', 'AllValueColumns:boolean', 'BackgroundTransparent:String','Filling:boolean','UseFillingColor:boolean',
+		                  'FillingColor:Color','Opacity:double','CompatibilityMode:boolean','XAxisLabelAutoRotation:boolean','XAxisRotationAngle:String','DualYAxis:boolean','ValueColumns2:String','TimeSeries:boolean','EnableZooming:boolean','EnableVerticalMarker:boolean','InterpolateLines:boolean'];
+	
+		for (prop in propNames) {
+			var propertyset = propNames[prop].split(':');
+			if(propertyset.length == 3){
+				var getStr = 'String:' + 'get' + propertyset[0] + '('+ propertyset[2]+ ');';
+				var setStr = 'void:' + 'set' + propertyset[0] + '('+propertyset[2]+','+propertyset[1]+');';
+				addMethodStr = addMethodStr + getStr + setStr;
+			}else{
+				var getStr = 'String:' + 'get' + propertyset[0] + '()' + ';';
+				var setStr = 'void:' + 'set' + propertyset[0] + '('+propertyset[1]+')' + ';';
+				addMethodStr = addMethodStr + getStr + setStr;
+			}
+		}
+
+		return addMethodStr;
+	}
+	;
+	x = x + getAddMethods();
+	return x;
+};
+
+document.write('<scr' + 'ipt type="text/javascript" src="/XMII/JavaScript/' + (miiModePath || 'minified')+ '/'+'ContextMenu.js"></scr' + 'ipt>');
+
+var pointStructure;
+
+var labelColArray;
+var uniqueValues = [];
+
+/***
+ * @Namespace com.sap.xmii.chart.ui5
+ */
+com.sap.xmii.chart.ui5 = com.sap.xmii.chart.ui5 || {};
+
+com.sap.xmii.chart.ui5.ChartComponent = function() {
+	// change some attributes' type to object
+	this.datasetSelectionMap = {};
+	this.bubble_scatterDataPointArray = {};
+	// end of the type change	
+};
+
+com.sap.xmii.chart.ui5.ChartComponent.prototype = {
+
+		i5ChartInstance : '',
+		chartPropertyConfig : '',
+		width : '',
+		height : '',
+		chartPosId : '',
+		legendItems : '',
+		datapointItems : '',
+		chartModel : '',
+		chartCompnModel : '',
+		type : '',
+		dataset : '',
+		oModel : '',
+		selectedPoint : -1,
+		selectedDataSetName : '',
+		selectedDataSetIndex : -1,
+		ui5ChartElement : '',
+		noOfDataPoints : '',
+		measures : '',
+		fnOnSelectEvent : '',
+		fnOnLegendSelectEvent : '',
+		datasetSelectionMap : '',
+		mouseClickSimulated : false,
+		fontWeight : '',
+		fontStyle : '',
+		markerStyle : '',
+		bubble_scatterDataPointArray : '',
+		showResetZoom : false,
+		dataPointValue:'',
+		legendValue:'',
+		getUI5ChartElement : function() {
+			return this.ui5ChartElement;
+		},
+
+		/**
+		 * Getters and Setters being created for additional Props
+		 * @private
+		 * @return void
+		 */
+		addGettersAndSetters : function() {
+			for (prop in com.sap.xmii.common.util.DisplayTempPropNames) {
+				var propName = com.sap.xmii.common.util.DisplayTempPropNames[prop];
+				var propValue = this.chartPropertyConfig.getProperty(propName);
+				com.sap.xmii.common.util.MIIi5Util.defineProperty(this, propName,propValue);
+
+				//prop is a YAxis property
+				if(com.sap.xmii.common.util.i5ChartYAxisProps.indexOf(propName) != -1) {
+					//create getter & setter
+					var getFnName = 'this.get' + propName;
+					var funcnSynt = 'function(index){  if(arguments.length == 0 || index == 1) {';
+					var returnSynt = 'return this.chartPropertyConfig.getProperty(' +  '\'' + propName + '\');';
+					//var getterFnToAssign = 'this.' + propName;
+					//var sufffixedPropName = propName+'.'+'index';//eval(propName +'index');
+					var elseHandler = '} else { var pName =  ' +  '\'' + propName + '\'+\'.\'+index; return this.chartPropertyConfig.getProperty(pName);}';
+					var closingSyntax = '}';
+					//Replacing of eval code
+					//eval(getFnName + '=' + funcnSynt + returnSynt + elseHandler + closingSyntax);
+					  const actionToCall =  new Function("return "+ funcnSynt + returnSynt + elseHandler + closingSyntax);
+					  this["get"+propName]  = actionToCall();
+					//Function("return "+getFnName + '=' + funcnSynt + returnSynt + elseHandler + closingSyntax)();
+					//end of code
+					//setter
+					var setFnName = 'this.set' + propName;
+					var setFuncnSynt = 'function(index, val){ if(arguments.length == 1) {';
+					//this.chartPropertyConfig.setProperty("ShowYAxis", axisId);
+					var setProp = 'this.chartPropertyConfig.setProperty(' + '\'' + propName + '\',val);';
+
+					var setPropWithIndex = 'var pName = ' +  '\'' + propName + '\'+\'.\'+index; this.chartPropertyConfig.setProperty(pName,val);';
+					var elseHandler = '} else { if(index == 1) {'+setProp+ '} else {'+setPropWithIndex +'}}';
+					//Replacing eval code
+					//eval(setFnName + '=' + setFuncnSynt + setProp + elseHandler + closingSyntax);  
+					const actionToCall2 =  new Function("return "+ setFuncnSynt + setProp + elseHandler + closingSyntax);
+					 this["set"+propName]  = actionToCall2();
+					//Function("return "+setFnName + '=' + setFuncnSynt + setProp + elseHandler + closingSyntax)();
+					//end of code
+				} else {
+
+					/*  var ls = 'this' + '.' + propName;
+              var rs = 'this.chartPropertyConfig.getProperty(' + '\'' + propName + '\')';
+              //eval(ls + '=' + rs);*/
+					// Create and Assign the getPropName function with this.propName
+					// ex.this.getTitle = this.Title so as to
+					// call as a function
+					var getFnName = 'this.get' + propName;
+					var funcnSynt = 'function(){ ';
+					var returnSynt = 'return ';
+					var getterFnToAssign = 'this.' + propName;
+					var closingSyntax = '}';
+					//Replacing eval code
+					//eval(getFnName + '=' + funcnSynt +returnSynt + getterFnToAssign + closingSyntax);
+					const actionToCall3 =  new Function("return "+ funcnSynt +returnSynt + getterFnToAssign + closingSyntax);
+					   this["get"+propName]  = actionToCall3();
+					//Function("return "+getFnName + '=' + funcnSynt +returnSynt + getterFnToAssign + closingSyntax)();
+					//end of code
+					// Create the Setter Function and assign with this.setTitle
+					var setFnName = 'this.set' + propName;
+					var setFuncnSynt = 'function(val){ ';
+					var setProp = 'this.chartPropertyConfig.setProperty(' + '\'' + propName + '\',val);';
+					var setterFnToAssign = 'this.' + propName + '=' + 'val';
+					//Replacing eval code
+					//eval(setFnName + '=' + setFuncnSynt + setProp + setterFnToAssign + closingSyntax);
+					const actionToCall4 =  new Function("return "+ setFuncnSynt + setProp + setterFnToAssign + closingSyntax);
+					   this["set"+propName]  = actionToCall4();
+					//Function("return "+setFnName + '=' + setFuncnSynt + setProp + setterFnToAssign + closingSyntax)();
+					//end of code
+				}
+			}
+		},
+
+		/**
+		 * 
+		 * @param chartConfig
+		 * @param i5Chartmodel
+		 * @param chartObj
+		 */
+		init : function(chartConfig, i5Chartmodel, chartObj) {
+			this.chartObj = chartObj;
+			this.chartPropertyConfig = chartConfig;
+			this.i5SPCChartModel = i5Chartmodel;
+			this.i5ChartCompnModel = new com.sap.xmii.chart.model.ChartComponentModel(
+					i5Chartmodel, this.chartPropertyConfig);
+			this.addGettersAndSetters();
+			//Y-axis scaling
+			var useScaling = this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.YAXIS_USE_SCALING);
+			var autoScaling = this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.AUTO_SCALING);
+			this.applyScaling = true;
+			if(useScaling) {
+				this.min = parseFloat(this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.YAXIS_MIN_RANGE));
+				this.max = 	parseFloat(this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.YAXIS_MAX_RANGE));
+			}else if(autoScaling && i5Chartmodel && i5Chartmodel.getModelData() && i5Chartmodel.getModelData().getRowset(0) && i5Chartmodel.getModelData().getRowset(0).Row) {
+				var dataset = i5Chartmodel.getModelData().getRowset(0).Row;
+				var valueColumns = chartConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.VALUE_COLUMNS);
+				if(dataset != undefined){
+					var maxNmin = com.sap.xmii.common.util.MIIi5Util.scaleDatasetChart(dataset, valueColumns);
+					this.max = maxNmin.max;
+					this.min = maxNmin.min;
+				}	
+			} else {
+				//applies default UI5 scaling
+				this.applyScaling = false;
+				this.max = 0;
+				this.min = 0;
+			}
+			//Y-axis 2 scaling
+			var dualYAxis =this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.DUAL_YAXIS);
+			if(dualYAxis){
+				var useScaling2 = this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.YAXIS_USE_SCALING_2);
+				var autoScaling2 = this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.AUTO_SCALING_2);
+				this.applyScaling2 = true;
+				if(useScaling2) {
+					this.min2 = parseFloat(this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.YAXIS_MIN_RANGE_2));
+					this.max2 = parseFloat(this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.YAXIS_MAX_RANGE_2));
+				}else if(autoScaling2 && i5Chartmodel && i5Chartmodel.getModelData() && i5Chartmodel.getModelData().getRowset(0) && i5Chartmodel.getModelData().getRowset(0).Row) {
+					var dataset = i5Chartmodel.getModelData().getRowset(0).Row;
+					var valueColumns = chartConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.VALUE_COLUMNS_2);
+					var maxNmin = com.sap.xmii.common.util.MIIi5Util.scaleDatasetChart(dataset, valueColumns);
+					this.max2 = Math.ceil(maxNmin.max);
+					this.min2 = Math.ceil(maxNmin.min);
+				} else {
+					//applies default UI5 scaling
+					this.applyScaling2 = false;
+					this.max2 = 0;
+					this.min2 = 0;
+				}
+			}
+		},
+
+		create : function() {
+			this.ui5ChartElement = new sap.ui.commons.layout.VerticalLayout("empty_"+com.sap.xmii.common.util.MIIi5Util.generateGuid(), {width : this.width, height : this.height});
+			var content = new sap.viz.ui5.Line( {
+				width : this.width,
+				height : this.height,
+				//dataset : this.i5SPCChartCompnModel.upperDataset,
+				noData : new sap.ui.commons.Label("l1_"+com.sap.xmii.common.util.MIIi5Util.generateGuid(),{text:"", design:sap.ui.commons.LabelDesign.Bold})
+			});
+			//content.setModel(this.i5SPCChartCompnModel.upperChartModel);
+			this.ui5ChartElement.addContent(content);
+			return this.ui5ChartElement;
+		},
+
+		chartReady : function(oControl) {
+			//Comment added to check deployment issue
+			jQuery.sap.log.info("registering Event listeners!!");
+			var chartId = this.chartPosId;
+			var compatibilityMode = !(this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.COMP_MODE));
+			if(compatibilityMode === true && this.getChartType() != com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_GAUGE){
+				//set background color 
+				$('#'+chartId).find(".v-background-body.viz-plot-background.v-morphable-background").css({'fill': this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.CHART_BACKGROUND_COLOR)});
+				//set border color
+				$('#'+chartId).find('.v-m-plot').find('rect.v-background-body').css("stroke",this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.CHART_BORDER_COLOR));
+				//if border color is anything except white and grey (default), set the axis color as border color
+				if(this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.CHART_BORDER_COLOR) != "#FFFFFF" && this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.CHART_BORDER_COLOR) != "#DFDFDF"){
+					//explicitly set the yaxis color to chart border color
+					$('#'+chartId).find('.v-valueaxisline.v-line').css({'stroke':this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.CHART_BORDER_COLOR)});
+				}
+				this.legendItems = $('#'+chartId).find('.v-legend-element.v-legend-item');
+			}else{
+				this.legendItems = $('#'+chartId).find(com.sap.xmii.common.util.ui5Constants.V_ROW);
+				$('#'+chartId).find('.v-m-yAxis').find('.v-valueaxisline').css({'stroke':'#DFDFDF'});
+				$('#'+chartId).find('.v-m-xAxis').find('.v-categoryaxisline').css({'stroke':'#DFDFDF'});
+			}
+			for ( var index = 0; index < this.legendItems.length; index++) {
+				var legendItem = this.legendItems[index];
+				$(legendItem).unbind("click");
+				$(legendItem).bind("click", this.i5ChartInstance, this.legendEventListener);
+			}
+
+			if(this.chartCompnModel.chartModel.queryObject != undefined && "CatalogQuery" === this.chartCompnModel.chartModel.queryObject.queryMetaData.Type && "PICAnalysis" === this.chartCompnModel.chartModel.queryObject.queryMetaData.Mode){
+				if(null !== this.chartObj.LegendDescriptionLabel && null !== this.chartObj.LegendDescriptionLabel.match(/^Namespace/)){
+					var legendRows = this.legendItems;
+					var legendNamespaceObjs = new Array();
+					var valueColumns = this.chartObj.getValueColumns();
+					var legendDescription = this.chartObj.LegendDescriptionLabel;
+					var compMode = this.chartObj.getCompatibilityMode();
+					if(!compMode){
+						$(legendRows).each(function(index, legendRow){
+							var legendText,legendRect; 
+							var namespaceObj = new Object();
+							if(compatibilityMode) {
+								legendText = legendRow.childNodes[2].childNodes[0];
+								legendRect = legendRow.childNodes[0];
+							} else {
+								legendText = legendRow.childNodes[1];
+								legendRect = legendRow.childNodes[2];
+							}
+							namespaceObj.fullText = legendText.textContent;
+							if(null !== $(legendRow).find('title') && $(legendRow).find('title').length > 0){
+								namespaceObj.fullText = $($(legendRow).find('title')[0]).text();
+							}
+							var fullLegendTextArray = legendText.textContent.split(' / ');
+							$.each(fullLegendTextArray, function(i,iLegendText){
+								if(null !== iLegendText.match(/^Root\//) || (valueColumns.split(',').length > 1 && null !== iLegendText.match("Root/"))){
+									var namespaceSplitArray = iLegendText.split('/');
+									namespaceObj.shortText = legendText.textContent.replace(iLegendText,".../" + namespaceSplitArray[namespaceSplitArray.length - 1]);
+								} 
+							});
+							legendNamespaceObjs[index] = namespaceObj;
+							$(legendText).text(function(){return namespaceObj.shortText;});
+							if(!!window.ActiveXObject || "ActiveXObject" in window){
+								var titleNode = document.createElement("title");
+								titleNode.textContent = namespaceObj.fullText;
+								legendRect.appendChild(titleNode);
+								if(compatibilityMode){
+									legendText.parentNode.appendChild(titleNode);
+								}
+							} else {
+								$(legendRect).html("<title>" + namespaceObj.fullText + "</title>");
+								if(compatibilityMode){
+									$(legendText.parentNode).html(legendText.outerHTML + "<title>" + namespaceObj.fullText + "</title>");
+								}
+							}
+						});
+					}
+				}
+			}
+			this.datapointItems = $('#'+chartId).find(com.sap.xmii.common.util.ui5Constants.V_DATAPOINT);
+			for ( var di = 0; di < this.datapointItems.length; di++) {
+				var dataPoint = this.datapointItems[di];
+				$(dataPoint).unbind("click");
+				$(dataPoint).bind("click", this.i5ChartInstance, this.datapointEventListener);
+			}
+			
+			
+			var chartType = this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.CHART_TYPE);
+			if (chartType == com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_SCATTER 
+					|| chartType == com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_BUBBLE) {
+				this.bubble_scatterDataPointArray = this.createSortedDataPointsArray();
+			}
+			if( (chartType == com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_LINE || chartType == com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_CUSTOM ||
+					chartType == com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_BAR || chartType == com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_STACKED_BAR || 
+					chartType == com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_GROUP_BAR)  
+					&& this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.SpecLimits.ALLOW_SPEC_LIMIT_ALARM).toString() ==  com.sap.xmii.common.util.GenericConstants.TRUE) {
+				com.sap.xmii.common.util.MIIi5Util.applySpecificationLimits(this);
+			}else if((chartType == com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_HORIZONTAL_BAR || 
+					chartType == com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_HORIZONTAL_GROUP_BAR)
+					&&(this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.SpecLimits.ALLOW_SPEC_LIMIT_ALARM).toString() ==  com.sap.xmii.common.util.GenericConstants.TRUE)){
+				com.sap.xmii.common.util.MIIi5Util.applySpecificationLimitsforHorizontalBarCharts(this);
+			}
+			this.applyStyling();
+
+			function getLegendGroupItemsCount(that) {
+				var uniqueValues1 = [];
+				if(that.getLabelColumns() != undefined && that.getLabelColumns() != null) {
+					labelColArray = that.getLabelColumns().split(',');
+					if(labelColArray.length > 1) {
+						var lastLabelColumn = labelColArray[labelColArray.length - 1];
+
+						$.each(that.getUI5ChartElement().getModel().oData.miiData.Row, function(index, value) {
+							if ($.inArray(value[lastLabelColumn], uniqueValues1) === -1) {
+								uniqueValues1.push(value[lastLabelColumn]);
+							}
+						});
+					} else if(labelColArray.length == 1){
+						uniqueValues1.push(labelColArray[0]);
+					}
+				}
+				uniqueValues = uniqueValues1.slice();
+				return uniqueValues1.length;
+			}
+
+			//Apply marker style, marker size, Line thickness and Line style if one of the data series type is line
+			if(chartType === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_CUSTOM ||
+					chartType === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_LINE){
+				var dualYAxis = this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.DUAL_YAXIS);
+				var valueColumns = this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.VALUE_COLUMNS).split(",");
+				var legendGroupItemsCount = getLegendGroupItemsCount(this);
+				var totalLegendItems = legendGroupItemsCount * valueColumns.length;
+				var penTypeIndex = 0;
+				var legendIndex = -1;
+				var oMIIDataRows = this.chartCompnModel.chartModel.getModelData().getRowset();
+				var plotPoints = oMIIDataRows.Row.length;
+
+				for(var i=1; i<=totalLegendItems; i++) {
+					if(i<=legendGroupItemsCount) {
+						penTypeIndex = 1;
+					} else {
+						if(i%legendGroupItemsCount == 0)
+							penTypeIndex = i/legendGroupItemsCount;
+						else
+							penTypeIndex = parseInt(i/legendGroupItemsCount) + 1;
+					}
+					if(chartType === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_LINE){
+						this.chartPropertyConfig.setProperty("PenType." + penTypeIndex, 'Line');
+					}
+					com.sap.xmii.common.util.chartConfig.Display["PenShape." + i] = this.chartPropertyConfig.getProperty("PenType." + penTypeIndex);
+				}
+
+				function applyMarkerTypeAndStyle(chartCompObj) {
+					if($('#' + chartCompObj.chartPosId).find('.v-markers').length > 1) {
+						$($('#' + chartCompObj.chartPosId).find('.v-markers')[0]).find('.v-axis1').find('.v-marker').remove();
+					}
+					if($('#' + chartCompObj.chartPosId).find('.v-m-root').find('.v-axis1').length > 2) {
+						$($('#' + chartCompObj.chartPosId).find('.v-m-root').find('.v-axis1')[0]).remove();
+					}
+					//A map has been created for different marker styles with their syntax.
+					var markerSyntaxMap = {'diamond':'M0,-*L*,0 0,* -*,0Z',
+							'circle':'M-*,0 A*,* 0 1,0 *,0 A*,* 0 1,0 -*,0z',
+							'triangleLeft':'M-*,0L*,* *,-*Z',
+							'triangleDown':'M0,*L*,-* -*,-*Z',
+							'triangleRight':'M*,0L-*,* -*,-*Z',
+							'triangleUp':'M0,-*L*,* -*,*Z',
+							'cross':'M-*,-^H-^V-*H^V-^H*V^H^V*H-^V^H-*Z'};
+					var penMarkerStyle, penType, penColor, WBMarkerStyle, WBMarkerSize, ActualMarkerSize, pathDAttributeValue, fillOpacity, lineCounter = 0, lineIndex=0, lineCSSIndex=0, n=0, pathDLegendAttributeValue;
+					var maxPenCount = 32;
+					if(labelColArray != undefined){
+						if(labelColArray.length > 1){
+							maxPenCount = uniqueValues.length;
+						}
+					}
+					var markerStyleIndex = 0;
+					if(compatibilityMode){
+						for(var i=0; i<maxPenCount; i++){
+							penType = com.sap.xmii.common.util.chartConfig.Display["PenShape." + (i+1)];
+							if(chartType === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_CUSTOM){
+								if(penType==="Bar"){
+									markerStyleIndex+=plotPoints;
+								}
+							}
+						}
+					}
+					for(var i = 0; i < maxPenCount; i++){
+						var checkMeasure = false;
+						//Check for VizFrame if there is no line corresponding to a Value Column
+						if(i < valueColumns.length && !dualYAxis && compatibilityMode){
+							var measureName = valueColumns[i];
+							measureName = com.sap.xmii.common.util.MIIi5Util.getColumnName(chartCompObj,measureName);
+							var lineObj = $('#' + chartCompObj.chartPosId).find('.v-datapoint-group').find('.v-lines-group')[lineCSSIndex];
+							if(lineObj != undefined) {
+								var measureCSS = lineObj.__data__.measureNames;
+								if(measureName === measureCSS){
+									checkMeasure = true;
+									lineCSSIndex++;
+								}
+							}
+						}else {
+							checkMeasure = true;
+						}
+						penType = com.sap.xmii.common.util.chartConfig.Display["PenShape." + (i+1)];
+						if(compatibilityMode){
+							if(chartType === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_CUSTOM){
+								if(penType==="Bar"){
+									if(chartCompObj.chartPropertyConfig.getProperty(com.sap.xmii.common.util.SpecLimits.ALLOW_SPEC_LIMIT_ALARM).toString() ==  com.sap.xmii.common.util.GenericConstants.FALSE)
+										legendIndex++;
+									else
+										legendIndex+=3;
+								}
+							}
+						}
+						if((penType != undefined &&
+								(penType === com.sap.xmii.common.util.ChartPropertyConstants.MARKER_STYLE_LINE ||
+										penType === com.sap.xmii.common.util.ChartPropertyConstants.MARKER_STYLE_MARKER)) ||
+										chartType === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_LINE) {
+							lineCounter ++;
+							penMarkerStyle = chartCompObj.chartPropertyConfig.getMarkerStyle(parseInt(chartCompObj.chartPropertyConfig.getProperty("PenMarkerStyle." + (i+1))));
+							WBMarkerStyle = chartCompObj.chartPropertyConfig.getMarkerStyle(parseInt(chartCompObj.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.MARKER_STYLE)));
+							var markerStyle = chartCompObj.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.MARKER_STYLE);
+							if(markerStyle<0){
+								if(penMarkerStyle != undefined) {
+									if(chartCompObj.chartPropertyConfig.getProperty("PenMarkerStyle." + (i+1)) == 0)
+										fillOpacity = 0;
+									else 
+										fillOpacity = 1;
+								}else{
+									penMarkerStyle = 'circle';
+									fillOpacity = 0;
+								}
+							}else{
+								if(WBMarkerStyle != undefined) {
+									penMarkerStyle = WBMarkerStyle;
+								}
+								else if(penMarkerStyle != undefined) {
+									if(chartCompObj.chartPropertyConfig.getProperty("PenMarkerStyle." + (i+1)) == 0)
+										fillOpacity = 0;
+									else 
+										fillOpacity = 1;
+								} else {
+									penMarkerStyle = 'circle';
+									fillOpacity = 0;
+								}
+							}
+							WBMarkerSize = parseInt(chartCompObj.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.MARKER_SIZE));
+							penColor = chartCompObj.chartPropertyConfig.getProperty("PenColor." + (i+1));
+							if(isNaN(WBMarkerSize))
+								WBMarkerSize = 4;//default it to 4 which is the smallest size in the Workbench
+
+							//UI5 marker size differs from Workbench marker size. Hence Actual markerSize is calculated.
+							//The size of the marker is calculated using a ratio factor; WBMarkerSize is the size specified in the workbench
+							//The ActualMarkerSize is calculated using the below formula
+							if(WBMarkerSize % 2 != 0)
+								WBMarkerSize = WBMarkerSize + 1;
+							ActualMarkerSize = WBMarkerSize/2 + 1;
+
+							pathDAttributeValue = markerSyntaxMap[penMarkerStyle].split('*').join(ActualMarkerSize);
+							pathDLegendAttributeValue = markerSyntaxMap[penMarkerStyle].split('*').join('6'); //6 is the default size for markers in legend
+							if(penMarkerStyle == 'cross') {
+								var markerFactor = ActualMarkerSize/2.5; //where 2.5 is the ration between vertical and horizontal line which are used for drawing the marker.
+								pathDAttributeValue = pathDAttributeValue.split('^').join(markerFactor);
+								pathDLegendAttributeValue = pathDLegendAttributeValue.split('^').join('2.4'); // 6/2.5 = 2.4(marker factor for legend)
+							}
+							//Apply marker style and marker size
+							if(!compatibilityMode){
+								$($('#' + chartCompObj.chartPosId).find('.v-markers').find('.v-marker')[lineCounter - 1]).find('.v-morphable-datapoint').attr('d',pathDAttributeValue).css('fill-opacity',fillOpacity);
+								$($($('#' + chartCompObj.chartPosId).find('.v-m-legends').find('.v-legend-content').find('.v-row')[i]).children()[0]).attr('d',pathDLegendAttributeValue);
+							}
+							else{
+								if(checkMeasure){
+									for(j=markerStyleIndex;j<markerStyleIndex+plotPoints;j++){
+										$($('#' + chartCompObj.chartPosId).find('.v-datapoint-group').find('.v-datapoint.v-morphable-datapoint.v-datapoint-default')[j]).find('path').attr('d',pathDAttributeValue).css('fill-opacity',fillOpacity);
+									}
+									markerStyleIndex+=plotPoints;
+								}
+								if(chartCompObj.chartPropertyConfig.getProperty(com.sap.xmii.common.util.SpecLimits.ALLOW_SPEC_LIMIT_ALARM).toString() ==  com.sap.xmii.common.util.GenericConstants.FALSE){
+									legendIndex++;
+									$($('#' + chartCompObj.chartPosId).find('.v-legend-element ')[legendIndex]).find('.v-legend-marker').find('.undefined').attr('d',pathDLegendAttributeValue);
+								}else{
+									for(var k=0;k<3;k++){
+										legendIndex++;
+										$($('#' + chartCompObj.chartPosId).find('.v-legend-element ')[legendIndex]).find('.v-legend-marker').find('.undefined').attr('d',pathDLegendAttributeValue);
+									}
+								}
+							}
+							//Applying Line thickness and style(solid, dashed or dotted)
+
+							var markerLength = $($('#'+chartCompObj.chartPosId).find('.v-axis1').find('.v-marker')[lineCounter - 1]).find('.v-datashape').length;
+							if(markerLength>0)
+								lineIndex++;
+							if(penType === com.sap.xmii.common.util.ChartPropertyConstants.MARKER_STYLE_MARKER) {
+								if(!compatibilityMode){
+									if(markerLength>0)
+										$($('#'+chartCompObj.chartPosId).find('.v-m-root').find('.v-axis1').find('.v-lines')[lineIndex - 1]).css({'stroke-width':0});
+								}else
+									if(checkMeasure){
+										$($('#' + chartCompObj.chartPosId).find('.v-datapoint-group').find('.v-lines-group')[n]).find('path').attr('stroke-width',"0");
+										n++;
+									}
+							} else {
+								if(checkMeasure)
+									n++;
+								var lineStyle = parseInt(chartCompObj.chartPropertyConfig.getProperty("LineStyle." + (i+1)));
+								var lineThickness = parseInt(chartCompObj.chartPropertyConfig.getProperty("LineThickness." + (i+1)));
+								if(lineThickness <= 0)
+									lineThickness = 1;
+								if(!compatibilityMode){
+									if(markerLength>0)
+										$($('#'+chartCompObj.chartPosId).find('.v-m-root').find('.v-axis1').find('.v-lines')[lineIndex - 1]).css({'stroke-width':lineThickness});
+								}else
+									$($('#'+chartCompObj.chartPosId).find('.v-datapoint-group').find('.v-lines-group')[lineCounter-1]).find('path').attr('stroke-width',lineThickness);
+								if(lineStyle > -1) {
+									if(lineStyle == 0) {
+										if(!compatibilityMode){
+											if(markerLength>0){
+												$($('#'+chartCompObj.chartPosId).find('.v-m-root').find('.v-axis1').find('.v-lines')[lineIndex - 1]).css({'stroke-dasharray':'0,0'});
+												$($('#'+chartCompObj.chartPosId).find('.v-m-root').find('.v-axis1').find('.v-lines')[lineIndex - 1]).css({'stroke-linecap':'square'});
+											}
+										}else{
+											$($('#'+chartCompObj.chartPosId).find('.v-datapoint-group').find('.v-lines-group')[lineCounter-1]).css({'stroke-linecap':'square'});
+											$($('#'+chartCompObj.chartPosId).find('.v-datapoint-group').find('.v-lines-group')[lineCounter-1]).css({'stroke-dasharray':'0,0'});
+										}
+									} else if(lineStyle == 1) {
+										var d_arr = 5;
+										if(lineThickness >= 5) {
+											d_arr = lineThickness + 2;
+										}
+										if(!compatibilityMode){
+											if(markerLength>0){
+												$($('#'+chartCompObj.chartPosId).find('.v-m-root').find('.v-axis1').find('.v-lines')[lineIndex - 1]).css({'stroke-dasharray':+d_arr+','+d_arr});
+												$($('#'+chartCompObj.chartPosId).find('.v-m-root').find('.v-axis1').find('.v-lines')[lineIndex - 1]).css({'stroke-linecap':'square'});
+											}
+										}else{
+											$($('#'+chartCompObj.chartPosId).find('.v-datapoint-group').find('.v-lines-group')[lineCounter-1]).css({'stroke-linecap':'square'});
+											$($('#'+chartCompObj.chartPosId).find('.v-datapoint-group').find('.v-lines-group')[lineCounter-1]).css({'stroke-dasharray':+d_arr+','+d_arr});
+										}
+									} else if(lineStyle == 2) {
+										if(!compatibilityMode){
+											if(markerLength>0){
+												$($('#'+chartCompObj.chartPosId).find('.v-m-root').find('.v-axis1').find('.v-lines')[lineIndex - 1]).css({'stroke-dasharray':'1,'+lineThickness*2});
+												$($('#'+chartCompObj.chartPosId).find('.v-m-root').find('.v-axis1').find('.v-lines')[lineIndex - 1]).css({'stroke-linecap':'round'});
+											}
+										}else{
+											$($('#'+chartCompObj.chartPosId).find('.v-datapoint-group').find('.v-lines-group')[lineCounter-1]).css({'stroke-dasharray':'1,'+lineThickness*2});
+											$($('#'+chartCompObj.chartPosId).find('.v-datapoint-group').find('.v-lines-group')[lineCounter-1]).css({'stroke-linecap':'round'});
+										}		
+									}
+								}
+							} 
+						}
+					}
+				}
+				if(chartType == com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_CUSTOM) {
+					if(!compatibilityMode){
+						if(this.ui5ChartElement.getPlotArea().getDataShape().getPrimaryAxis().indexOf('line') > -1) {
+							applyMarkerTypeAndStyle(this);
+						}
+					} else {
+						applyMarkerTypeAndStyle(this);
+					}
+				} else {
+					applyMarkerTypeAndStyle(this);
+				}
+			}
+			
+			var pathArray = $('#'+chartId).find('.v-lines-group path');
+			if((this.i5ChartInstance.getQueryObject() != undefined && this.i5ChartInstance.getQueryObject().getQueryTemplateName() == "Predefined/DefaultCatalogHistoryQuery") && pathArray.length > 1) {
+				for(var i=0; i<pathArray.length; i++) {
+					var path = pathArray[i].getAttribute("d");
+					var newpath = path.replace(/M/g, "L");
+					var newpath = newpath.replace("L", "M");
+					pathArray[i].setAttribute("d",newpath);
+				}
+			}
+
+			if(this.getEnableZooming() === true) {
+				var xAxisLabelRects = $('#'+chartId+' .viz-axis-label-rect');
+				for(var i=0; i<xAxisLabelRects.length; i++) {
+					$($(xAxisLabelRects[i]).on('click', function() {
+						this.xAxisLabelClicked = true;
+					}.bind(this)));
+				}
+			}
+			
+			if(this.showResetZoom === true) {
+				var width = (d3.select('#'+chartId+' .v-m-plot rect')[0])[0].getAttribute('width');
+				var exists = $('#'+chartId+' .v-m-plot #mii-resetzoom').length;
+				var resetzoomBtn;
+				if(exists == 0) {
+					resetzoomBtn = d3.select('#'+chartId+' .v-m-plot').append('g').attr("id","mii-resetzoom");
+					var btnTxt = com.sap.xmii.common.util.MessageBundle.getText('XLBL_RESET_ZOOM');
+					var text = resetzoomBtn.append('text').attr("fill",'#333333').attr("font-size","12").attr("font-weight","normal").attr('cursor','pointer').attr('x',width-43).attr('y',20).attr('dominant-baseline','middle').attr('text-anchor','middle').text(btnTxt);//.append('title').text(btnTxt);
+					text.append('title').text(btnTxt);
+					var textdim = text.node().getBBox();
+					
+					text.attr('x', width-textdim.width);
+					
+					var newdim = text.node().getBBox();
+					var rect = resetzoomBtn.insert("rect", "text")
+						.attr('cursor','pointer')
+					    .attr("x", newdim.x)
+					    .attr("y", newdim.y)
+					    .attr('rx',2).attr('ry',2)
+					    .attr("width", newdim.width)
+					    .attr("height", newdim.height)
+					    .attr('fill','#f7f7f7').attr('stroke','#cccccc')
+					    .attr('stroke-width',1);
+					rect.append('title').text(btnTxt);
+					
+					//make space b/w rect and text
+					rect.attr("width",newdim.width+10);
+					var tx = Number(text.attr("x"));
+					text.attr("x", tx+5);
+					rect.attr("height",newdim.height+10);
+					var ty =Number(text.attr("y"));
+					text.attr("y",ty+5);
+			
+					resetzoomBtn.on('click', this.resetZoom.bind(this));
+					resetzoomBtn.on('mousemove', function () {
+					//change y-coord of hoverline
+					$("#"+chartId).find(".hover-line line").attr("y1",31);
+					});
+				}
+			} else {
+				$('#'+chartId+' .v-m-plot #mii-resetzoom').remove();
+			}
+
+			
+			var plot = $('#'+chartId).find('.v-m-plot'); 
+			if(chartType == com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_LINE && compatibilityMode && this.getTimeSeries() && this.getEnableVerticalMarker()) {
+				//get the number of data points, if 1 then don't do the below
+				var noOfDataPoints = $('#' + this.chartPosId).find('.v-datapoint').length;
+				var noOfMeasures = this.getUI5ChartElement().getDataset().getMeasures().length;
+				if(noOfDataPoints > noOfMeasures) {
+				this.addVerticalMarker(plot);
+
+				var svgplot = d3.select('#'+chartId+' .v-m-plot');
+				var rect = $('#'+chartId).find('.v-m-plot rect.v-background-body')[0];
+				if(rect == undefined)
+					rect =  $('#'+chartId).find('.v-m-plot rect.v-bound')[0];
+				var w = rect.width.baseVal.value;
+				var h = rect.height.baseVal.value;
+				// Hover line. 
+				//check if hover line exists, then remove and add
+				if(d3.selectAll('#'+chartId+'.v-m-plot .hover-line')[0].length !== 0)
+					d3.selectAll('#'+chartId+'.v-m-plot .hover-line').remove();
+				var hoverLineGroup = svgplot.append("g")
+				.attr("class", "hover-line");
+				
+				var hoverLine = hoverLineGroup
+				.append("line")
+				.attr("x1", 0).attr("x2", 0) 
+				.attr("y1", 0).attr("y2", h); 
+
+				var hoverDate = hoverLineGroup.append('text')
+				.attr('y', h-20)
+				.attr('class','hover-text');
+
+				// Hide hover line by default.
+				hoverLineGroup.style("opacity", 1e-6);
+
+				svgplot.on("mousemove", function() {
+					var path = svgplot[0][0];
+					jQuery.sap.log.info('mousemove', d3.mouse(path));
+
+					var noOfRows = this.getUI5ChartElement().getModel().getData().miiData.Row.length;
+					var min = new Date(this.getUI5ChartElement().getModel().getData().miiData.Row[0].DateTime).getTime();
+					var max = new Date(this.getUI5ChartElement().getModel().getData().miiData.Row[noOfRows-1].DateTime).getTime();
+
+					var x = d3.scale.linear().domain([0, w]).range([min, max]);
+
+					var mouse_x = d3.mouse(path)[0];
+					var graph_x = x(mouse_x);
+					jQuery.sap.log.info(graph_x);
+					var dtText = com.sap.xmii.common.util.MIIi5Util.getDateFormatter(this.i5ChartInstance.dateFormat).format(new Date(graph_x));
+					hoverDate.text(dtText);
+					hoverDate.attr('x', mouse_x+10);
+					hoverLine.attr("x1", mouse_x).attr("x2", mouse_x)
+					hoverLineGroup.style("opacity", 1);
+
+				}.bind(this)).on("mouseout", function() {
+					jQuery.sap.log.info('mouseout');
+					hoverLineGroup.style("opacity", 1e-6);
+				});
+			}
+			}
+
+			
+			if(chartType == com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_LINE && this.getTimeSeries() === true) {
+			
+			var valText = $("#"+chartId).find(".v-referenceline-label text");
+			for(var index=0; index < valText.length; index++) {
+				var newHTML = "";
+				var arr = (valText[index].textContent).split("/");
+				var paths = $(plot).find('.v-lines-group path');
+				$(valText[index]).empty();
+				for(var txts = 0; txts < arr.length; txts++) {
+					if(paths[txts] !== undefined) {
+						var tspanElement = document.createElementNS("http://www.w3.org/2000/svg", 'tspan'); //Create a path in SVG's namespace
+						tspanElement.setAttribute('fill',paths[txts].getAttribute('stroke'));
+						if(txts < arr.length-1)
+							tspanElement.textContent = arr[txts]+"/";
+						else
+							tspanElement.textContent = arr[txts];
+						valText[index].appendChild(tspanElement);
+					}
+				}
+			}
+
+			//function for each vertMarker
+			var that = this;
+
+			d3.selectAll('#'+chartId+' .v-m-plot .v-referenceline-vertical')
+			.each(function(d, i, j) {
+				var rect =  $('#'+chartId).find('.v-m-plot rect.v-bound')[0];
+				var h = rect.height.baseVal.value;
+
+				var refLineTS = d3.select(this).append('g').attr("id","mii-refTimeStamp"+i);
+				var refRect = refLineTS.append('rect').attr('x',4).attr('y',h-24).attr('rx',2).attr('ry',2).attr('height',24).attr('width',74).attr('fill','white').attr('stroke','#cccccc').attr('stroke-width',1);
+
+				//Steps to get dateText
+				var noOfRows = that.getUI5ChartElement().getModel().getData().miiData.Row.length;
+				var labelColumn  = that.chartCompnModel.getDataSet().getDimensions()[0].getName();
+				var min = that.getUI5ChartElement().getModel().getData().miiData.Row[0][labelColumn].getTime();
+				var max = that.getUI5ChartElement().getModel().getData().miiData.Row[noOfRows-1][labelColumn].getTime();
+				var w = rect.width.baseVal.value;
+				var xScale = d3.scale.linear().domain([0, w]).range([min, max]);
+				var dtTS = xScale(d3.transform(this.getAttribute("transform")).translate[0]);
+				var dateText = com.sap.xmii.common.util.MIIi5Util.getDateFormatter(that.i5ChartInstance.dateFormat).format(new Date(dtTS));
+
+				var refText = refLineTS.append('text').attr("fill",'#333333').attr("font-size","12").attr("font-weight","bold").attr('x',6).attr('y',h-10).attr('dominant-baseline','middle').attr('text-anchor','start').text(dateText);
+				refRect.attr("width",refText.node().getBBox().width+4);
+
+				refLineTS.on('mousemove', function () {
+					//change y-coord of hoverline
+					var rect =  $('#'+chartId).find('.v-m-plot rect.v-bound')[0];
+					var h = rect.height.baseVal.value;
+					$("#"+chartId).find(".hover-line line").attr("y2",h-24);
+					$("#"+chartId).find(".hover-line text").attr("y",h-44);
+				})
+				.on("mouseout", function() {
+					jQuery.sap.log.info('mouseout');
+					var rect =  $('#'+chartId).find('.v-m-plot rect.v-bound')[0];
+					var h = rect.height.baseVal.value;
+					$("#"+chartId).find(".hover-line line").attr("y2",h);
+					$("#"+chartId).find(".hover-line text").attr("y",h-20);
+				});
+
+				//context menu - Delete vertical marker
+				var gTS = $('#'+chartId).find('#mii-refTimeStamp'+i); 
+				that.deleteVerticalMarker(gTS);
+
+				//disable hoverline
+				d3.select("#content .hover-line").style("opacity", 1e-6);
+			});
+			} else {
+				//Vertical Markers are not applicable for these chart types, hence make the clear markers button invisble
+				var clearVerticalMarkersButton = sap.ui.getCore().byId(this.chartPosId+"clear");
+				if(clearVerticalMarkersButton !== undefined) {
+						clearVerticalMarkersButton.setVisible(false);
+				}
+			}
+			
+			if(chartType == com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_LINE && compatibilityMode && this.getTimeSeries() && !this.chartPropertyConfig.getProperty("InterpolateLines")) {
+				var plot = $('#'+chartId).find('.v-m-plot');
+
+			    var path1 = $(plot).find('.v-lines-group path');
+			    
+			    //iterate through each of the lines and convert it to step-after 
+			    for(var lineIndex = 0; lineIndex < path1.length; lineIndex++) {
+			    var str = path1[lineIndex].getAttribute("d");
+
+			    var commands = str.split(/(?=[LMC])/);
+			    
+			    //check if already the chart is in step-after interpolate mode
+			    if(commands.length > 1) {
+			    
+			    var ua = window.navigator.userAgent;
+			    var msie = ua.indexOf("MSIE ");
+
+			    var pointArrays = [];
+			    if (msie > 0 || !!navigator.userAgent.match(/Trident.*rv\:11\./))  // If Internet Explorer, return version number
+			    {
+			        pointArrays = commands.map(function(d,i){
+			            var pointsArray = d.slice(2, d.length).split(' ');
+			            var pointsObj={}; pointsObj.x=pointsArray[0];pointsObj.y=pointsArray[1];
+			            return pointsObj;
+			        });
+			    } else {
+
+			        pointArrays = commands.map(function(d,i){
+			            var pointsArray = d.slice(1, d.length).split(',');
+			            var pointsObj={}; pointsObj.x=pointsArray[0];pointsObj.y=pointsArray[1];
+			            return pointsObj;
+			        });
+			    }
+			    
+			    var lineStroke = path1[lineIndex].getAttribute("stroke");
+			    $(path1[lineIndex]).remove();
+
+			    var line1 = d3.svg.line()
+			                  .x(function(d){return d.x;})
+			                  .y(function(d){return d.y;}).interpolate("step-after");
+
+			    d3.select('#'+chartId+' .v-lines-group').append('path')
+			            .attr('d', line1(pointArrays)).attr("fill","none").attr("stroke",lineStroke);
+			    }
+			}
+			}
+		
+		},
+
+		deleteVerticalMarker : function(plot){
+
+			// Menus
+			var menuItemDetails = {
+					name: com.sap.xmii.common.util.SPCChartConstants.SPC_CONTEXT_MENU_NAME,
+					target: null,
+					items: [{
+						text: com.sap.xmii.common.util.MessageBundle.getText("XLBL_DEL_VMARKER"),
+						command: "i5ChartInstance.getChartObject().delLine.bind(this)",
+						active: true
+					}]
+			};
+			com.sap.xmii.common.tools.ContextMenu.createContextMenu(plot, menuItemDetails, this, plot);
+		},
+
+		delLine : function(e) {
+			//get the original event
+			var evt = this.target.originalEvent;
+			$(evt.currentTarget.parentNode).remove();
+			var indexOfRefLine = evt.currentTarget.id.substr(16);//mii-refTimeStamp
+			this.target.getUI5ChartElement().getVizProperties().plotArea.referenceLine.line.timeAxis.splice(indexOfRefLine,1);
+			//update indices of mii-refTimeStamp 
+			//get all elements starting with mii-refTimeStamp
+			var refTSEls = $('#'+this.target.chartPosId +' [id^="mii-refTimeStamp"]');
+			$.each(refTSEls, function(key, value){
+				var elId = value.id;
+				var indexOfEl = elId.substr(16);
+				if(indexOfRefLine < indexOfEl) {
+					value.id = elId.substr(0,16).concat(indexOfEl-1);
+				}
+			});
+			
+			//get the reference line timeAxis array from the vizProperties
+			var vizProps = this.target.getUI5ChartElement().getVizProperties();
+			var vftimeAxisArr = vizProps.plotArea.referenceLine.line.timeAxis;
+			this.target.chartPropertyConfig.setProperty("timeAxisArray",vftimeAxisArr);
+			if(vftimeAxisArr.length === 0){
+				sap.ui.getCore().byId(this.target.chartPosId+'clear').setVisible(false);
+			}
+		},
+
+		resetZoom : function() {
+			var myArray = this.chartCompnModel.chartModel.getModelData().getRows();
+			var sIndex = 0;
+			var lIndex = myArray.length - 1; 
+			com.sap.xmii.common.util.MIIi5Util.getChartDataForStartEndIndices(this.i5ChartInstance, sIndex, lIndex, true);//last arg tells to use the actual chart model
+			if(this.i5ChartInstance.getTimeBar().toggleTimeBarOpener != undefined)
+				this.i5ChartInstance.getTimeBar().toggleTimeBarOpener(true);
+			$('#'+this.i5ChartInstance.chartPosId+' .v-m-plot #mii-resetzoom').remove();
+			this.showResetZoom = false;
+		},
+
+		chartSelected : function(oControl) {
+			Array.maxmin = function( array ){
+				return {min : Math.min.apply( Math, array ),max : Math.max.apply(Math, array)};
+			};
+
+			var enableZooming = this.getEnableZooming();
+			var bLegendClicked = this.legendClicked;
+			var bXAxisLabelClicked = this.xAxisLabelClicked;
+			if(enableZooming === true && !bLegendClicked && !bXAxisLabelClicked) {
+				var selectedDataPoints = oControl.mParameters.data;
+				var noOfSelectedPoints =  selectedDataPoints.length;
+				var arrOfMeasureNames = selectedDataPoints.map(function(arEl){return arEl.data.measureNames});
+				//unique measureNames
+				var noOfUniqueMeasures = $.grep(arrOfMeasureNames, function(v, k){
+					return $.inArray(v ,arrOfMeasureNames) === k;
+				}).length;
+				if(noOfUniqueMeasures != noOfSelectedPoints) {
+					var arrOfContextRowNumbers = selectedDataPoints.map(function(arEl){return arEl.data._context_row_number});
+					var obj = Array.maxmin(arrOfContextRowNumbers);
+					var firstPointIndex = obj.min;
+					var lastPointIndex =  obj.max;
+					//Also donot zoom in if the number of selected data points == selected measurenames
+					if(noOfSelectedPoints > 1) {
+						com.sap.xmii.common.util.MIIi5Util.getChartDataForStartEndIndices(this.i5ChartInstance, firstPointIndex, lastPointIndex);
+						if(this.i5ChartInstance.getTimeBar().toggleTimeBarOpener != undefined)
+							this.i5ChartInstance.getTimeBar().toggleTimeBarOpener(false);
+						//show the reset zoom button
+						this.showResetZoom = true;
+					}
+				}
+			}
+			this.legendClicked = false;
+			this.xAxisLabelClicked = false;
+		},
+
+		addLine : function(e){
+			function getYAtGivenXOnPath(x, path) {
+				function getPointXY(len) {
+					var point = path.getPointAtLength(len);
+					return [point.x, point.y];
+				}
+				var len = 0;
+				while (getPointXY (len)[0] < x) { len += 0.01; }
+				return getPointXY (len);
+			}
+			//get the original event
+			var evt = this.target.originalEvent;
+			var plot = $('#'+this.target.chartPosId).find('.v-m-plot');
+			
+			var vizFramechartElement = this.target.i5ChartInstance.getChartObject().getUI5ChartElement();
+			
+			//get the reference line timeAxis array from the vizProperties
+			var vizProps = vizFramechartElement.getVizProperties();
+			//Get start and end time from vizFrame timeAxis window
+			var noOfRows = vizFramechartElement.getModel().getData().miiData.Row.length;
+			var labelColumn  = this.target.chartCompnModel.getDataSet().getDimensions()[0].getName();
+			var min = vizFramechartElement.getModel().getData().miiData.Row[0][labelColumn].getTime();
+			var max = vizFramechartElement.getModel().getData().miiData.Row[noOfRows-1][labelColumn].getTime();
+
+			var rect = plot.find('rect.v-background-body')[0];
+			var w = rect.width.baseVal.value;
+			var xScale = d3.scale.linear().domain([0, w]).range([min, max]);
+			var posX = $(plot).find('rect').offset().left;
+			var clickedPos = -1;
+			clickedPos = (evt.clientX - posX);
+
+			var path1 = $(plot).find('.v-lines-group path');
+			var h = rect.height.baseVal.value;
+			var primaryScale = vizFramechartElement.getVizProperties().plotArea.primaryScale;
+			var fixedRange = primaryScale.fixedRange;
+			var minRange = 0;
+			var maxRange = 0;
+			if(fixedRange === true){
+				minRange = primaryScale.minValue;
+				maxRange = primaryScale.maxValue;
+			}else{
+				minRange = primaryScale.autoMinValue;
+				maxRange = primaryScale.autoMaxValue;
+			}
+			var yScale = d3.scale.linear().domain([0, h]).range([minRange, maxRange]);
+
+			var yPosition = 0;
+			var val = 0;
+			var yvalues = "";
+			for(var i=0; i<path1.length ; i++){
+				yPosition = getYAtGivenXOnPath(clickedPos,path1[i]);
+				val = yScale(h - yPosition[1]);
+				yvalues = yvalues + "/ " + this.target.i5ChartInstance.numberFormatter.format(val);
+			}
+			yvalues = yvalues.substring(2);
+
+			var vftimeAxisArr = vizProps.plotArea.referenceLine.line.timeAxis;
+			var newLine = {
+					value: xScale(clickedPos),
+					visible: true,
+					color : this.target.i5ChartInstance.getChartObject().getYAxisLabelColor(),
+					size: 1,
+					type: "solid" ,
+					label: {
+						text: yvalues,
+						visible: true,
+						size: 6
+					}
+			};
+			//add new line
+			vftimeAxisArr.push(newLine);
+
+			if(sap.ui.getCore().byId(this.target.chartPosId +'clear') != undefined){
+				sap.ui.getCore().byId(this.target.chartPosId +'clear').setVisible(true);
+			}
+			var plotTimeAxis = {plotArea : {
+				referenceLine: {
+					line: {
+						timeAxis: vftimeAxisArr
+					}
+				}}};
+			this.target.chartPropertyConfig.setProperty("timeAxisArray",vftimeAxisArr);
+			//After updating this value chart has to be refreshed, here without executing query again.
+			//vizFramechartElement.getVizProperties().plotArea.referenceLine.line.timeAxis = vftimeAxisArr;
+			vizFramechartElement.setVizProperties(plotTimeAxis);
+		},
+
+		addVerticalMarker : function(plot){
+
+			// Menus
+			var menuItemDetails = {
+					name: com.sap.xmii.common.util.SPCChartConstants.SPC_CONTEXT_MENU_NAME,
+					target: null,
+					items: [{
+						text: com.sap.xmii.common.util.MessageBundle.getText("XLBL_ADD_VMARKER"),
+						command: "i5ChartInstance.getChartObject().addLine.bind(this)",
+						active: true
+					}]
+			};
+			com.sap.xmii.common.tools.ContextMenu.createContextMenu(plot, menuItemDetails, this, plot);
+		},
+
+		applyStyling : function() {
+			this.applyBackgroundAndBorderColor();
+			this.applyYAxisStyling();
+			this.applyXAxisStyling();
+			this.applyXYAxisStylingforHorizontalChart();
+		},
+
+		/**
+		 * 
+		 * @returns
+		 * @private
+		 */
+		createSortedDataPointsArray : function() {
+			var datapointArray = this.datapointItems;
+			var dpArrLen = datapointArray.length;
+			return datapointArray.sort(com.sap.xmii.common.util.MIIi5Util.compare);
+		},
+
+		/**
+		 * legendEventListener
+		 * @param event
+		 * @return
+		 * @private
+		 */
+		legendEventListener : function(event) {
+			//this.selectedDataSetName = event.srcElement.__data__.val;
+			var that = event.data.getChartObject();
+			that.legendClicked = true;
+			if(that == undefined  || !( that instanceof com.sap.xmii.chart.ui5.ChartComponent))
+				return;
+			var compMode = that.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.COMP_MODE);
+			if(compMode === false){
+				//In case of legend deselection turn legendClicked to false
+				if(that.getUI5ChartElement().vizSelection().length === 0)
+					that.legendClicked = false;
+				if (event.target.nextSibling && "title" === event.target.nextSibling.nodeName.toLowerCase()){
+					// if click text and PICAnalysis legend drill down
+					that.selectedDataSetName = event.target.nextSibling.innerHTML;
+				} else if (event.target.childElementCount > 0 && "title" === event.target.childNodes[0].nodeName.toLowerCase()){
+					// if clicked rect and PICAnalysis legend drill down
+					that.selectedDataSetName = event.target.childNodes[0].innerHTML;
+				} else{
+					that.selectedDataSetName = event.target.textContent;
+				}
+				jQuery.sap.log.info("selected legend value==> " + that.selectedDataSetName);
+				var reg = new RegExp(" / ");
+				var selectedLegend = that.selectedDataSetName.split(reg);
+				var legends = $('#'+that.chartPosId).find('.v-legend-element.v-legend-item')
+				var noOfLegends = legends.length;
+				for ( var index = 0; index < noOfLegends; index++) {
+					var legendItem = legends[index];
+					if (selectedLegend.sort().toString() === [legendItem.__data__.val].sort().toString()) {
+						that.selectedDataSetIndex = index + 1;
+						if(that.mouseClickSimulated == false) {
+							if(that.selectedDataSetName in that.datasetSelectionMap) {
+								delete that.datasetSelectionMap[that.selectedDataSetName];
+							} else {
+								that.datasetSelectionMap[that.selectedDataSetName] = that.selectedDataSetIndex;
+							} 
+						}
+						jQuery.sap.log.info("selected legend index==> " + that.selectedDataSetIndex);
+						break;
+					}
+				}
+			}else{
+				that.selectedDataSetName = event.target.__data__.val;		
+				jQuery.sap.log.info("selected legend value==> " + that.selectedDataSetName);
+				that.legendItems = $('#'+that.chartPosId).find(com.sap.xmii.common.util.ui5Constants.V_ROW);
+				var noOfLegends = that.legendItems.length;
+				for ( var index = 0; index < noOfLegends; index++) {
+					var legendItem = that.legendItems[index];
+					if (that.selectedDataSetName == legendItem.__data__.val) {
+						that.selectedDataSetIndex = index + 1;
+						if(that.mouseClickSimulated == false) {
+							if(that.selectedDataSetName in that.datasetSelectionMap) {
+								delete that.datasetSelectionMap[that.selectedDataSetName];
+							} else {
+								that.datasetSelectionMap[that.selectedDataSetName] = that.selectedDataSetIndex;
+							} 
+						}
+						jQuery.sap.log.info("selected legend index==> " + that.selectedDataSetIndex);
+						break;
+					}
+				}
+			}
+
+			if(compMode === true){
+				that.legendValue = event.target.__data__.val;
+			}else{
+				if (event.target.nextSibling && "title" === event.target.nextSibling.nodeName.toLowerCase()){
+					// if click PICAnalysis legend drill down
+					that.legendValue = event.target.nextSibling.innerHTML;
+				} else {
+					that.legendValue = event.target.textContent;
+				}
+			}
+			var values = {};
+			values['legendValue'] = that.legendValue;
+
+			var e = jQuery.Event("onSelectLegend",{"mParameters": values})
+			$(that).trigger(e);
+
+			that.mouseClickSimulated = false;
+			if (that.fnOnLegendSelectEvent != ''){
+				that.fnOnLegendSelectEvent(event);
+			}
+		},
+
+		/**
+		 * 
+		 * @returns {String}
+		 */
+		getSelectedLegendValue : function() {
+			return this.legendValue;
+		},
+
+		/**
+		 * datapointEventListener
+		 * @param event
+		 * @return void
+		 * @private
+		 */
+		datapointEventListener : function(event) {
+			//var srcElmntData = event.srcElement.__data__;
+			var that = event.data.getChartObject();
+			if(that == undefined || !(that instanceof com.sap.xmii.chart.ui5.ChartComponent))
+				return;
+			var compatibilityMode = !(that.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.COMP_MODE));
+			var srcElmntData = "";
+			if(compatibilityMode === true){//vizframe
+				srcElmntData = event.currentTarget.__data__;
+				that.selectedPoint = srcElmntData._context_row_number + 1;
+
+				var values = {};
+				var details ={};
+				var  obj = this.__data__;
+				if(obj != undefined){
+					for(var attr in obj){
+						if((!attr.indexOf("_") > -1) && (!attr.indexOf(".d") > -1)){
+							if(attr.indexOf("Dim_") > -1) {
+								var dim = that.i5ChartCompnModel.dataset.getDimensions()[0].getName();
+								details[dim] = obj[attr];
+							}else{
+								details[attr] = obj[attr];
+							}
+						}
+						if(attr === "measureNames"){
+							var measureName = obj[attr];
+							values['dataPointValue'] = obj[measureName];
+							that.dataPointValue = obj[measureName];
+						}	
+					}
+					values['dataPointProperties'] = details;
+					that.dataPointProperties = details;
+
+				}
+			}else{
+				srcElmntData = event.target.__data__;
+				that.datapointItems = $('#'+that.chartPosId).find(com.sap.xmii.common.util.ui5Constants.V_DATAPOINT);
+				var chartType = that.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.CHART_TYPE);
+				if (chartType == com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_SCATTER
+						|| chartType == com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_BUBBLE) {
+
+					// TODO : add logic for bubble and scatter
+					// this.selectedPoint = -1;
+					// getSelectedPointForScatter_Bubble();
+					jQuery.sap.log.info('in datapointEventListener ::');
+					var a1_0_i = srcElmntData.ctx[0].path.dii_a1;
+					var a2_0_j = srcElmntData.ctx[0].path.dii_a2;
+					var a1_1_i = srcElmntData.ctx[1].path.dii_a1;
+					var a2_1_j = srcElmntData.ctx[1].path.dii_a2;
+					if (a1_0_i == a1_1_i && a2_0_j == a2_1_j) {
+						// compare a1_0_i & a2_0_j values in datapoint array to get
+						// selected point
+						// var datapointArray = $('.v-datapoint');
+						var dpArrLen = that.bubble_scatterDataPointArray.length;
+						var di_a1, di_a2;
+						for ( var di = 0; di < dpArrLen; di++) {
+							di_a1 = that.bubble_scatterDataPointArray[di].__data__.ctx[0].path.dii_a1;
+							di_a2 = that.bubble_scatterDataPointArray[di].__data__.ctx[0].path.dii_a2;
+							if (di_a1 == that.bubble_scatterDataPointArray[di].__data__.ctx[1].path.dii_a1
+									&& di_a2 == that.bubble_scatterDataPointArray[di].__data__.ctx[1].path.dii_a2) {
+								if (a1_0_i == di_a1 && a2_0_j == di_a2) {
+									that.selectedPoint = di + 1;
+									break;
+								}
+							}
+						}
+					}
+				} else {
+					that.selectedPoint = srcElmntData.ctx.path.dii_a1 + 1;
+				}
+				//get datapoint value
+				var ds = that.ui5ChartElement.getDataset();
+				var dataset = ds.getVIZDataset();
+				//enhance for gauge chart.(gauge chart use vizframe and CrosstableDataset)
+				if (dataset instanceof sap.viz.api.data.CrosstableDataset || dataset._crosstableDataset) {
+					dataset = dataset._crosstableDataset;
+				}
+				var node = event.target;
+				if(d3.select(node).datum() != undefined){
+					var d3Datum = d3.select(node).datum();
+					var obj = dataset.ctx2ArrayData(d3Datum.ctx);
+					//event.mparameters
+					var values = {};
+					//dataPointProperties
+					var details ={};
+					if(obj != undefined){
+						if (obj.dimension && obj.dimension.length > 0) {
+							var ary = obj.dimension;
+							var len = ary.length;
+
+							for (var i = 0; i < len; i++) {
+								//Code to fix checkmark prototype pollution
+								if(key.indexOf("__proto__")<0)
+								{
+								details[ary[i].key] = ary[i].value;
+								}
+								//end code
+							};
+						};
+
+						if (obj.measure && obj.measure.length > 0) {
+							var ary = obj.measure;
+							var len = ary.length;
+
+							if(len == 1)
+							{
+								values['dataPointValue'] = ary[0].value;
+								that.dataPointValue = ary[0].value;
+							}else{
+								values['dataPointValue'] = null;
+							}
+
+							for (var i = 0; i < len; i++) {
+								//Code to fix checkmark prototype pollution
+								if(key.indexOf("__proto__")<0)
+								{
+								details[ary[i].key] = ary[i].value;
+								}
+								//end code
+							};
+							values['dataPointProperties'] = details;
+
+							that.dataPointProperties = details;
+						};
+							
+					}
+				}
+			}
+			jQuery.sap.log.info('selected point index ==>' + that.selectedPoint);
+
+			if (that.fnOnSelectEvent != '') {
+				that.fnOnSelectEvent(event);
+			}
+			var e = jQuery.Event("onSelectDatapoint", {"mParameters":values});
+			$(that).trigger(e);	
+		},
+
+		/**
+		 * 
+		 */
+		getSelectedDataPointValue : function(){
+			return this.dataPointValue;
+		},
+
+		/**
+		 * 
+		 * @returns
+		 */
+		getSelectedDataPointProperties : function(){
+			return this.dataPointProperties;
+		},
+
+		/**
+		 * 
+		 * @returns {Array}
+		 */
+		getDataPointPropertyKeys : function() {
+			var key;
+			var keys = [];
+			var labelColumns = [];
+			var valueColumns = [];
+			var columns;
+			if (this.getLabelColumns()) {
+				labelColumns = this.getLabelColumns().split(",");
+			}
+			if (this.getValueColumns()) {
+				valueColumns = this.getValueColumns().split(",");
+			}
+			columns = labelColumns.concat(valueColumns.filter(function(item) {
+				return labelColumns.indexOf(item) < 0;
+			}));
+			columns.forEach(function(column) {
+				key = {};
+				key.name = column;
+				key.desc = column;
+				keys.push(key);
+			});
+			return keys;
+		},
+
+		/**
+		 * getDataSetCount
+		 * @return void
+		 */
+		getDataSetCount : function() {
+			var compMode = this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.COMP_MODE);
+			if(!compMode)
+				return this.ValueColumns.split(",").length;
+			else
+				return this.legendItems.length;
+		},
+
+		/**
+		 * getNumberOfDataPoints
+		 * @param legendIndex
+		 * @return
+		 */
+		getNumberOfDataPoints : function(legendIndex) {
+			//var datapointItems = $('#'+this.chartPosId).find(com.sap.xmii.common.util.ui5Constants.V_DATAPOINT);
+			if (legendIndex != undefined && legendIndex > 0 && this.getDataSetCount() > legendIndex - 1) {
+				return this.datapointItems.length / this.getDataSetCount();
+			} else {
+				return 0;
+			}
+		},
+
+		/**
+		 * getDataSetName
+		 * @param legendIndex
+		 * @return
+		 */
+		getDataSetName : function(legendIndex) {
+			if (legendIndex != undefined && legendIndex > 0 && this.getDataSetCount() > legendIndex - 1) {
+				var legendItem = this.legendItems[legendIndex - 1];
+				return legendItem.__data__.val;
+			} else {
+				return '';
+			}
+		},
+
+		/**
+		 * setSelectedDataSet
+		 * @param legendIndex
+		 * @return
+		 */
+		selectDataSet : function(legendIndex) {
+			var compMode = this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.COMP_MODE);
+			if (legendIndex != undefined && legendIndex > 0 && this.getDataSetCount() > legendIndex - 1) {
+				this.selectedDataSetIndex = legendIndex;
+				this.selectedDataSetName = this.getDataSetName(legendIndex);
+				var selDataSetName = this.selectedDataSetName;
+				if(!(this.selectedDataSetName in this.datasetSelectionMap)) {
+					this.datasetSelectionMap[this.selectedDataSetName] = this.selectedDataSetIndex;
+					var selectedItem = '';
+					if(compMode === false){	
+						//var legendItems = $('#'+this.chartPosId).find('.v-groups.v-label.viz-legend-valueLabel');
+						var legendItems = $('#'+this.chartPosId).find('.v-legend-element.v-legend-item')
+						var legendItem = legendItems[0].childNodes[legendIndex -1];
+						selectedItem = legendItem;
+
+						//highlight the selected data set via JS method
+						var selected = [];
+						var object = {data:{}};
+						//select all data points in a particular data set
+						object.data[selDataSetName] = "*";
+						selected.push(object);
+
+						var action = {
+								clearSelection : false
+						};
+						this.ui5ChartElement.vizSelection(selected,action);
+					}else{
+						selectedItem = this.legendItems[legendIndex - 1];
+						var evt = document.createEvent(com.sap.xmii.common.util.Events.MOUSE_EVENTS);
+						evt.initMouseEvent(com.sap.xmii.common.util.Events.CLICK, true, true, window, 1, evt.screenX, evt.screenY,
+								evt.clientX, evt.clientY, evt.ctrlKey, evt.altKey, evt.shiftKey, evt.metaKey,
+								null, evt.relatedTarget); // Simulate mouse up event
+						this.mouseClickSimulated = true;
+						selectedItem.dispatchEvent(evt);
+					}
+					/*var evt = document.createEvent(com.sap.xmii.common.util.Events.MOUSE_EVENTS);
+			evt.initMouseEvent(com.sap.xmii.common.util.Events.CLICK, true, true, window, 1, evt.screenX, evt.screenY,
+					evt.clientX, evt.clientY, evt.ctrlKey, evt.altKey, evt.shiftKey, evt.metaKey,
+					null, evt.relatedTarget); // Simulate mouse up event
+			this.mouseClickSimulated = true;
+			selectedItem.dispatchEvent(evt);*/
+				} 
+			} 
+		},
+
+		/**
+		 * deselectDataSet
+		 * @param legendIndex
+		 * @return
+		 */
+		deselectDataSet : function(legendIndex) {
+			var compMode = this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.COMP_MODE);
+			if (legendIndex != undefined && legendIndex > 0 && this.getDataSetCount() > legendIndex - 1) {
+				this.selectedDataSetIndex = legendIndex;
+				this.selectedDataSetName = this.getDataSetName(legendIndex);
+
+				if(this.selectedDataSetName in this.datasetSelectionMap) {
+					delete this.datasetSelectionMap[this.selectedDataSetName];
+
+					var selectedItem = '';
+					if(compMode === false){	
+						//var legendItems = $('#'+this.chartPosId).find('.v-groups.v-label.viz-legend-valueLabel');
+						var legendItem = this.legendItems[0].childNodes[legendIndex - 1];
+						//var legendItem = $('#'+this.chartPosId).find('.v-groups.v-label.viz-legend-valueLabel').find('.v-legend-element.v-legend-item')[legendIndex - 1];
+						selectedItem = legendItem;
+
+						var action = {
+								clearSelection : true
+						};
+						this.ui5ChartElement.vizSelection(selectedItem,action);
+					}else{
+						selectedItem = this.legendItems[legendIndex - 1];
+						var evt = document.createEvent(com.sap.xmii.common.util.Events.MOUSE_EVENTS);
+						evt.initMouseEvent(com.sap.xmii.common.util.Events.CLICK, true, true, window, 1, evt.screenX, evt.screenY,
+								evt.clientX, evt.clientY, evt.ctrlKey, evt.altKey, evt.shiftKey, evt.metaKey,
+								null, evt.relatedTarget); // Simulate mouse up event
+						this.mouseClickSimulated = true;
+						selectedItem.dispatchEvent(evt);
+					}
+					//var selectedItem = this.legendItems[legendIndex - 1];
+					/*var evt = document.createEvent(com.sap.xmii.common.util.Events.MOUSE_EVENTS);
+			evt.initMouseEvent(com.sap.xmii.common.util.Events.CLICK, true, true, window, 1, evt.screenX, evt.screenY,
+					evt.clientX, evt.clientY, evt.ctrlKey, evt.altKey, evt.shiftKey, evt.metaKey,
+					null, evt.relatedTarget); // Simulate mouse up event
+					this.mouseClickSimulated = true;
+					selectedItem.dispatchEvent(evt);*/
+				} 
+			}
+		},
+		/**
+		 * Returns the index of the selected point
+		 * @return
+		 */
+		getSelectedPoint : function() {
+			jQuery.sap.log.info("in getSelectedPoint");
+			return this.selectedPoint;
+		},
+
+		/**
+		 * Names of the selected Line/Legend. For ex AssetUtil1
+		 * @return String
+		 */
+		getSelectedDataSetNames : function() {
+			var array_keys = new Array();
+
+			for (var key in this.datasetSelectionMap) {
+				array_keys.push(key);
+			}
+			return array_keys.toString();
+		},
+
+		/**
+		 * getSelectedDataSetIndices
+		 * @return String
+		 */
+		getSelectedDataSetIndices : function() {
+			var array_values = new Array();
+
+			for (var key in this.datasetSelectionMap) {
+				array_values.push(this.datasetSelectionMap[key]);
+			}
+
+			return array_values.toString();
+		},
+
+		clearDatasetSelectionMap : function() {
+			for (var key in this.datasetSelectionMap) {
+				delete this.datasetSelectionMap[key];
+			}
+		},
+
+		/**
+		 * GetItem From Array Specified
+		 * @param dataArray
+		 * @param idx
+		 * @return void
+		 * @private
+		 */
+		getItemFromArray : function(dataArray, idx) {
+			var ret = [];
+			for ( var k = 0, klen = dataArray.length; k < klen; k++) {
+				var item = dataArray[k];
+				ret.push(/* item.name + "-->" + */item.values[idx]);
+			}
+			return ret;
+		},
+
+		/**
+		 * GetXDataValueAt : This function returns the x-cordinate value
+		 * 
+		 * @param datasetIndex : index of the dataset(1-based) pointIndex : index of the
+		 * @param point(1-based))
+		 */
+		getXDataValueAt : function(datasetIndex, pointIndex) {
+			var compMode = this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.COMP_MODE);
+			if(datasetIndex != undefined && pointIndex != undefined && !isNaN(datasetIndex) && !isNaN(pointIndex)) {
+				var chartType = this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.CHART_TYPE);
+				datasetIndex = parseInt(datasetIndex);
+				pointIndex = parseInt(pointIndex);
+				var xAxisVal = '';
+				if(datasetIndex > 0 && pointIndex > 0) {
+					if (chartType == com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_PIE
+							|| chartType == com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_DONUT) {
+
+						xAxisVal = this.legendItems[datasetIndex - 1].__data__.val;
+					}
+					else if (chartType == com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_SCATTER
+							|| chartType == com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_BUBBLE) {
+						return this.getXDataForScatter_Bubble(datasetIndex, pointIndex);
+					} else {
+						var selectedDataPoint = this.getDataPoint(datasetIndex, pointIndex);
+						if(selectedDataPoint != undefined){
+							var type ='';
+							//vizFrame type
+							if(selectedDataPoint.__data__.measureNames != undefined && selectedDataPoint.__data__.measureNames != null){
+								type = "Measure";
+							}else{
+								type =  selectedDataPoint.__data__.ctx.type;
+							}
+							if (type === com.sap.xmii.common.util.ChartPropertyConstants.MEASURE) {
+								if(compMode === false){	
+									var labelColArray = this.getLabelColumns().split(',');
+									for(var i=0; i<labelColArray.length; i++){
+										//var labelColumn = labelColArray[i];
+										var labelColumn = this.ui5ChartElement.mAggregations.dataset.getDimensions()[i].mProperties.identity;
+										//separate multiple values with slashes, in case there are multiple labelcolumns
+										if(xAxisVal != undefined){
+											xAxisVal += selectedDataPoint.__data__[labelColumn] + "/";
+										}else{
+											xAxisVal += selectedDataPoint.__data__[labelColumn];
+										}
+									}
+									//remove last slash
+									if(xAxisVal.endsWith("/")){
+										xAxisVal = xAxisVal.slice(0, -1);
+									}
+								}else{
+									var path = selectedDataPoint.__data__.ctx.path;
+									var data = this.ui5ChartElement.getDataset().getVIZDataset().data();
+									var result = {};
+
+									var idx;
+									var dataItem;
+									var dimensionData = data.analysisAxis;
+									// get dimension data
+									for ( var i = 0, len = dimensionData.length; i < len; i++) {
+										dataItem = dimensionData[i];
+										if (dataItem.index == 1) {
+											idx = path.dii_a1;
+											result.dii_a1 = this.getItemFromArray(dataItem.data, idx).join('/');
+										} else if (dataItem.index == 2) {
+											idx = path.dii_a2;
+											result.dii_a2 = this.getItemFromArray(dataItem.data, idx).join('/');
+										}
+									}
+									xAxisVal += result.dii_a1 + (result.dii_a2 == null ? "" : '/' + result.dii_a2);
+								}
+							} else if (type === com.sap.xmii.common.util.ChartPropertyConstants.DIMENSION) {
+
+							}
+						}
+					}
+					jQuery.sap.log.info('X-Axis value==>' + xAxisVal);
+					return xAxisVal;
+				} else {
+					return '';
+				}
+			} else {
+				return '';
+			}
+		},
+
+		/**
+		 * GetYDataValueAt : This function returns the y-cordinate value
+		 * datasetIndex : index of the dataset(1-based) pointIndex : index of the
+		 * point(1-based))
+		 */
+		getYDataValueAt : function(datasetIndex, pointIndex) {
+			var compMode = this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.COMP_MODE);
+			if(datasetIndex != undefined && pointIndex != undefined && !isNaN(datasetIndex) && !isNaN(pointIndex)) {
+				var chartType = this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.CHART_TYPE);
+				var yAxisVal = '';
+				datasetIndex = parseInt(datasetIndex);
+				pointIndex = parseInt(pointIndex);
+				if(datasetIndex > 0 && pointIndex > 0) {
+					if (chartType == com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_PIE
+							|| chartType == com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_DONUT) {
+
+						//return $(com.sap.xmii.common.util.ui5Constants.V_DATAPOINT)[datasetIndex - 1].__data__.val;
+						return this.datapointItems[datasetIndex - 1].__data__.val;
+					} 
+					else if (chartType == com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_SCATTER
+							|| chartType == com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_BUBBLE) {
+						return this.getYDataForScatter_Bubble(datasetIndex, pointIndex);
+					} else {
+						var selectedDataPoint = this.getDataPoint(datasetIndex, pointIndex);
+						if(compMode === false){	
+							var valueColArray = this.getValueColumns().split(',');
+							for(var i=0; i<valueColArray.length; i++){
+								var valueColumn = valueColArray[i];
+								if(selectedDataPoint.__data__[valueColumn] != undefined)
+									yAxisVal += selectedDataPoint.__data__[valueColumn];
+							}
+							return yAxisVal;
+						}else{
+							jQuery.sap.log.info("Y-Axis value== >" + selectedDataPoint.__data__.val);
+							return selectedDataPoint.__data__.val;
+						}
+					}
+				} else {
+					return '';
+				}
+			} else {
+				return '';
+			}
+		},
+
+		getDataPoint : function(datasetIndex, dataPointIndex) {
+			var pointIndex;
+			var chartType = this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.CHART_TYPE);
+			if (chartType == com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_BAR
+					|| chartType == com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_STACKED_BAR
+					|| chartType == com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_GROUP_BAR
+					|| chartType == com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_HORIZONTAL_BAR
+					|| chartType == com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_HORIZONTAL_GROUP_BAR) {
+				pointIndex = datasetIndex - 1 + this.getDataSetCount() * (dataPointIndex - 1);
+
+			} else if (chartType == com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_LINE) {
+				pointIndex = (datasetIndex - 1) * this.getNumberOfDataPoints(1) + dataPointIndex - 1;
+			} else if (chartType == com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_CUSTOM) {
+				var firstMeasure = this.ui5ChartElement.getDataset().getMeasures()[0].getName();
+				var noOfBarLegends = 0, legendValue;
+				var bars = new Array();
+				var lines = new Array();
+				// loop through all the legend values and find out no of legends for which bars are drawn.
+				for ( var i = 0; i < this.legendItems.length; i++) {
+					legendValue = this.legendItems[i].__data__.val;
+					if (legendValue.substring(0, firstMeasure.length) === firstMeasure) {
+						noOfBarLegends = i + 1;
+					} else {
+						break;
+					}
+				}
+
+				// break the datapoints array into bar and line arrays
+				var barLegendLastIndex = noOfBarLegends * this.getNumberOfDataPoints(1);
+				for ( var j = 0; j < this.datapointItems.length; j++) {
+					if (j < barLegendLastIndex) {
+						bars.push(this.datapointItems[j]);
+					} else {
+						lines.push(this.datapointItems[j]);
+					}
+				}
+
+				// if dataset index represents a bar return the point from bar array else from line array.
+				if (datasetIndex <= noOfBarLegends) {
+					pointIndex = datasetIndex - 1 + noOfBarLegends * (dataPointIndex - 1);
+					return bars[pointIndex];
+				} else {
+					pointIndex = (datasetIndex - 1) * this.getNumberOfDataPoints(1) + dataPointIndex
+					- 1;
+					return lines[pointIndex - barLegendLastIndex];
+				}
+			} else {
+				// scatter, bubble
+
+			}
+			return this.datapointItems[pointIndex];	
+		},
+
+		/**
+		 * 
+		 * @param dsIndex
+		 * @param dpIndex
+		 * @returns
+		 */
+		getXDataForScatter_Bubble : function(dsIndex, dpIndex) {
+			var rowArray = this.legendItems;
+			// checka1_a2_values();
+			if(!isNaN(dsIndex) && !isNaN(dpIndex)) {
+				var i = rowArray[dsIndex - 1].__data__.ctx.path.dii_a1;
+				var j = rowArray[dsIndex - 1].__data__.ctx.path.dii_a2;
+				// Check for charts where there is only single dimension
+				if (typeof j === com.sap.xmii.common.util.GenericConstants.UNDEFINED) {
+					return this.bubble_scatterDataPointArray[dpIndex - 1].__data__.x;
+				}
+				if(dsIndex == dpIndex) {
+					return this.bubble_scatterDataPointArray[dpIndex - 1].__data__.x;
+				}
+				if ((i[0] == (this.bubble_scatterDataPointArray[dpIndex - 1].__data__.ctx[0].path.dii_a1 - 1))
+						&& j[0] == this.bubble_scatterDataPointArray[dpIndex - 1].__data__.ctx[0].path.dii_a2) {
+
+					return this.bubble_scatterDataPointArray[dpIndex - 1].__data__.x;
+				} else {
+					return com.sap.xmii.common.util.GenericConstants.NO_VALUE;
+				}
+			}
+		},
+
+		/**
+		 * 
+		 * @param dsIndex
+		 * @param dpIndex
+		 * @returns
+		 */
+		getYDataForScatter_Bubble : function(dsIndex, dpIndex) {
+			var rowArray = this.legendItems;;
+			// checka1_a2_values();
+			var i = rowArray[dsIndex - 1].__data__.ctx.path.dii_a1;
+			var j = rowArray[dsIndex - 1].__data__.ctx.path.dii_a2;
+			// Check for charts where there is only single dimension
+			if (typeof j === com.sap.xmii.common.util.GenericConstants.UNDEFINED) {
+				return this.bubble_scatterDataPointArray[dpIndex - 1].__data__.y;
+			}
+			if(dsIndex == dpIndex) {
+				return this.bubble_scatterDataPointArray[dpIndex - 1].__data__.y;
+			}
+			if ((i[0] == (this.bubble_scatterDataPointArray[dpIndex - 1].__data__.ctx[0].path.dii_a1 - 1))
+					&& j[0] == this.bubble_scatterDataPointArray[dpIndex - 1].__data__.ctx[0].path.dii_a2) {
+
+				return this.bubble_scatterDataPointArray[dpIndex - 1].__data__.y;
+			} else {
+				return com.sap.xmii.common.util.GenericConstants.NO_VALUE;
+			}
+		},
+
+		applyBackgroundAndBorderColor : function() {
+			//$('#'+this.chartPosId).find('.viz-plot-background').css('fill',this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.CHART_BACKGROUND_COLOR));
+			$('#'+this.chartPosId).find('.viz-plot-background-border').css({"stroke":this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.CHART_BORDER_COLOR), "stroke-width":2});
+			$('#'+this.chartPosId).find('.v-m-main').find('.v-m-plot').find('.v-bound').css({"stroke":this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.CHART_BORDER_COLOR), "stroke-width":2});
+			if(this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.BACKGROUND_TRANSPARENT)== true &&
+					this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.CHART_TYPE) ==com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_GAUGE){
+				var label1 = document.getElementById('__label1');
+				if(jQuery.isEmptyObject(label1) == false)
+					label1.style.backgroundColor  = '#FFFFFF';
+			}
+		},
+
+//		TODO : make this method private
+		setFontStyleAndWeight : function(fontStyleIndex) {
+			var fontStyles = { 0: "normal", 1: "bold", 2: "Italic", 3: "Bold Italic"};
+			if(fontStyleIndex == 0 || fontStyleIndex == 2) {
+				this.fontStyle = fontStyles[fontStyleIndex];
+				this.fontWeight = "normal";
+			} else if(fontStyleIndex == 1){
+				this.fontWeight =  fontStyles[fontStyleIndex];
+				this.fontStyle = fontStyles[0];
+			} else{
+				this.fontWeight =  fontStyles[1];
+				this.fontStyle = fontStyles[2];
+			}
+		},
+
+		applyYAxisStyling : function(){
+			var chartType = this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.CHART_TYPE);
+			var dualYAxis = this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.DUAL_YAXIS);
+			var compMode = this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.COMP_MODE);
+			var fontStyleIndex = this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.YAXIS_FONT_STYLE);
+			this.setFontStyleAndWeight(fontStyleIndex);
+			if(compMode){
+				$('#'+this.chartPosId).find('.v-m-yAxis').find('.v-title').css({
+					'fill':this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.YAXIS_LABEL_COLOR),
+					'font-size' : this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.YAXIS_FONT_SIZE),
+					'font-family':this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.YAXIS_FONT_FACE),
+					'font-weight' : this.fontWeight, 'font-style' : this.fontStyle});
+			}else{
+				$('#'+this.chartPosId).find('.v-m-yAxis').find('.v-title').css({'font-style':this.fontStyle,'font-weight':this.fontWeight});
+			}
+			$('#'+this.chartPosId).find('.v-m-yAxis').find('.v-label').css({
+				'fill':this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.YAXIS_LABEL_COLOR)});
+			//setting values for Y-Axis 2 if the chart is of type dual
+			if(dualYAxis){
+				var fontStyleIndex = this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.YAXIS_FONT_STYLE_2);
+				this.setFontStyleAndWeight(fontStyleIndex);
+				$('#'+this.chartPosId).find('.v-m-valueAxis2.v-m-yAxis2').find('.v-title.viz-axis-title').css({'font-style':this.fontStyle,'font-weight':this.fontWeight});
+				$('#'+this.chartPosId).find('.v-m-valueAxis2.v-m-yAxis2').find('.v-axis').find('.v-m-axisBody').find('.v-tick-group').find('.v-valueaxisline.v-tick').css({
+					'stroke':this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.YAXIS_TICK_COLOR_2)});
+				$('#'+this.chartPosId).find('.v-m-valueAxis2.v-m-yAxis2').find('.v-axis').find('.v-m-axisBody').find('.v-label-group').find('.v-label').css({
+					'fill':this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.YAXIS_LABEL_COLOR_2)});
+			}
+			if(chartType == com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_HORIZONTAL_BAR || 
+					chartType == com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_HORIZONTAL_GROUP_BAR) {
+				$('#'+this.chartPosId).find('line.v-valueaxisline').css({'stroke':this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.XAXIS_TICK_COLOR)});
+			} else if(chartType == com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_SCATTER || 
+					chartType == com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_BUBBLE) {
+				$('#'+this.chartPosId).find('.v-m-yAxis').find('line.v-valueaxisline').css({'stroke':this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.YAXIS_TICK_COLOR)});
+			} else {
+				if(compMode === false){
+					$('#'+this.chartPosId).find('.v-m-valueAxis.v-m-yAxis').find('.v-axis').find('.v-m-axisBody').find('.v-tick-group').find('.v-valueaxisline.v-tick').css({
+						'stroke':this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.YAXIS_TICK_COLOR)});
+				}else{
+					$('#'+this.chartPosId).find('line.v-valueaxisline').css({'stroke':this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.YAXIS_TICK_COLOR)});
+				}
+			}
+		},
+
+		applyXAxisStyling : function() {
+			var chartType = this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.CHART_TYPE);
+			var fontStyleIndex = this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.XAXIS_FONT_STYLE);
+			var compMode = this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.COMP_MODE);
+			this.setFontStyleAndWeight(fontStyleIndex);
+			if(compMode){
+				$('#'+this.chartPosId).find('.v-m-xAxis').find('.v-title').css({'fill':this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.XAXIS_LABEL_COLOR),
+					'font-size' : this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.XAXIS_FONT_SIZE),
+					'font-family':this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.XAXIS_FONT_FACE),
+					'font-weight' : this.fontWeight, 'font-style' : this.fontStyle});
+			}else{
+				$('#'+this.chartPosId).find('.v-m-xAxis').find('.v-title').css({'font-weight' : this.fontWeight, 'font-style' : this.fontStyle});
+			}
+			if(chartType == com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_SCATTER || 
+					chartType == com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_BUBBLE) {
+				$('#'+this.chartPosId).find('.v-m-xAxis').find('.v-title').css({'fill':this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.XAXIS_LABEL_COLOR),
+					'font-size' : this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.XAXIS_FONT_SIZE),
+					'font-family':this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.XAXIS_FONT_FACE),
+					'font-weight' : this.fontWeight, 'font-style' : this.fontStyle});
+			}
+			$('#'+this.chartPosId).find('.v-m-xAxis').find('.v-label').css({'fill':this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.XAXIS_LABEL_COLOR)});
+			if(chartType == com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_HORIZONTAL_BAR || 
+					chartType == com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_HORIZONTAL_GROUP_BAR) {
+				$('#'+this.chartPosId).find('line.v-categoryaxisline').css({'stroke':this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.YAXIS_TICK_COLOR)});
+			} else if(chartType == com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_SCATTER || 
+					chartType == com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_BUBBLE) {
+				$('#'+this.chartPosId).find('.v-m-xAxis').find('line.v-valueaxisline').css({'stroke':this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.XAXIS_TICK_COLOR)});
+			} else {
+				if(compMode === false){
+					//$('#'+this.chartPosId).find('line.v-valueaxisline.v-tick').css({'stroke':this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.XAXIS_TICK_COLOR)});
+					$('#'+this.chartPosId).find('.v-m-categoryAxis.v-m-xAxis').find('.v-axis').find('.v-m-axisBody').find('.v-tick-group').find('.v-valueaxisline.v-tick').css({
+						'stroke':this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.XAXIS_TICK_COLOR)});
+				}else{
+					$('#'+this.chartPosId).find('line.v-categoryaxisline').css({'stroke':this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.XAXIS_TICK_COLOR)});
+				}
+			}
+		},
+
+		applyXYAxisStylingforHorizontalChart : function(){
+			var chartType = this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.CHART_TYPE);
+			var dualYAxis = this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.DUAL_YAXIS);
+			var compMode = this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.COMP_MODE);
+			if(!compMode && chartType == com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_HORIZONTAL_BAR||chartType == com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_HORIZONTAL_GROUP_BAR){
+				$('#'+this.chartPosId).find('.v-m-valueAxis.v-m-xAxis').find('.v-axis').find('.v-m-axisBody').find('.v-label-group').find('.v-label').css({'fill':this.chartPropertyConfig.getProperty("YAxisLabelColor")});
+				var fontStyleIndex = this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.YAXIS_FONT_STYLE);
+				this.setFontStyleAndWeight(fontStyleIndex);
+				$('#'+this.chartPosId).find('.v-m-valueAxis.v-m-xAxis').find('.v-axis').find('.v-m-axisTitle').find('.v-title.viz-axis-title').css({
+					'fill':this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.YAXIS_LABEL_COLOR),
+					'font-size' : this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.YAXIS_FONT_SIZE),
+					'font-family':this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.YAXIS_FONT_FACE),
+					'font-weight' : this.fontWeight, 'font-style' : this.fontStyle});
+				$('#'+this.chartPosId).find('.v-m-valueAxis.v-m-xAxis').find('.v-axis').find('.v-m-axisBody').find('.v-tick-group').find('.v-valueaxisline.v-tick').css({
+					'stroke':this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.YAXIS_TICK_COLOR)});
+				$('#'+this.chartPosId).find('.v-m-valueAxis.v-m-xAxis').find('.v-axis').find('.v-m-axisBody').find('.v-line-group').find('.v-valueaxisline.v-line').css({'stroke':"#DFDFDF"});
+				$('#'+this.chartPosId).find('.v-m-categoryAxis.v-m-yAxis').find('.v-axis').find('.v-m-axisBody').find('.v-label-group').find('.v-label').css({
+					'fill':this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.XAXIS_LABEL_COLOR)});
+				var fontStyleIndex = this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.XAXIS_FONT_STYLE);
+				this.setFontStyleAndWeight(fontStyleIndex);
+				$('#'+this.chartPosId).find('.v-m-categoryAxis.v-m-yAxis').find('.v-axis').find('.v-m-axisTitle').find('.v-title.viz-axis-title').css({
+					'fill':this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.XAXIS_LABEL_COLOR),
+					'font-size' : this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.XAXIS_FONT_SIZE),
+					'font-family':this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.XAXIS_FONT_FACE),
+					'font-weight' : this.fontWeight, 'font-style' : this.fontStyle});
+				$('#'+this.chartPosId).find('.v-m-categoryAxis.v-m-yAxis').find('.v-axis').find('.v-m-axisBody').find('.v-line-group').find('.v-valueaxisline.v-line').css({'stroke':"#DFDFDF"});
+				$('#'+this.chartPosId).find('.v-m-categoryAxis.v-m-yAxis').find('.v-axis').find('.v-m-axisBody').find('.v-tick-group').find('.v-valueaxisline.v-tick').css({
+					'stroke':this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.XAXIS_TICK_COLOR)});
+				if(dualYAxis){
+					//Y-Axis 1 Styling
+					$('#'+this.chartPosId).find('.v-m-valueAxis.v-m-xAxis2').find('.v-axis').find('.v-m-axisBody').find('.v-label-group').find('.v-label').css({
+						'fill':this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.YAXIS_LABEL_COLOR)});
+					var fontStyleIndex = this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.YAXIS_FONT_STYLE);
+					this.setFontStyleAndWeight(fontStyleIndex);
+					$('#'+this.chartPosId).find('.v-m-valueAxis.v-m-xAxis2').find('.v-axis').find('.v-m-axisTitle').find('.v-title.viz-axis-title').css({
+						'fill':this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.YAXIS_LABEL_COLOR),
+						'font-size' : this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.YAXIS_FONT_SIZE),
+						'font-family':this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.YAXIS_FONT_FACE),
+						'font-weight' : this.fontWeight, 'font-style' : this.fontStyle});
+					$('#'+this.chartPosId).find('.v-m-valueAxis.v-m-xAxis2').find('.v-axis').find('.v-m-axisBody').find('.v-tick-group').find('.v-valueaxisline.v-tick').css({
+						'stroke':this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.YAXIS_TICK_COLOR)});
+					$('#'+this.chartPosId).find('.v-m-valueAxis.v-m-xAxis2').find('.v-axis').find('.v-m-axisBody').find('.v-line-group').find('.v-valueaxisline.v-line').css({'stroke':"#DFDFDF"});
+					//Y-Axis 2 Styling
+					$('#'+this.chartPosId).find('.v-m-valueAxis2.v-m-xAxis').find('.v-axis').find('.v-m-axisBody').find('.v-label-group').find('.v-label').css({
+						'fill':this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.YAXIS_LABEL_COLOR_2)});
+					var fontStyleIndex = this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.YAXIS_FONT_STYLE_2);
+					this.setFontStyleAndWeight(fontStyleIndex);
+					$('#'+this.chartPosId).find('.v-m-valueAxis2.v-m-xAxis').find('.v-axis').find('.v-m-axisTitle').find('.v-title.viz-axis-title').css({
+						'fill':this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.YAXIS_LABEL_COLOR_2),
+						'font-size' : this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.YAXIS_FONT_SIZE_2),
+						'font-family':this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.YAXIS_FONT_FACE_2),
+						'font-weight' : this.fontWeight, 'font-style' : this.fontStyle});
+					$('#'+this.chartPosId).find('.v-m-valueAxis2.v-m-xAxis').find('.v-axis').find('.v-m-axisBody').find('.v-tick-group').find('.v-valueaxisline.v-tick').css({
+						'stroke':this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.YAXIS_TICK_COLOR_2)});
+					$('#'+this.chartPosId).find('.v-m-valueAxis2.v-m-xAxis').find('.v-axis').find('.v-m-axisBody').find('.v-line-group').find('.v-valueaxisline.v-line').css({'stroke':"#DFDFDF"});
+				}
+			}
+		},
+
+		/**
+		 * GetPenColor
+		 * @param dataSeriesIndex
+		 * @return
+		 */
+		getPenColor : function (dataSeriesIndex){
+			return this.chartPropertyConfig.getProperty("PenColor."+dataSeriesIndex);
+		},
+
+		/**
+		 * SetPenColorI072725/QueryTemplates/TagQuery_i5Chart
+		 * @param dataSeriesIndex
+		 * @param color
+		 */
+		setPenColor : function (dataSeriesIndex, color){
+			this.chartPropertyConfig.setProperty("PenColor."+dataSeriesIndex, color);
+		},
+
+		/**
+		 * GetPenType
+		 * @param dataSeriesIndex
+		 * @return
+		 */
+		getPenType : function(dataSeriesIndex) {
+			return this.chartPropertyConfig.getProperty("PenType."+dataSeriesIndex);
+		},
+
+		/**
+		 * SetPenType
+		 * @param dataSeriesIndex
+		 */
+		setPenType : function(dataSeriesIndex, penType) {
+			this.chartPropertyConfig.setProperty("PenType."+dataSeriesIndex, penType);
+		},
+
+		/**
+		 * GetPenMarkerStyle
+		 * @param dataSeriesIndex
+		 * @return
+		 */
+		getPenMarkerStyle : function(dataSeriesIndex){
+			return this.chartPropertyConfig.getProperty("PenMarkerStyle."+dataSeriesIndex);
+		},
+
+		/**
+		 * SetPenColor
+		 * @param dataSeriesIndex
+		 * @param markerStyleIndex
+		 */
+		setPenMarkerStyle : function(dataSeriesIndex, markerStyleIndex){
+			this.chartPropertyConfig.setProperty("PenMarkerStyle."+dataSeriesIndex, markerStyleIndex);
+		},
+
+		/**
+		 * GetViolationMarkerColor
+		 * @param dataSeriesIndex
+		 * @return
+		 */
+		getViolationMarkerColor : function (dataSeriesIndex){
+			return this.chartPropertyConfig.getProperty("ViolationMarkerColor."+dataSeriesIndex);
+		},
+
+		/**
+		 * SetViolationMarkerColor
+		 * @param dataSeriesIndex
+		 * @param color
+		 */
+		setViolationMarkerColor : function(dataSeriesIndex, color) {
+			this.chartPropertyConfig.setProperty("ViolationMarkerColor."+dataSeriesIndex, color);
+		},
+
+		/**
+		 * GetLineThickness
+		 * @param valueColumnIndex
+		 * @return
+		 */
+		getLineThickness : function(dataSeriesIndex) {
+			return this.chartPropertyConfig.getProperty("LineThickness."+dataSeriesIndex);
+		},
+
+		/**
+		 * SetLineThickness
+		 * @param dataSeriesIndex
+		 * @param thickness
+		 */
+		setLineThickness : function(dataSeriesIndex, thickness) {
+			this.chartPropertyConfig.setProperty("LineThickness."+dataSeriesIndex, thickness);
+		},
+
+		/**
+		 * GetLineStyle
+		 * @param valueColumnIndex
+		 * @return
+		 */
+		getLineStyle : function (dataSeriesIndex){
+			return this.chartPropertyConfig.getProperty("LineStyle."+dataSeriesIndex);
+		},
+
+		/**
+		 * SetLineThickness
+		 * @param dataSeriesIndex
+		 * @param lineStyleIndex
+		 */
+		setLineStyle : function (dataSeriesIndex, lineStyleIndex){
+			this.chartPropertyConfig.setProperty("LineStyle."+dataSeriesIndex, lineStyleIndex);
+		},
+		
+	getMaxRange : function(index){
+		var data = this.i5SPCChartModel.getModelData().getRowset(0).Row;
+		var valueColumns = this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.VALUE_COLUMNS);
+		if(valueColumns != null){
+			if(index >=0){
+					if(valueColumns.indexOf(",") != -1) {
+						var cols = valueColumns.split(",");
+						var selectedCol = cols[index];
+						var datasetArray = [];
+						datasetArray = $.merge(datasetArray, data.map(function(d){return d[selectedCol];}));
+						return(Math.max.apply(null, datasetArray));
+					}
+				}
+			return null;
+		}
+		
+				
+	}
+		
+
+}

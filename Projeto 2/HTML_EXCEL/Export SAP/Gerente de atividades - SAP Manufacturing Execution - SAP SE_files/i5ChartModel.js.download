@@ -1,0 +1,71 @@
+/**
+ * ChartModel which would hold a representation of the Data to be bound to the
+ * Chart
+ * 
+ * THIS Model holds a representation of the MII Query ResultSet Data Model
+ */
+com.sap.xmii.chart.model = com.sap.xmii.chart.model || {};
+
+com.sap.xmii.chart.model.i5ChartModel = function(qryObj) {
+
+	var dataModel ;
+
+	if (qryObj != undefined && qryObj instanceof com.sap.xmii.querytemplate.query.Query) {
+
+		this.queryObject = qryObj;
+
+		var modelURL = qryObj.buildPostData(com.sap.xmii.common.util.Modes.QT_JSON_MODE).url;
+
+		dataModel = new com.sap.xmii.common.model.DataModel(modelURL, this.queryObject.overrides);
+
+		var jsonText = dataModel.getJSONText();
+		dataModel.getJSONModel().setJSON(jsonText);
+	}
+	else{
+		dataModel = new com.sap.xmii.common.model.DataModel();
+		dataModel.getJSONModel().setJSON(JSON.stringify(qryObj));
+	}
+
+
+	//Commented below code: while adding measures this is taken care of
+	/*if(qryObj.getQueryType() === com.sap.xmii.common.util.QueryConstants.QUERY_TYPE_CATALOG) {
+		//Modify the keys of each row by replacing the value of "Name" with value of "SourceName"
+		//The delimiter is used for tags in CatalogQuery...
+		jsonText = com.sap.xmii.common.util.MIIi5Util.applyDelimiterOnRowsForCatalogQuery(jsonText);
+	}*/
+	
+	
+
+	this.modelData = new com.sap.xmii.common.model.ModelData(dataModel.getJSONModel());
+	this.modelMetaData = new com.sap.xmii.common.model.ModelMetaData(this.modelData);
+	
+	this.getJSONModel = function(){
+		return dataModel.getJSONModel();
+	},
+	this.getModelData = function() {
+		return dataModel.getModelData();
+    },
+    this.getModelMetaData = function() {
+    	return dataModel.getModelMetaData();
+    },
+    this.getJSONModel = function() {
+    	return dataModel.getJSONModel();
+    },
+    this.update = function(input, queryObj) {
+    	dataModel.update(input, queryObj);
+    },
+    this.updateJSONModelData = function(data) {
+    	return dataModel.updateJSONModelData();
+	},
+	this.getProperty = function(path) {
+		return dataModel.getProperty(path);
+	}
+
+}
+
+var parentChartComponent = new com.sap.xmii.common.model.DataModel();
+
+com.sap.xmii.chart.model.i5ChartModel.prototype = parentChartComponent;
+com.sap.xmii.chart.model.i5ChartModel.prototype.constructor = com.sap.xmii.chart.model.i5ChartModel;
+
+

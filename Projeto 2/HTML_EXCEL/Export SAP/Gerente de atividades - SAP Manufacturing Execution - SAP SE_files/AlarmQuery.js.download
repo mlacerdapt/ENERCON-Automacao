@@ -1,0 +1,62 @@
+function getJSDoc() {
+	var x = '';
+
+	function getAddMethods() {
+		var addMethodStr = '';
+		var propNames = [ 'Mode', 'FilterExpr', 'Tables', 'DateFormat',
+				'GroupingExpr', 'Group', 'IsCached', 'AllowFuture' ];
+
+		for (prop in propNames) {
+			var getStr = 'String:' + 'get' + propNames[prop] + ';';
+			var setStr = 'void:' + 'set' + propNames[prop] + '(val)' + ';';
+			addMethodStr = addMethodStr + getStr + setStr;
+		}
+
+		return addMethodStr;
+	}
+	;
+	x = x + getAddMethods();
+	return x;
+};
+
+/**
+ * @Namespace
+ */
+com.sap.xmii.querytemplate.query = com.sap.xmii.querytemplate.query || {};
+
+// FOR INHERITANCE
+var parentQueryObj = new com.sap.xmii.querytemplate.query.Query();
+
+/***
+ * ALARMQUERY CLASS
+ * 
+ * @constructor
+ * 
+ * @param queryTemplateName
+ * @param queryMetaData
+ */
+com.sap.xmii.querytemplate.query.AlarmQuery = function AlarmQuery(
+		queryTemplateName, queryMetaData) {
+
+	this.setQueryMetaData(queryMetaData);
+	this.setQueryTemplateName(queryTemplateName);
+	this.addGettersAndSetters(com.sap.xmii.common.util.AlarmQueryPropNames);
+
+	this.MODE_ALARMHISTORY = com.sap.xmii.common.util.QueryConstants.ALARM_HISTORY;
+	this.MODE_ALARMSTATISTICS = com.sap.xmii.common.util.QueryConstants.ALARM_STATISTICS;
+}
+
+// Inheritance
+com.sap.xmii.querytemplate.query.AlarmQuery.prototype = parentQueryObj;
+com.sap.xmii.querytemplate.query.AlarmQuery.prototype.constructor = com.sap.xmii.querytemplate.query.AlarmQuery;
+
+/**
+ * isTimeBasedQuery Method
+ * 
+ * @return
+ */
+com.sap.xmii.querytemplate.query.AlarmQuery.prototype.isTimeBasedQuery = function() {
+	return this.MODE_ALARMHISTORY.toUpperCase() == this.getMode().toUpperCase()
+			|| this.MODE_ALARMSTATISTICS.toUpperCase() == this.getMode()
+					.toUpperCase();
+}

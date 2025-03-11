@@ -1,0 +1,1026 @@
+com.sap.xmii = com.sap.xmii || {};
+
+com.sap.xmii.ssce = com.sap.xmii.ssce || {};
+
+com.sap.xmii.ssce.WebsocketSubscriber = function() {
+
+	this.tagArray = [];
+	
+	this.tagPropertiesArray = [];
+	
+	this.allTagNamesAsString = "";
+
+	this.pCoServers = [];
+	
+	this.noServerTagArray = [];
+	
+	this.noPermissionTagArray = [];
+
+	this.hardFallBackTags = [];
+	
+	this.refreshIntervalIdForFallback = 1;
+	
+	this.refreshIntervalDurationForFallback = 5000; 
+
+	this.addTag = function(tag) {
+		this.tagArray.push(tag);
+	};
+	
+	this.addTagProperty = function(tagProperty) {
+		this.tagPropertiesArray.push(tagProperty);
+	};
+	this.firstFallbackFired = true;
+	
+	this.areaColorHolder = [];
+	
+	/*
+	 * This function is responsible for subscribing the tags and connecting the web socket to their respective PCoServers, this function takes the
+	 * details of the tags from the previously declared list and create web socket connection per PCoServer
+	 */
+	this.subscribeTags = function() {
+		//setting the refresh Interval based in URI Parameter
+		var refreshIntInSecs = jQuery.sap.getUriParameters().get(TAG_REFRESH_PARAM);
+		if(refreshIntInSecs == null){
+			refreshIntInSecs = window.tagRefreshInterval;
+		}
+		if (refreshIntInSecs !== undefined && refreshIntInSecs != null && !isNaN(parseInt(refreshIntInSecs)))
+			this.refreshIntervalDurationForFallback = parseInt(refreshIntInSecs) * 1000;
+			
+		var subscriber = this;
+		this.retrieveTagServerDetails();
+		//display error for the tags with no permission
+		subscriber.permissionError(this.noPermissionTagArray);
+		// Display error for the tags with no connection to pCo systems
+		subscriber.displayError(this.noServerTagArray);
+		subscriber.getPropertiesFromPICForTagProperties();
+		//have to check if the current browser support web socket
+		if ("WebSocket" in window) {
+			// Create a ws connection to the PCoServer and listen for notifications.
+			for ( var i = 0; i < this.pCoServers.length; i++) {
+				// checking for secure web socket connection
+				var pCoServer = this.pCoServers[i];
+				var protocol = "ws";
+				if (pCoServer.useSSL == "true")
+					protocol = "wss";
+				
+				var wsConnection = new WebSocket(protocol + "://" + pCoServer.server + ":" + pCoServer.port);
+				wsConnection.pCoServer = pCoServer;
+				
+				// registering event listener when the we socket connection is opened
+				wsConnection.onopen = function(e) {
+					console.log("web socket opened ");
+					// adding the subscription for all the tags which belong this PCoServer
+					subscriber.getTemplate(this, e.target.pCoServer);
+				};
+				
+				// registering event listener for onmessage this function is called when there is push of tag values from PCo side to the MII
+				wsConnection.onmessage = function(e) {
+					var xml = e.data;
+					// parsing the xml which is obtained from PCo
+					var xmlDoc = jQuery.parseXML(xml);
+					var $xmlDoc = jQuery(xmlDoc);
+					
+					if ($xmlDoc.find("GetTemplatesMessageResponse").length > 0) {
+						if ($xmlDoc.find("GetTemplatesMessageResponse").find("Success").text() == "true") {
+							e.target.pCoServer.template = $($xmlDoc.find("GetTemplatesMessageResponse").find("Template").find("Name")[0]).text();
+							subscriber.addSubscription(this, e.target.pCoServer);
+						} else {
+							var message = oBundle.getText('XMSG_WEBSOCKET_TEMPL_FAILED')+ "-" + $xmlDoc.find("Message").text();
+							console.log(message);
+							subscriber.displayError(this.pCoServer.tagArray, message);
+						}
+					} else if ($xmlDoc.find("SubscribeMessageResponse").length > 0) {
+						if ($xmlDoc.find("SubscribeMessageResponse").find("Success").text() == "false") {
+							var message = oBundle.getText('XMSG_WEBSOCKET_SUBS_FAILED')+ "-" + $xmlDoc.find("Message").text(); 
+							console.log(message);
+							subscriber.displayError(this.pCoServer.tagArray, message);
+						}
+						
+					} else if ($xmlDoc.find("NotificationMessage").length > 0) {
+						
+						// finding the Values tag in the xml document
+						var values = $xmlDoc.find("Values");
+						/* update the tag values in tag array */
+						subscriber.updateTagArray(values);
+						// for each and every value i.e. for each and every tag 
+						jQuery(values).children().each(function() {
+							var $item = jQuery(this);
+							var isFallBack = false;
+							//return if PIC tag is converted to Gauge ; no need to go to displayTag
+							var gaugeName = $item.attr("name");
+							for(var i = 0; i < subscriber.tagArray.length ; i++){
+								//in case of tag converted to gauge id need to be configured ; tagGuid is undeifned
+								if(subscriber.tagArray[i].gaugeControl != undefined){
+									if(subscriber.tagArray[i].gaugeControl.id == gaugeName){
+										isFallBack = true;
+									}
+								}
+							}
+							// if the type of the tag is boolean, PCo returns 0 or 1 so we need to convert it to true or false
+							if ($item.attr("type") == "BOOLEAN") {
+								
+								// reading the value of the tag
+								var boolValue = $item.text();
+								if (boolValue == '1') {
+									$('area').mapster("deselect");
+									subscriber.displayTag($item, "true", isFallBack);
+									$('area').mapster("select");
+									
+								} else {
+									$('area').mapster("deselect");
+									subscriber.displayTag($item, "false", isFallBack);
+									$('area').mapster("select");
+								}
+							} else {
+								// if the type of the tag is other than Boolean then the value of the tag is displayed as it is
+								$('area').mapster("deselect");
+								subscriber.displayTag($item, $item.text(), isFallBack);
+								$('area').mapster("select");
+							}
+						});
+					} else if ($xmlDoc.find("UnsubscribeMessageResponse").length > 0) {
+						if ($xmlDoc.find("UnsubscribeMessageResponse").find("Success").text() == "true") {
+							this.close();
+						}
+					}
+					
+				};
+				
+				// registering the event handler for handling after the web socket has been closed
+				wsConnection.onclose = function(x) {
+					console.log("web socket closed ");
+				};
+				
+				// registering the event handler for an error condition
+				wsConnection.onerror = function(e) {
+					console.log('WS State ' + this.readyState);
+					console.log('An error occurred ' + e.data);
+					var message = oBundle.getText('XMSG_WEBSOCKET_CON_FAILED');
+					subscriber.displayError(this.pCoServer.tagArray, message);
+				};
+				
+				// adding the created web socket connection to the previously created list
+				pCoServer.wsConnection = wsConnection;
+			}
+			//for all those servers for which web socket is not defined we need to fetch the values for these tags from Catalog Query
+			this.registerFallBack(this.hardFallBackTags);
+		} else {
+		//if the web socket is not supported by the browser then the tag values have to be retrieved from the catalog query with the current mode	
+			this.registerFallBack(this.tagArray);
+		}
+	};
+	/**
+	 * This function updates the tag value in tag array and then publishes the ui5 event  "picTagUpdated".
+	 * @param values
+	 * @return
+	 */
+	this.updateTagArray = function(values){
+		var that = this;
+		jQuery(values).children().each(function() {
+			
+			var $item = jQuery(this);
+			var tagGUID = $item.attr("name");
+			var tagValue = "" ;
+			if ($item.attr("type") == "BOOLEAN") {
+				
+				// reading the value of the tag
+				var boolValue = $item.text();
+				if (boolValue == '1') {
+					tagValue= "true" ;
+					
+				} else {
+					tagValue= "false" ;
+				}
+			} else {
+				// if the type of the tag is other than Boolean then the value of the tag is displayed as it is
+				tagValue =  $item.text();
+			}
+			for(var i = 0; i < that.tagArray.length ; i++){
+				//in case of tag converted to gauge, id need to be checked 
+				if(that.tagArray[i].gaugeControl != undefined){
+					if(that.tagArray[i].gaugeControl.id == tagGUID){
+						that.tagArray[i].tagValue = parseFloat(tagValue);
+					}
+				} else {  //in case of tag configured in VDS, id need to be checked 
+					if(that.tagArray[i].tagGUID == tagGUID){
+						that.tagArray[i].tagValue = tagValue;
+					}
+				}
+			}
+			
+		});
+		
+		sap.ui.getCore().getEventBus().publish("mii.ui.ce.events", "picTagUpdated");
+		
+	};
+	
+	this.updateTagPropertyArray = function (data){
+		
+		var subscriber = this;
+		if (data != null && data.Rowsets.Rowset[1] != undefined && data.Rowsets.Rowset[1].Row != undefined) {
+			for ( var k = 0; k < data.Rowsets.Rowset[1].Row.length; k++) {
+					var namespace = data.Rowsets.Rowset[1].Row[k].ObjectName;
+					namespace = namespace.substring(namespace.indexOf('.')+1,namespace.length);
+					namespace = namespace.replace(/\./g,'/');
+					subscriber.tagPropertiesArray.forEach(function(tagProperty){
+						if(( tagProperty.tagNamespace == namespace )&& (tagProperty.propertyName == data.Rowsets.Rowset[1].Row[k].PropertyName)){
+							tagProperty.tagPropertyValue = data.Rowsets.Rowset[1].Row[k].PropertyValue;
+						}
+					});
+					
+			}
+		}
+	};
+	
+	
+	this.getPropertyValue = function (propertyName, propertySetName, tagNamespace){
+		var subscriber = this;
+		var propertyValue;
+		subscriber.tagPropertiesArray.forEach(function(tagProperty){
+			if(( tagProperty.tagNamespace == tagNamespace )&& (tagProperty.propertyName == propertyName) && (tagProperty.propertySetName == propertySetName)){
+				propertyValue = tagProperty.tagPropertyValue;
+			}
+		});
+		return propertyValue;
+	};
+	
+	this.getTagValue = function (tagNamespace , calledFrom){
+		var subscriber = this;
+		var tagValue;
+		subscriber.tagArray.forEach(function(tag){
+			if(calledFrom == "GaugeView"){
+				if(tag.tagNamespace == tagNamespace && tag.gaugeControl != undefined){
+					tagValue =  tag.tagValue;
+				}
+			}else{
+				if(tag.tagNamespace == tagNamespace){
+					tagValue =  tag.tagValue;
+				}
+			}
+		});
+		return tagValue;
+		
+	};
+	
+	/**
+	 * This functions is responsible for registering the fallback option for tags which refreshes the data on UI from
+	 * Catalog Query every 20 seconds
+	 * @param tags
+	 * @return
+	 */
+	this.registerFallBack = function (tags) {
+		//checking if at all the tags are present on the dashboard
+		
+		if (tags.length > 0) {
+			var allTagsAsString = "";
+			var delimitedData = applyNamespaceDelimiterForTags(tags);
+			this.allTagNamesAsString = delimitedData.selectedObjects;
+			this.delimiter = delimitedData.delimiter;
+
+			//calling the fallback for refreshing the initial state
+			if (this.allTagNamesAsString != "") {
+				this.fallBackToCatalogQuery();
+				//set this holder to false as the first call is done
+				this.firstFallbackFired = false;
+			}
+
+			this.refreshIntervalIdForFallback = setInterval.call(this, this.fallBackToCatalogQuery, this.refreshIntervalDurationForFallback);
+		}
+	};
+	
+	/**
+	 * This function is responsible for retrieving the tag values from the Catalog Query for a predefined interval
+	 * @return
+	 */
+	this.fallBackToCatalogQuery = function () {
+		//have to reset the area and color holder mappings
+		if (!this.firstFallbackFired)
+			this.areaColorHolder = [];
+		
+		//preparing the Query Template Parameters
+		var params = {"QueryTemplate" : "Predefined/DefaultCatalogHistoryQuery", "Mode" : "Current", "SelectedObjects": this.allTagNamesAsString, "NamespaceDelimeter" : this.delimiter, "Content-Type" : "text/json"};
+		var data = getDataFromServer(XMII_ILLUMINATOR_URL, params, null, null, "false");
+		
+		// have to check for the fatal error first; if any, then simply printing it on the screen
+		if (data.Rowsets !== undefined && data.Rowsets != null && data.Rowsets.FatalError !== undefined && data.Rowsets.FatalError != null && 
+				data.Rowsets.FatalError.trim() != "") {
+			parent.window.showNotificationBarMsg(3, data.Rowsets.FatalError);
+			return;
+		}
+		
+		// checking if the response retrieved is valid
+		if (data.Rowsets !== undefined && data.Rowsets != null && data.Rowsets.Rowset !== undefined && data.Rowsets.Rowset != null && data.Rowsets.Rowset.length > 0) {
+				
+			for (var i = 0; i < this.tagArray.length; i++) {
+				var key = "";
+				//finding the value of the tag which is at current index i
+				if(this.tagArray[i].isVirtualMeter == "true" && this.tagArray[i].TagDisplay == "Gauge"){
+					var valCol = this.tagArray[i].ValueColumn;
+					if(this.tagArray[i].tagAlias != this.tagArray[i].tagName){
+						valCol = valCol.replace(this.tagArray[i].tagAlias,this.tagArray[i].tagName);
+						key = ("CatalogConnector"+"_"+this.tagArray[i].tagNamespace.replace(/\//g,"_")).replace(this.tagArray[i].tagName,valCol);
+					}else{
+						key = ("CatalogConnector"+"_"+this.tagArray[i].tagNamespace.replace(/\//g,"_")).replace(this.tagArray[i].tagName,this.tagArray[i].ValueColumn);
+					}
+				}else if(this.tagArray[i].isVirtualMeter == "true"){
+					var displayCol = this.tagArray[i].DisplayColumn;
+					if(displayCol == undefined || displayCol == null || displayCol == "undefined"){
+						key = "CatalogConnector" + "_" + this.tagArray[i].tagNamespace.replace(/\//g,"_");
+					}else if(displayCol != "DateTime"){
+						if(this.tagArray[i].tagAlias != this.tagArray[i].tagName){
+							displayCol = displayCol.replace(this.tagArray[i].tagAlias,this.tagArray[i].tagName);
+							key = ("CatalogConnector"+"_"+this.tagArray[i].tagNamespace.replace(/\//g,"_")).replace(this.tagArray[i].tagName,displayCol);
+						}else{
+							key = ("CatalogConnector"+"_"+this.tagArray[i].tagNamespace.replace(/\//g,"_")).replace(this.tagArray[i].tagName,this.tagArray[i].DisplayColumn);
+						}
+					}else {
+						key = displayCol;
+					}
+				}else{
+					key = "CatalogConnector"+ this.delimiter + this.tagArray[i].tagNamespace.replace(/\//g, this.delimiter);
+				}
+				//Getting the refined results
+				if(this.tagArray[i].isVirtualMeter == "true"){
+					var delimitedData = applyNamespaceDelimiterForTags([this.tagArray[i]], true);
+					this.selectedObjects = delimitedData.selectedObjects;
+					this.delimiterVT = delimitedData.delimiter;
+					var paramVT = {"QueryTemplate" : "Predefined/DefaultCatalogHistoryQuery", "Mode" : "Current", "SelectedObjects": this.selectedObjects, "SelectedAliases": this.tagArray[i].tagAlias, "NamespaceDelimeter" : this.delimiterVT, "Content-Type" : "text/json"};
+					var result = getDataFromServer(XMII_ILLUMINATOR_URL, paramVT, null, null, "false");
+					var refinedResults = this.refineResults(result);
+				}
+				
+				var rowset = data.Rowsets.Rowset;
+				
+				//looping through the Rowset as the tags values from different servers will come in different Rowset(s) 
+				for (var j = 0; j < rowset.length; j++) {
+
+					var rows = rowset[j].Row;
+					for(var c=0; c < rowset[j].Columns.Column.length; c++){
+						var column = rowset[j].Columns.Column[c];
+						if(column.SourceColumn == key){
+							key = column.Name;
+							break;
+						}
+					}
+					//as some of the tags values can be there in different row hence we have to loop through each and every row
+					for (var k = 0; k < rows.length; k++) {
+						
+						var value = rows[k][key];
+						if (value !== undefined && value != null && value != "NA" && value != "---") {
+							//update the tag value in tag array
+							this.tagArray[i].tagValue = value;
+							//after retrieving the value refreshing the UI
+								if(isObjectNotNull(this.tagArray[i].tagControl)){
+									this.displayTag(this.tagArray[i].tagControl.getId(), value, true, refinedResults);
+								}
+							break;
+						} else {
+							continue;
+						}
+					}
+				}
+			}
+		}
+		//After update of tag value in tag array, publish the UI5 event picTagUpdated
+		sap.ui.getCore().getEventBus().publish("mii.ui.ce.events", "picTagUpdated");
+	};
+	
+
+	/*
+	 * 
+	 * This function is responsible for subscribing for the tags
+	 */
+	this.getTemplate = function(wsConnection, pCoServer) {
+
+		// creating the getTemplates request
+		var getTemplatesReq = '<?xml version="1.0" encoding="utf-8"?>\n' + '<GetTemplatesMessage xmlns="urn:sap.com:pco.contracts">\n' + '</GetTemplatesMessage>';
+
+		// sending the request to the PCoServer
+		wsConnection.send(getTemplatesReq);
+
+	};
+
+	/*
+	 * 
+	 * This function is responsible for subscribing for the tags
+	 */
+	this.addSubscription = function(wsConnection, pCoServer) {
+
+		// fetching the tag details
+		var tagArray = pCoServer.tagArray;
+
+		// creating the subscription request
+		var subscriptionData = '<?xml version="1.0" encoding="utf-8"?>\n' + '<SubscribeMessage xmlns="urn:sap.com:pco.contracts">\n' + '  <TagNames>\n';
+
+		for ( var i = 0; i < tagArray.length; i++) {
+			var tagData = tagArray[i];
+			var	controlId;
+			if(isObjectNotNull(tagData.tagGUID) ){
+				controlId = tagData.tagGUID;
+			}else{
+				if(isObjectNotNull(tagData.tagControl)){
+					controlId = tagData.tagControl.getId();
+				}else{
+					controlId = tagData.gaugeControl.id;
+				}
+			}
+			var name = tagData.tagAlias;
+			if(tagData.serverNamespace != undefined && tagData.serverNamespace != "")
+				name = tagData.serverNamespace + "/" + tagData.tagAlias;
+			subscriptionData = subscriptionData
+					+ '    <Tag xmlns="urn:sap.com:pco.contracts.items">\n'
+					+ '      <Name>' + name + '</Name>\n'
+					+ '      <IsNative>false</IsNative>\n' + '      <Alias>'
+					+ controlId + '</Alias>\n'
+					+ '    </Tag>\n';
+		}
+
+		subscriptionData = subscriptionData + '  </TagNames>\n'
+				+ '  <Template>' + pCoServer.template + '</Template>\n'
+				+ '</SubscribeMessage>';
+
+		// sending the request to the PCoServer
+		wsConnection.send(subscriptionData);
+
+	};
+
+	/*
+	 * This function is responsible for deleting the subscription for the tags
+	 */
+	this.deleteSubscription = function(pCoServer) {
+
+		var wsConnection = pCoServer.wsConnection;
+		// fetching the tag details
+		var tagArray = pCoServer.tagArray;
+		// creating the unsubscription request
+		var unsubscriptionData = '<?xml version="1.0" encoding="utf-8"?>\n' + '<UnsubscribeMessage xmlns="urn:sap.com:pco.contracts">\n' + '  <TagNames>\n';
+
+		for ( var i = 0; i < tagArray.length; i++) {
+
+			tagData = tagArray[i];
+			var	controlId;
+			if(isObjectNotNull(tagData.tagGUID) ){
+				controlId = tagData.tagGUID;
+			}else{
+				if(isObjectNotNull(tagData.tagControl)){
+					controlId = tagData.tagControl.getId();
+				}else{
+					controlId = tagData.gaugeControl.id;
+				}
+			}
+			unsubscriptionData = unsubscriptionData
+					+ '    <Tag xmlns="urn:sap.com:pco.contracts.items">\n'
+					+ '      <Name>' + tagData.tagAlias + '</Name>\n'
+					+ '      <IsNative>false</IsNative>\n' + '      <Alias>'
+					+ controlId + '</Alias>\n'
+					+ '    </Tag>\n';
+		}
+
+		unsubscriptionData = unsubscriptionData + '  </TagNames>\n' + '</UnsubscribeMessage>';
+
+		// sending the request to the PCoServer
+		wsConnection.send(unsubscriptionData);
+
+	};
+
+	/**
+	 * This function will retrieve the PCoServer details from PIC and update the
+	 * tags in the tagArray.
+	 * 
+	 * @return
+	 */
+	this.retrieveTagServerDetails = function() {
+
+		for ( var i = 0; i < this.tagArray.length; i++) {
+			var tag = this.tagArray[i];
+			tag.hasPermission = false; // flag used to handle permission check
+			var urlParameterObject = new Object();
+			urlParameterObject.TagName = tag.tagName;
+			urlParameterObject.Namespace = tag.tagNamespace;
+			urlParameterObject.Mode = "ObjectList";
+			urlParameterObject.DataType = null;
+			urlParameterObject.Permission = "execute";
+
+			// Getting the property value if UOM is selected from the value help
+			if (tag.showUnit) {
+				if (tag.isUnitProperty) {
+					var result = getPropertiesFromPIC(tag.tagNamespace, tag.altUnit, tag.unitPropertySet);
+					if (result != null && result.Rowsets.Rowset[1] != undefined && result.Rowsets.Rowset[1].Row != undefined) {
+						tag.tagControl.setUnit(result.Rowsets.Rowset[1].Row[0].PropertyValue);
+					}
+				} else {
+					tag.tagControl.setUnit(tag.altUnit);
+				}
+			}
+			var data = getTagFromPIC(XMII_PIC_ODATA_URL, urlParameterObject, null);
+			if (data === undefined || data == null || data.d === undefined || data.d == null || data.d.results === undefined || data.d.results == null ||
+					data.d.results[0] === undefined || data.d.results[0] == null || data.d.results[0].Rowset === undefined || data.d.results[0].Rowset == null ||
+					data.d.results[0].Rowset.results === undefined || data.d.results[0].Rowset.results == null || data.d.results[0].Rowset.results[0] === undefined || 
+					data.d.results[0].Rowset.results[0] == null || data.d.results[0].Rowset.results[0].Row === undefined || data.d.results[0].Rowset.results[0].Row == null ||
+					data.d.results[0].Rowset.results[0].Row.results === undefined || data.d.results[0].Rowset.results[0].Row.results == null || !jQuery.isArray(data.d.results[0].Rowset.results[0].Row.results)) {
+				continue;
+			}
+
+			var rows = data.d.results[0].Rowset.results[0].Row.results;
+			// update the tags with the server information.
+			for ( var j = 0; j < rows.length; j++) {
+				var row = rows[j];
+				var name = row.Name;
+				var namespace = row.Namespace;
+				if (tag.tagName == name && tag.tagNamespace == namespace) {
+					tag.hasPermission = true; // flag used to handle permission check
+					tag.serverNamespace = row.ServerNamespace;
+					tag.serverHost = row.ServerHost;
+					tag.webSocketPort = row.WebSocketPort;
+					tag.useSSL = row.UseSSL;
+					tag.isVirtualMeter = row.IsVirtualMeter;
+					var dataType = row.DataType;
+					if (dataType !== undefined && dataType != null &&  dataType != "" )
+						dataType = dataType.toLowerCase();
+					if (dataType == "float" || typeof(dataType) == "real" || dataType == "double") {
+							dataType = "double";
+						}
+					if(isObjectNotNull(tag.tagControl)){
+					tag.tagControl.data("dataType", dataType);
+					}
+					
+				}
+			}
+			this.addToPCoServerList(tag);
+		}
+	};
+
+	/**
+	 * This function will add the tag to the array for the pCoServer. Each pCoServer will hold the tags subscribing to that server. If the tag is
+	 * not subscrbing to any server, it will added to the noServerTagArray
+	 * 
+	 * @param tag
+	 * @return
+	 */
+	this.addToPCoServerList = function(tag) {
+		//if tag is virtual tag, retrieve data from catalog query
+		if (tag.isVirtualMeter == "true"){
+			this.hardFallBackTags.push(tag);
+			return;
+		}
+		
+		if(tag.hasPermission == false){
+			this.noPermissionTagArray.push(tag);
+			return;
+		}
+		if (tag.serverHost == null || tag.serverHost == undefined || tag.serverHost.trim() == "") {
+			this.noServerTagArray.push(tag);
+			return;
+		}
+		// if server is defined and the web socket port is null, it means that these tags values have to be  explicitly retrieved from the catalog query
+		if ( tag.serverHost != null && tag.serverHost != undefined && tag.serverHost.trim() != "" && (tag.webSocketPort == null || 
+				tag.webSocketPort == undefined || tag.webSocketPort.trim() == "")) {
+			this.hardFallBackTags.push(tag);
+			return;
+		}
+		if (this.pCoServers.length == 0) {
+			this.pCoServers.push({
+				server : tag.serverHost,
+				port : tag.webSocketPort,
+				useSSL : tag.useSSL,
+				tagArray : [tag]
+			});
+		} else {
+			var server = this.findPCoServer(tag);
+			if (server == null) {
+				this.pCoServers.push({
+					server : tag.serverHost,
+					port : tag.webSocketPort,
+					useSSL : tag.useSSL,
+					tagArray : [tag]
+				});
+			} else {
+				// The pCoserver is already in the list, add the tag to it.
+				server.tagArray.push(tag);
+			}
+		}
+	};
+
+	/**
+	 * This function will find the pCoServer for the tag in the pCoServers list.
+	 * 
+	 * @param tag
+	 * @return
+	 */
+	this.findPCoServer = function(tag) {
+		for ( var i = 0; i < this.pCoServers.length; i++) {
+			if (this.pCoServers[i].server == tag.serverHost && this.pCoServers[i].port == tag.webSocketPort) {
+				return this.pCoServers[i];
+			}
+		}
+		return null;
+	};
+
+	this.displayTag = function($item, tagValue, isFallback, refinedResults) {
+		var tagControlId = "";
+		if (isFallback)
+			tagControlId = $item;
+		else
+			tagControlId = $item.attr("name");
+			
+		var propertyXML = "";
+		var indexForSettingData = -1;
+		var mappedIndexStored = []; // mapping which condition's property name
+									// is retrieved
+		// so that later, respective condition value can be changed
+		/*
+		 * finding all the labels in the DOM with id that matches with the tag namespace where all occurrences of '/' are replaced with ':'. 
+		 * This is done to support multiple occurrences of the same tag in the DOM
+		 */
+		
+		var tagControl = sap.ui.getCore().byId(tagControlId);
+		//retrieving the value and display column value from the flattened results
+		if(refinedResults != null || refinedResults != undefined){
+			var valueColumnValue = refinedResults[tagControl.data("ValueColumn")];
+			var displayColumnValue = refinedResults[tagControl.data("DisplayColumn")];
+		}
+		// setting the text of the label or the color of the circle
+		 if (tagControl != null && tagControl !== undefined) {
+			// evaluating the conditions
+			var conditions = tagControl.data("conditions");
+			var color = "#000000";
+			var iconPath = "";
+			var size = tagControl.data().size;
+			if(tagControl.data().virtualTag == "true"){
+				if (isObjectNotNull(valueColumnValue) && isArrayNotEmpty(conditions)) {
+					for (var i = 0; i < conditions.length; i++) {
+						//first need to check if the condition is Between
+						if (conditions[i].Operator == "Between") {
+							//setting the value of each and every condition against which the value of the column will be evaluated
+							var fromValue = null;
+							var toValue = null;
+							if (isObjectNotNull(conditions[i].ConditionColumnName) && conditions[i].ConditionColumnName != "") {
+								fromValue = refinedResults[conditions[i].ConditionColumnName];
+							}
+							//setting the value if the to value is also a column name
+							if (isObjectNotNull(conditions[i].ToValueConditionColumnName) && conditions[i].ToValueConditionColumnName != "") {
+								toValue = refinedResults[conditions[i].ToValueConditionColumnName];
+							}
+							//considering all cases in which from value or to value has to be derived from a column 
+							if (fromValue != null && toValue != null) {
+								conditions[i].Value = fromValue + ":" + toValue;
+							} else if (fromValue != null && toValue == null) {
+								conditions[i].Value = fromValue + ":" + conditions[i].Value.split(":")[1]; 
+							} else if (fromValue == null && toValue != null) {
+								conditions[i].Value = conditions[i].Value.split(":")[0] + ":" + toValue;
+							}
+							
+						} else {
+							//setting the value of each and every condition against which the value of the column will be evaluated
+							if (isObjectNotNull(conditions[i].ConditionColumnName) && conditions[i].ConditionColumnName != "") {
+								conditions[i].Value = refinedResults[conditions[i].ConditionColumnName];
+							} 
+						}
+					}
+				}
+			}else {
+				//initializing the tag with the defualt tag mentioned in display tab
+				var size = tagControl.data().size;
+				var sendPropertyReq = false;
+				// Getting the property value if user has selected the condition value help for value
+				if (conditions != null) {
+					for ( var j = 0; j < conditions.length; j++) {
+						if (conditions[j].PropertyName !== "" && conditions[j].PropertySetName !== "" && conditions[j].propReqSent != true) {
+							// Creating XML for each property name and property set name so that the ajax call happens once for all property
+							propertyXML += "<Property Name=\"" + conditions[j].PropertyName + "\" PropertySetName=\"" + conditions[j].PropertySetName + "\"/>";
+							mappedIndexStored.push(j);
+							sendPropertyReq = true;
+						}
+					}
+				}
+				// Making AJAX call to get property value for each condition having PropertyName and PropertySetName not null
+				if (sendPropertyReq == true) {
+					var data = this.getPropertiesFromPIC(tagControl.data().namespace, propertyXML);
+					// Loop through the response and set the property value to respective conditions
+					if (data != null && data.Rowsets.Rowset[1] != undefined && data.Rowsets.Rowset[1].Row != undefined) {
+						for ( var k = 0; k < data.Rowsets.Rowset[1].Row.length; k++) {
+							for ( var l = 0; l < conditions.length; l++) {
+								if (conditions[l].PropertyName == data.Rowsets.Rowset[1].Row[k].PropertyName) {
+									conditions[l].Value = data.Rowsets.Rowset[1].Row[k].PropertyValue;
+									conditions[l].propReqSent = true;
+								}
+							}
+						}
+					}
+				}
+			}
+			if(tagControl.data().virtualTag == "true"){
+				//setting the value against the conditions are to be evaluated
+				if (conditions){
+					var columnConditions =  com.sap.xmii.ssce.PICTag.getConditionsforVirtualTag(tagControlId, conditions);
+					if (conditions != null && conditions != undefined && conditions != "") {
+						for (var i = 0; i < conditions.length; i++) {
+							columnConditions[i].Columns[0].ColumnValue = valueColumnValue;
+						}
+					}
+					//evaluating the conditions
+					var indexOfCondition = new com.sap.xmii.grid.expression.Expression(columnConditions, "#000000", true, true, true).evaluate();
+					//if the condition is found to be true then storing the color and icon in the variables
+					var matchedCondition = conditions[indexOfCondition];
+					if (matchedCondition) {
+						color = matchedCondition.Color;
+						iconPath = matchedCondition.IconPath;
+						if(matchedCondition.Size != "")
+							size = matchedCondition.Size + "px";
+					} 
+				}
+			}else {
+				if (conditions) {
+					var columnConditions = com.sap.xmii.ssce.PICTag.getColumnConditions(tagControlId, conditions);
+					if (conditions != null && conditions !== undefined && conditions != "") {
+						for ( var i = 0; i < conditions.length; i++) {
+							columnConditions[i].Columns[0].ColumnValue = tagValue;
+						}
+					}
+	
+					// building a new expression and evaluating the expression
+					var indexOfCondition = new com.sap.xmii.grid.expression.Expression(columnConditions, "#000000", true, true, true).evaluate();
+					var matchedCondition = conditions[indexOfCondition];
+					if (matchedCondition) {
+						color = matchedCondition.Color;
+						iconPath = matchedCondition.IconPath;
+						if(matchedCondition.Size != "")
+							size = matchedCondition.Size + "px";
+						
+					}
+				}
+			}
+			// Adding the Property Value also
+			if (matchedCondition && matchedCondition.RuntimeValue && matchedCondition.RuntimeValue != "")
+				tagControl.setValue(matchedCondition.RuntimeValue);
+			else{
+				if(tagControl.data("virtualTag") == "true"){
+					if(isObjectNotNull(tagControl.data("DisplayColumnDataType")) && (tagControl.data("DisplayColumnDataType").toLowerCase() == "double" || tagControl.data("DisplayColumnDataType").toLowerCase() == "numeric") && 
+							tagControl.data("decimalPlaces") !== undefined && tagControl.data("decimalPlaces") != ""){
+						var decimalPlaces = parseInt(tagControl.data("decimalPlaces"));
+						if(decimalPlaces >= 0)
+							tagValue = tagValue.toFixed(decimalPlaces);
+					}
+				}else if(isObjectNotNull(tagControl.data("dataType")) && (tagControl.data("dataType").toLowerCase() == "double" || tagControl.data("dataType").toLowerCase() == "numeric") && 
+						tagControl.data("decimalPlaces") !== undefined && tagControl.data("decimalPlaces") != ""){
+					var decimalPlaces = parseInt(tagControl.data("decimalPlaces"));
+					if(decimalPlaces >= 0)
+						tagValue = tagValue.toFixed(decimalPlaces);
+				}
+				tagControl.setValue(tagValue);
+			}
+			if (matchedCondition && matchedCondition.GraphicsType && matchedCondition.GraphicsType.length > 0 && matchedCondition.GraphicsType != "none") {
+				tagControl.setShowGraphics(true);
+				tagControl.setShowIcon(false);
+				tagControl.setShape(matchedCondition.GraphicsType);
+			} else {
+				tagControl.setShowGraphics(false);
+			}
+			tagControl.setColor(color);
+			//Setting the size
+			tagControl.setProperty("size", size);
+			if (iconPath != null && iconPath !== undefined && iconPath != "") {
+				tagControl.setIconPath(iconPath);
+				tagControl.setShowIcon(true);
+			} else {
+				tagControl.setShowIcon(false);
+			}
+			tagControl.setTooltip(new sap.ui.commons.RichTooltip( {
+				text : tagControl.data("namespace")
+			}));
+
+			var callbackMethod = tagControl.data("callbackMethod");
+			if (callbackMethod != undefined && callbackMethod != null && callbackMethod == "true") {
+				var tagData = {};
+				tagData.tagName = tagControl.data("namespace");
+				tagData.alternateTagName = tagControl.getName();
+				tagData.tagValue = tagValue;
+				tagData.color = color;
+				tagData.iconPath = iconPath;
+				if (matchedCondition)
+					tagData.runtimeValue = matchedCondition.RuntimeValue;
+				tagData.unitOfMeasure = tagControl.getUnit();
+				tagControl.callbackMethod(tagData);
+			}
+			var areaName = tagControl.data("area");
+			if (areaList.indexOf(areaName) == -1)
+				areaList[areaList.length] = areaName;
+			if (areaName && areaName.length > 0) {
+				//if it is the first call then we need to register the area colors so that they can be initialized with these colors
+				if (this.firstFallbackFired) {
+					this.areaColorHolder.push({AreaName : areaName, AreaColor : color.replace("#", "")});
+				}
+				//tagControl.setVisible(false);
+				if(jQuery('area').parent().attr('data-ready') != undefined && jQuery('area').parent().attr('data-ready') === 'true'){
+					$('[name="' + areaName + '"]').mapster("get_options").fillColor = color.replace("#", "");
+				}
+			}
+		}
+
+	};
+
+	this.displayError = function(tagArray, message) {
+
+		for ( var i = 0; i < tagArray.length; i++) {
+			var tagControl = tagArray[i].tagControl;
+			if (tagControl) {
+				tagControl.setShowWarningIcon(true);
+				var msg = oBundle.getText("XMSG_WEBSCKTHOST_NOT_DEFINED") + " " + tagArray[i].tagNamespace;
+				if(message != undefined)
+					msg = message;
+				tagControl.setTooltip(new sap.ui.commons.RichTooltip( {
+					text : msg
+				}));
+			}
+		}
+
+	};
+	
+	this.permissionError = function(tagArray){
+		for ( var i = 0; i < tagArray.length; i++) {
+			var tagControl = tagArray[i].tagControl;
+			if (tagControl) {
+				tagControl.setShowWarningIcon(true);
+				tagControl.setTooltip(new sap.ui.commons.RichTooltip( {
+					text : oBundle.getText("XMSG_NO_DATA")
+				}));
+			}
+		}
+	}
+
+	this.deleteAllWebSocketConnections = function() {
+		// close all the Websocket Connections
+		for ( var i = 0; i < this.pCoServers.length; i++) {
+			var server = this.pCoServers[i];
+			this.deleteSubscription(server);
+			for ( var j = 0; j < server.tagArray.length; j++) {
+				var tag = server.tagArray[j];
+				if(isObjectNotNull(tag.tagControl)){
+				tag.tagControl.destroy();
+				}
+			}
+		}
+
+		this.tagArray = new Array();
+		this.pCoServers = new Array();
+	};
+
+	this.getPropertiesFromPIC = function(Namespace, propertyXML) {
+		var result = "";
+		var tagNamespace = "CatalogConnector." + Namespace.replace(/\//g, ".");
+		var ETCQuery = "";
+		ETCQuery += '<?xml version="1.0" encoding="UTF-8" standalone="no"?><ETCObjects>';
+		ETCQuery += "<ETCObject Name=\"" + tagNamespace + "\">";
+		ETCQuery += propertyXML;
+		ETCQuery += "</ETCObject></ETCObjects>";
+		$.ajax( {
+			url : XMII_ILLUMINATOR_URL,
+			type : 'POST',
+			dataType : 'json',
+			data : {
+				"Mode" : "Current",
+				"SelectedObjects" : tagNamespace,
+				"QueryTemplate" : "Predefined/DefaultCatalogHistoryQuery",
+				"Content-Type" : "text/json",
+				"ETCQueryPropertiesInfo" : ETCQuery
+			},
+			cache : false,
+			async : false,
+			success : function(data, textStatus, jqXHR) {
+				result = data;
+			},
+			/*headers : {
+				"Access-Control-Allow-Origin" : "*"
+			},*/
+			crossDomain : true,
+			error : function(data, textStatus, jqXHR) {
+				showNotificationBarMsg(3, oBundle
+						.getText("XMSG_DATA_RETRIEVAL_ERROR"));
+			}
+		});
+
+		return result;
+	};
+	
+this.getPropertiesFromPICForTagProperties = function() {
+		
+		var tagPropArray = this.tagPropertiesArray;
+		if(isObjectNotNull(tagPropArray) && tagPropArray.length > 0){
+			
+		var sortedArr = tagPropArray.sort(this.sort_by('tagNamespace', false, function(a){return a.toUpperCase()}));
+		
+		var ETCQuery = '<?xml version="1.0" encoding="UTF-8" standalone="no"?><ETCObjects>';
+		
+		var previousNameSpace = "";
+		var etcQureyString ="";
+		var selectedObjects = "";
+		for(var i =0 ; i<sortedArr.length; i++){
+			var Namespace = sortedArr[i].tagNamespace;
+			var propertyName = sortedArr[i].propertyName;
+			var propertySetName = sortedArr[i].propertySetName;
+			var tagNamespace = "CatalogConnector." + Namespace.replace(/\//g, ".");
+			selectedObjects += tagNamespace+",";
+			if(Namespace != previousNameSpace &&  previousNameSpace == ""){
+				ETCQuery += "<ETCObject Name=\"" + tagNamespace + "\">";
+				ETCQuery += "<Property Name=\"" + propertyName + "\" PropertySetName=\"" + propertySetName + "\"/>";
+				previousNameSpace = Namespace;
+				}else if(Namespace != previousNameSpace){
+
+					ETCQuery += "</ETCObject><ETCObject Name=\"" + tagNamespace + "\">";
+					ETCQuery += "<Property Name=\"" + propertyName + "\" PropertySetName=\"" + propertySetName + "\"/>";
+					previousNameSpace = Namespace;
+					
+				}else if(Namespace == previousNameSpace){
+					ETCQuery += "<Property Name=\"" + propertyName + "\" PropertySetName=\"" + propertySetName + "\"/>";
+				}
+		}
+		ETCQuery += "</ETCObject></ETCObjects>";
+		selectedObjects = selectedObjects.substring(0,(selectedObjects.length-1));
+		$.ajax( {
+			url : XMII_ILLUMINATOR_URL,
+			type : 'POST',
+			dataType : 'json',
+			data : {
+				"Mode" : "Current",
+				"SelectedObjects" : selectedObjects,
+				"QueryTemplate" : "Predefined/DefaultCatalogHistoryQuery",
+				"Content-Type" : "text/json",
+				"ETCQueryPropertiesInfo" : ETCQuery
+			},
+			cache : false,
+			async : false,
+			success : function(data, textStatus, jqXHR) {
+				result = data;
+			},
+			crossDomain : true,
+			error : function(data, textStatus, jqXHR) {
+				showNotificationBarMsg(3, oBundle
+						.getText("XMSG_DATA_RETRIEVAL_ERROR"));
+			}
+		});
+		
+		this.updateTagPropertyArray(result);
+		console.log(ETCQuery);
+		console.log(result);
+	};
+	
+	
+
+};
+/**
+ * This function is used to extract the value of first row of every rowset and return the same
+ */
+this.refineResults = function (results) {
+	var refinedResult = {};
+	if (isObjectNotNull(results) && isObjectNotNull(results.Rowsets)) {
+		if (isObjectNotNull(results.Rowsets.FataError)) {
+			refinedResult.FatalError = results.Rowsets.FataError;
+		} else {
+			if (isArrayNotEmpty(results.Rowsets.Rowset)) {
+				for (var i = 0; i < results.Rowsets.Rowset.length; i++) {
+					if (isArrayNotEmpty(results.Rowsets.Rowset[i].Row)) {
+						for (var columnName in results.Rowsets.Rowset[i].Row[0]) {
+							refinedResult[columnName] = results.Rowsets.Rowset[i].Row[0][columnName];
+							if (i == 0) {
+								refinedResult.FirstFoundColumnForQueryDisplay = columnName;
+							}
+						}
+					} else {
+						refinedResult.FatalError = oBundle.getText("NO_DATA_FOUND");
+					}
+				}
+			} else {
+				refinedResult.FatalError = oBundle.getText("NO_DATA_FOUND");
+			}
+		}
+	} else {
+		refinedResult.FatalError = oBundle.getText("NO_DATA_FOUND");
+	}
+	return refinedResult;
+};
+
+this.sort_by = function(field, reverse, primer){
+
+	/*	   var key = primer ? 
+		       function(x) {return primer(x[field])} : 
+		       function(x) {return x[field]};*/
+		var key = primer ? function (x) { return primer(x[field]); } : function (x) { return x[field]; }; 
+
+		   reverse = !reverse ? 1 : -1;
+
+		   return function (a, b) {
+		       return a = key(a), b = key(b), reverse * ((a > b) - (b > a));
+		     }; 
+		};
+	
+};
+com.sap.xmii.ssce.WebsocketSubscriber.prototype.constructor = com.sap.xmii.ssce.WebsocketSubscriber;
+
+var pCoSubscriber = new com.sap.xmii.ssce.WebsocketSubscriber();
+
+var areaList = [];
+
+jQuery(window).bind('unload',function() {
+	pCoSubscriber.deleteAllWebSocketConnections();
+	clearInterval(pCoSubscriber.refreshIntervalIdForFallback);
+});

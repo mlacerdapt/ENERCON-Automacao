@@ -1,0 +1,142 @@
+//document.write('<scr' + 'ipt type="text/javascript" src="/XMII/JavaScript/com/sap/xmii/grid/expression/Expression.js?version=' + Math.random() + '"></scr' + 'ipt>');
+
+com.sap.xmii.grid.ui5 = com.sap.xmii.grid.ui5 || {};
+
+var parentGridComponent = new com.sap.xmii.grid.ui5.BaseComponent();
+var paramOverrides = {};
+/**
+ * Grid CONSTRUCTOR
+ * 
+ * @param gridConfig
+ * @param gridModel
+ */
+com.sap.xmii.grid.ui5.Grid = function(gridConfig, gridModel, i5GridObj) {
+
+	this.populateData(gridConfig, gridModel, i5GridObj);
+
+}
+
+com.sap.xmii.grid.ui5.Grid.prototype = parentGridComponent;
+com.sap.xmii.grid.ui5.Grid.prototype.constructor = com.sap.xmii.grid.ui5.Grid;
+
+/**
+ * Grid Create Method
+ * 
+ * @return
+ */
+com.sap.xmii.grid.ui5.Grid.prototype.create = function() {
+
+	var columnTemplateArray = this.gridTypeInitialization();
+	//if(this.gridPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.INITIAL_UPDATE)) {
+	if(this.gridModel != undefined && columnTemplateArray != undefined) {
+		//var rowHeadings = this.getI5GridInstance().getRowHeadings().split(',');
+		
+		//create default style
+		this.createDefaultStyle();
+
+		//prepare formatters for column (date and number formatters)
+		this.prepareForCellFormatting();
+		if(this.rows != undefined){
+			//Iterating over all the data rows
+			for(var index=0; index < this.rows.length; index++){
+				//Row heading for rows
+				this.applyRowheadings(index);
+				/*if(rowHeadings[index] != null){
+			this.rows[index].RowHeading = rowHeadings[index];
+			}*/
+
+		// Iterating over all the Table columns
+		for(var columnIndex =1 ; columnIndex < this.columnArray.length ; columnIndex++){
+			var columnName = this.columnArray[columnIndex].Name;
+			var columnNameStyle = columnName+"Style";
+			// Applying formatting
+			this.rows[index][columnName] = this.formatCellValue(columnName, this.columnArray[columnIndex].SQLDataType,	this.rows[index][columnName]);
+			// Applying default style
+			this.rows[index][columnNameStyle] = this.defaultStyle;
+			// Creating check box columns if specified
+			this.createCheckBoxColumn(columnTemplateArray,columnIndex,columnName);
+		}
+
+			// Applying Color Context
+			if (this.isColorContextDefined()) {
+				//	if(this.isColorContextEligible())
+					this.applyColorContext(index);
+				}
+			}
+	
+		}
+		
+
+		if (this.isColorContextDefined())
+			this.createBaseComponent(columnTemplateArray,true);
+		else
+			this.createBaseComponent(columnTemplateArray,false);
+	} else {
+		this.ui5TableElement = this.oTable;
+		//this.gridPropertyConfig.setProperty(com.sap.xmii.common.util.ChartPropertyConstants.INITIAL_UPDATE,true);
+	}
+
+};
+com.sap.xmii.grid.ui5.Grid.prototype.applyColorContext = function(index) {
+	var expColor = '', columnNameStyle, oldStyle, newStyle;
+	var colors = this.getMatchColors().split(",");
+	var colorContextColumns = this.getMatchColumns().split(",");
+	var colorContextRow = this.getMatchValues().split(";");
+	var defaultColor = this.getTextColor();
+	var displayColumns = this.getDisplayColumns().split(',');
+	var conditions = [];
+	//Iterating over color context rows
+	for(var i = 0; i < colors.length; i++){
+		conditions[i] = {};
+		conditions[i].Color = colors[i]; 
+		var conditionColumns = [];
+		var colorContextRowExpression = colorContextRow[i].split(",");
+		//Iterating over color context columns
+		for(var j = 0; j < colorContextColumns.length; j++){
+			conditionColumns[j] = {};
+			conditionColumns[j].ColumnName = colorContextColumns[j];
+			conditionColumns[j].ColumnValue = this.rows[index][colorContextColumns[j]];
+			conditionColumns[j].ColumnExpression = colorContextRowExpression[j];
+		}
+		conditions[i].Columns =  conditionColumns;
+	}
+	var expColor = null;
+	if(this.isColorContextEligible())
+		expColor = new com.sap.xmii.grid.expression.Expression(conditions, defaultColor, true).evaluate();
+	else 
+		expColor = new com.sap.xmii.grid.expression.Expression(conditions, defaultColor, true, undefined, true).evaluate();
+	//var expColor = new com.sap.xmii.grid.expression.Expression(conditions, defaultColor, true).evaluate();
+	/*//Update the DataModel with obtained color
+		for(var columnIndex =1 ; columnIndex < this.columnArray.length ; columnIndex++){
+			var columnNameColor = this.columnArray[columnIndex].Name+"Color";
+			this.rows[index][columnNameColor] = expColor;
+		}*/
+	for(var colIndex =1 ; colIndex < this.columnArray.length ; colIndex++){
+		var columnName = this.columnArray[colIndex].Name;
+		if(displayColumns.indexOf(columnName) > -1) {
+			columnNameStyle = columnName+"Style";
+			this.rows[index][columnNameStyle] = this.defaultStyle;
+
+			if(!com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(expColor)) {
+				oldStyle = this.rows[index][columnNameStyle];
+				newStyle = oldStyle + ';color:' + expColor;
+				this.rows[index][columnNameStyle] = newStyle;
+
+				if(this.getDynamicBackground() == true){
+					oldStyle = this.rows[index][columnNameStyle];
+					if (defaultColor != expColor) {
+						newStyle = oldStyle + ';background-color:' + expColor + ';color:' + defaultColor;
+						this.rows[index][columnNameStyle] = newStyle;
+					} 
+				}
+			}
+		}
+	}
+};
+com.sap.xmii.grid.ui5.Grid.prototype.applyRowheadings = function(index) {
+	var rowHeadings = this.getRowHeadings().toString().split(',');
+	//Row heading for rows
+	if(rowHeadings[index] != null){
+		this.rows[index].RowHeading = rowHeadings[index];
+	}
+};

@@ -1,0 +1,10 @@
+[System]
+Name=SCP
+Client=001
+[User]
+Name=00082300
+Language=E
+[Function]
+Command=/ENERCON/SNP_AU05
+Title=Transaction  ENERCON SNP_AU05
+Type=Transaction

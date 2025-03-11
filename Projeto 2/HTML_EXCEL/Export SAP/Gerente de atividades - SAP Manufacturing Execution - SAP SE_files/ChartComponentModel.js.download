@@ -1,0 +1,638 @@
+com.sap.xmii.chart = com.sap.xmii.chart || {};
+com.sap.xmii.chart.model = com.sap.xmii.chart.model || {};
+
+com.sap.xmii.chart.model.ChartComponentModel = function(model, chartPropertyConfig) {
+	this.chartModel = model;
+	this.chartPropertyConfig = chartPropertyConfig;
+	if(model != undefined && model.getModelData().getRowset() != null) {
+		this.createDataSet();
+	}
+};
+
+com.sap.xmii.chart.model.ChartComponentModel.prototype = {
+
+		chartModel : '',
+		chartPropertyConfig : '',
+		dataset : '',
+		measures : '',
+		upperSpecLimit : com.sap.xmii.common.util.SpecLimits.UPPER_SPEC_LIMIT,
+		lowerSpecLimit : com.sap.xmii.common.util.SpecLimits.LOWER_SPEC_LIMIT,
+		centerLine : com.sap.xmii.common.util.SpecLimits.CENTER_LINE,
+		dimensions : '',
+		getChartType : function() {
+	return this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.CHART_TYPE);
+},
+getDataSet : function() {
+	return this.dataset;
+},
+getMeasures : function() {
+	return this.measures;
+},
+getDimensions : function() {
+	return this.dimensions;
+},
+
+/*
+ * Method creates ColumnsForSpecLimits
+ */
+createValueColumnsForSpecLimits : function(chartPropertyConfig) {
+
+	var specificationsLimits = "";
+	var upperLimitColumn = chartPropertyConfig.getProperty(com.sap.xmii.common.util.SpecLimits.UPPER_LIMIT_COLUMN);
+	var centerLimitColumn = chartPropertyConfig.getProperty(com.sap.xmii.common.util.SpecLimits.CENTER_LIMIT_COLUMN);
+	var lowerLimitColumn = chartPropertyConfig.getProperty(com.sap.xmii.common.util.SpecLimits.LOWER_LIMIT_COLUMN);
+	if (upperLimitColumn || centerLimitColumn || lowerLimitColumn) {
+		var rowCount = this.chartModel.getModelData().getRows().length;
+		var rowData = this.chartModel.getModelData().getRow(
+				[ rowCount - 1 ]);
+		for ( var myKey in rowData) {
+			if (myKey == upperLimitColumn) {
+				if (upperLimitColumn) {
+					chartPropertyConfig.UpperLimit = rowData[myKey];
+					chartPropertyConfig.setProperty(com.sap.xmii.common.util.SpecLimits.UPPER_LIMIT,
+							rowData[myKey].toString());
+				}
+			}
+			if (myKey == centerLimitColumn) {
+				if (centerLimitColumn) {
+					chartPropertyConfig.CenterLimit = rowData[myKey];
+					chartPropertyConfig.setProperty(com.sap.xmii.common.util.SpecLimits.CENTER_LIMIT,
+							rowData[myKey].toString());
+				}
+			}
+			if (myKey == lowerLimitColumn) {
+				if (lowerLimitColumn) {
+					chartPropertyConfig.lowerLimit = rowData[myKey];
+					chartPropertyConfig.setProperty(com.sap.xmii.common.util.SpecLimits.LOWER_LIMIT,
+							rowData[myKey].toString());
+				}
+			}
+		}
+	}
+
+	var upperLimitValue = chartPropertyConfig.getProperty(com.sap.xmii.common.util.SpecLimits.UPPER_LIMIT);
+	/*if (com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(upperLimitValue)) {
+			upperLimitValue = 0;
+		}*/
+
+	var centerLimitValue = chartPropertyConfig.getProperty(com.sap.xmii.common.util.SpecLimits.CENTER_LIMIT);
+	/*if (com.sap.xmii.common.util.MIIi5Util
+				.isNullOrEmpty(centerLimitValue)) {
+			centerLimitValue = 0;
+		}*/
+
+	var lowerLimitValue = chartPropertyConfig.getProperty(com.sap.xmii.common.util.SpecLimits.LOWER_LIMIT);
+	/*if (com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(lowerLimitValue)) {
+			lowerLimitValue = 0;
+		}*/
+
+	specificationsLimits = ", \"" + this.upperSpecLimit + "\" :"
+	+ upperLimitValue + ", \"" + this.centerLine + "\" :"
+	+ centerLimitValue + ", \"" + this.lowerSpecLimit + "\" :"
+	+ lowerLimitValue;
+
+	var data = this.chartModel.getJSONModel().getData();
+	var limitdata = JSON.stringify(data).substring(
+			JSON.stringify(data).lastIndexOf("["),
+			JSON.stringify(data).lastIndexOf("]") - 2).replace(/}/g,
+					specificationsLimits + "}");
+
+	var updatedQryResultData = com.sap.xmii.common.util.MIIi5Util
+	.evalJSONStr(JSON.stringify(data).replace(
+			JSON.stringify(data).substring(
+					JSON.stringify(data).lastIndexOf("["),
+					JSON.stringify(data).lastIndexOf("]") - 2),
+					limitdata));
+
+	return updatedQryResultData;
+},
+
+/*
+ * Method to add Dimensions
+ */
+
+addDimensions : function(chartPropertyConfig, model, dataset) {
+	
+	function getColumnName(sourceColumnName) {
+		var cols = model.getModelMetaData().getColumns().Column;
+		for(var i=0; i<cols.length; i++) {
+			var obj = cols[i];
+			if(obj.SourceColumn === sourceColumnName) {
+				return obj.Name;
+			}
+		}
+	}	
+	function getSQLDataType(dimensionName) {
+		var cols = model.getModelMetaData().getColumns().Column;
+		for(var i=0; i<cols.length; i++) {
+			var obj = cols[i];
+			if(obj.SourceColumn === dimensionName) {
+				return obj.SQLDataType;
+			}
+		}
+	}
+	function checkSupportDataTypeForTimeSeries(sqlDataType){
+		if(sqlDataType === 91 || sqlDataType === 92 || sqlDataType === 93)
+			return true;
+		else
+			return false;
+	}
+	var dimension;
+	var dimensionName;
+	var dimensionValue;
+	var dimensionDisplayValue;
+
+	var ui5Viz = chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.COMP_MODE);
+	var timeSeries = chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.TIME_SERIES);
+	var compMode = chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.COMP_MODE);
+	if(compMode){
+		timeSeries = false;
+	}
+	var groupBar = com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_GROUP_BAR;
+	var horGroupBar = com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_HORIZONTAL_GROUP_BAR;
+	var customChart = com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_CUSTOM;
+	var pieChart = com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_PIE;
+	var donutChart = com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_DONUT;
+	
+	//1. check if getXDimensions > 0 && getYDimensions > 0
+	//2. Add all XDimensions with axisValue = 1
+	//3. Add all YDimensions with axisValue = 2
+	//4. return
+	var yAxisDimensions = chartPropertyConfig.getProperty("YDimensions");
+	var xAxisDimensions = chartPropertyConfig.getProperty("XDimensions");
+	if(!jQuery.isEmptyObject(yAxisDimensions) && !jQuery.isEmptyObject(xAxisDimensions) && 
+			yAxisDimensions.length > 0 && xAxisDimensions.length > 0) {
+		var yDims = yAxisDimensions.split(",");
+		var xDims = xAxisDimensions.split(",");
+		for ( var i = 0; i < xDims.length; i++) {
+			dimensionName = getColumnName(xDims[i].trim());
+			if(xDims.length === 1 && checkSupportDataTypeForTimeSeries(getSQLDataType(dimensionName))) {
+				dimensionValue = "{_formattedColumn}";
+			} else {
+				dimensionValue = "{" + dimensionName + "}";
+			}
+			dimension = new sap.viz.ui5.data.DimensionDefinition( {
+				axis : 1,
+				name : dimensionName,
+				value : dimensionValue
+			});
+			dataset.addDimension(dimension);
+		}
+		for ( var i = 0; i < yDims.length; i++) {
+			dimensionName = getColumnName(yDims[i].trim());
+			dimensionValue = "{" + dimensionName + "}";
+			dimension = new sap.viz.ui5.data.DimensionDefinition( {
+				axis : 2,
+				name : dimensionName,
+				value : dimensionValue
+			});
+			dataset.addDimension(dimension);
+		}
+		return;
+	}
+	
+	if (chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.LABEL_COLUMNS).length > 0) {
+		var labelColumnArray = chartPropertyConfig.getProperty(
+				com.sap.xmii.common.util.ChartPropertyConstants.LABEL_COLUMNS).split(",");
+		var axisValue = 0;
+		for ( var i = 0; i < labelColumnArray.length; i++) {
+			dimensionName = getColumnName(labelColumnArray[i]);
+			if(timeSeries){
+				sqlDataType = getSQLDataType(dimensionName)
+				if(checkSupportDataTypeForTimeSeries(sqlDataType) == false){
+					throw new com.sap.xmii.common.exception.MIIi5Exception(
+						com.sap.xmii.common.util.MessageBundle.getText("XMSG_TIMESERIES_LABEL_ERROR"));
+				}
+			}
+			/*if(labelColumnArray.length === 1 && checkSupportDataTypeForTimeSeries(getSQLDataType(dimensionName)))
+				dimensionDisplayValue = "{_formattedColumn}";
+			else 
+				dimensionDisplayValue = "{" + dimensionName + "}";
+			if(ui5Viz) {
+				dimensionValue = dimensionDisplayValue;
+			} else {
+				dimensionValue = "{" + dimensionName + "}";
+			}
+			*/
+			var chrtType = chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.CHART_TYPE);
+			if(chrtType != pieChart && chrtType != donutChart) {
+				if (labelColumnArray.length == 1 || i < labelColumnArray.length - 1) {
+					axisValue = 1;
+				} else {
+					axisValue = 2;
+				}
+			} else {
+				axisValue = 1;
+			}
+			if(axisValue === 1 && checkSupportDataTypeForTimeSeries(getSQLDataType(dimensionName)))
+				dimensionDisplayValue = "{_formattedColumn}";
+			else 
+				dimensionDisplayValue = "{" + dimensionName + "}";
+			if(ui5Viz) {
+				dimensionValue = dimensionDisplayValue;
+			} else {
+				dimensionValue = "{" + dimensionName + "}";
+			}
+			dimension = new sap.viz.ui5.data.DimensionDefinition( {
+				axis : axisValue,
+				name : dimensionName,
+				value : dimensionValue,
+				displayValue : dimensionDisplayValue
+			});
+			dataset.addDimension(dimension);
+			//Commented below lnes for supporting multiple dimensions for all chart types 
+			/*if (chrtType != groupBar && chrtType != horGroupBar
+						&& chrtType != customChart) {
+					break;
+				}*/
+		}
+	} else {
+		//Check if query isTimeBased, if so pick the first column from Available columns; else add the other columns to dimensions with axis value = 1
+		if(chartPropertyConfig.isTimeBasedQuery) {
+			dimensionName = this.chartModel.getModelMetaData().getColumn(0).Name;
+			/*dimensionValue = "{" + dimensionName + "}";
+			if(this.chartPropertyConfig.getProperty("TimeSeries") === true){
+				dimensionValue =  "{" + dimensionName + "}";
+			}*/
+			dimensionDisplayValue = "{_formattedColumn}";
+			if(ui5Viz) {
+				dimensionValue = dimensionDisplayValue;
+			} else {
+				dimensionValue = "{" + dimensionName + "}";
+			}
+			dimension = new sap.viz.ui5.data.DimensionDefinition( {
+				axis : 1,
+				name : dimensionName,
+				value : dimensionValue,
+				displayValue : dimensionDisplayValue
+			});
+			dataset.addDimension(dimension);
+		} else {
+			var cols = model.getModelMetaData().getColumns().Column;
+			//Value columns
+			var valueColData = chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.VALUE_COLUMNS);
+			var valueColumnArray = valueColData.split(",");
+			for ( var col in cols) {
+				var columnObj = cols[col];
+				jQuery.sap.log.info(cols[col]);
+				var colName = columnObj.Name;
+				var found = $.inArray(colName, valueColumnArray) > -1;
+				if(!found) {
+					//Add to dimension
+					dimensionName = colName;
+					dimensionValue = "{" + colName + "}";
+					dimension = new sap.viz.ui5.data.DimensionDefinition( {
+						axis : 1,
+						name : dimensionName,
+						value : dimensionValue
+					});
+					dataset.addDimension(dimension);
+				}
+			}
+			//check if no dimensions have been added, then add the first one from value columns
+			if(dataset.getDimensions().length === 0) {
+				dimensionName = this.chartModel.getModelMetaData().getColumn(0).Name;
+				dimensionValue = "{" + dimensionName + "}";
+				dimension = new sap.viz.ui5.data.DimensionDefinition( {
+					axis : 1,
+					name : dimensionName,
+					value : dimensionValue
+				});
+				dataset.addDimension(dimension);
+			}
+		}
+	}
+	//The dimesion name is modified to support same value column and label column mapped to chart in vizFrame
+	if(dataset != undefined){
+		var dims = dataset.getDimensions();
+		for(var i = 0; i< dataset.getDimensions().length; i++){
+			var dimName = dataset.getDimensions()[i].mProperties.name;
+			dimName = "Dim_"+dimName;
+			//dataset.getDimensions()[i].mProperties.name = dimName;
+			dataset.getDimensions()[i].mProperties.identity = dimName;
+			if(this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.TIME_SERIES) === true){
+				dataset.getDimensions()[i].mProperties.dataType = 'date';
+			}
+		}
+	}
+},
+
+/**
+ * Adds measures to the Chart DataSet Object
+ * 
+ * @param dataset
+ * @param chartPropertyConfig
+ * @return
+ */
+addMeasures : function(dataset, colArray, chartPropertyConfig) {
+
+	var bubbleChart = com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_BUBBLE;
+	var donutChart = com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_DONUT;
+	var scatterChart = com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_SCATTER;
+	var pieChart = com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_PIE;
+	var customChart = com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_CUSTOM;
+	var barChart = com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_BAR;
+	var valueColData,valueColData2;
+
+	/*if (chartPropertyConfig.getProperty(com.sap.xmii.common.util.SpecLimits.ALLOW_SPEC_LIMIT_ALARM).toString() ==  com.sap.xmii.common.util.GenericConstants.TRUE
+			&& chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.CHART_TYPE) === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_LINE) {
+			valueColData = chartPropertyConfig
+					.getProperty(com.sap.xmii.common.util.SpecLimits.VALUE_COLUMNS_WITH_SPEC_LIMITS);
+		} else {*/
+	var chartType = this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.CHART_TYPE);
+	var compMode = chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.COMP_MODE);
+	var dualYAxis = chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.DUAL_YAXIS);
+	var timeSeries = this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.TIME_SERIES);
+	if(chartType === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_GAUGE){
+		timeSeries = false;
+	}
+	if(compMode){
+		dualYAxis = false;
+		timeSeries = false;
+	}
+	if(chartType != null && chartType === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_PIE || chartType === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_GAUGE || 
+		chartType === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_SCATTER || chartType === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_BUBBLE || 
+	   chartType === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_DONUT ){
+		dualYAxis = false;
+	}
+	if((chartType == com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_SCATTER || 
+			chartType == com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_BUBBLE) && dualYAxis == true){
+		dualYAxis = false;
+	}
+	if((chartType ==com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_PIE || 
+			chartType ==com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_GROUP_BAR ||
+			chartType ==com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_HORIZONTAL_GROUP_BAR ||
+			chartType ==com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_HORIZONTAL_BAR ||
+			chartType ==com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_DONUT ||
+			chartType ==com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_STACKED_BAR) && timeSeries == true){
+		timeSeries= false
+	}
+	valueColData = chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.VALUE_COLUMNS);
+	valueColData2 = chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.VALUE_COLUMNS_2);
+	//}
+	// Removed the conditional check because there can be scenario where
+	// value columns might not be mapped at the call of constructor
+	// user separately calls setValueColumns to set the columns
+	com.sap.xmii.common.util.MIIi5Util.validateChartConfigAtRunTime(chartType , compMode, dualYAxis, timeSeries);
+	if(!dualYAxis){
+		if (valueColData != null && valueColData != '' ) {
+			var valueColumnArray1 = valueColData.split(",");
+			var valueColumnArray2 = valueColData2.split(",");
+			if(!compMode && dualYAxis)
+				var valueColumnArray = valueColumnArray1.concat(valueColumnArray2);
+			else
+				var valueColumnArray = valueColumnArray1;
+			var chrtType = chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.CHART_TYPE);
+	
+			if (valueColumnArray1.length < 3 && (chrtType == bubbleChart && compMode === true)) { //timeSeries != true
+				// Bubble chart needs atleast 3 value columns to draw a 
+				// chart.
+				throw new com.sap.xmii.common.exception.MIIi5Exception(
+						com.sap.xmii.common.util.MessageBundle
+						.getText("XMSG_BUBBLE_MEASURES_ERROR"));
+			} if (valueColumnArray1.length < 2 && (chrtType == scatterChart && compMode === true)) { //timeSeries != true
+				// Scatter chart needs atleast 2 value columns to draw a
+				// chart.
+				throw new com.sap.xmii.common.exception.MIIi5Exception(
+						com.sap.xmii.common.util.MessageBundle
+						.getText("XMSG_SCATTER_MEASURES_ERROR"));
+			}
+			if((valueColumnArray1.length < 2 || valueColumnArray1.length >= 3) && (chrtType === bubbleChart && timeSeries === true && compMode === false )){
+				throw new com.sap.xmii.common.exception.MIIi5Exception(com.sap.xmii.common.util.MessageBundle
+						.getText("XMSG_TIMESERIES_BUBBLE_ERR"));
+			}
+			if(valueColumnArray1.length > 1 && (chrtType === scatterChart && timeSeries === true && compMode === false)){
+				throw new com.sap.xmii.common.exception.MIIi5Exception(com.sap.xmii.common.util.MessageBundle
+						.getText("XMSG_TIMESERIES_SCATTER_ERR"));
+			}
+			if(valueColumnArray1.length > 1 && (chrtType === barChart && timeSeries === true && compMode === false)){
+				throw new com.sap.xmii.common.exception.MIIi5Exception(com.sap.xmii.common.util.MessageBundle
+						.getText("XMSG_TIMESERIES_BAR_ERR"));
+			}
+			else {
+				if(compMode === false){
+					if (valueColumnArray1.length < 2 && chrtType === customChart) {
+						throw new com.sap.xmii.common.exception.MIIi5Exception(
+								com.sap.xmii.common.util.MessageBundle
+								.getText("XMSG_CUSTOM_MEASURES_ERROR"));
+					}
+				}
+				for ( var currColumnName in valueColumnArray) {
+					var measureName = valueColumnArray[currColumnName];
+					//PCo delimiter fix, source column has the actual column name, Name is different and that is used in Rows
+					var colItem = colArray.filter(function(item) {
+						if(item.SourceColumn === measureName){ //checking if special characters are present in measureName
+							return item.Name;
+						}
+					});
+					if(colItem.length != 0) {
+						measureName = colItem[0].Name;
+					}
+					if(!isNaN(measureName.charAt(0))) {
+						measureName = "_" + measureName;
+					}
+					
+					var measureValue = "{" + measureName + "}";
+					var groupValue;
+					if (chrtType == scatterChart || chrtType == bubbleChart) {
+						groupValue = parseInt(currColumnName) + 1;
+					} else {
+						groupValue = 1;
+					}
+					var measuredef = new sap.viz.ui5.data.MeasureDefinition( {
+						group : groupValue,
+						name : measureName,
+						value : measureValue
+					});
+					dataset.addMeasure(measuredef);
+					if (chrtType == pieChart || chrtType == donutChart) {
+						break;
+					}
+				}
+			}
+	
+			} else {
+		
+				var measureName = ''; 
+				//var measureValue = "{" + 'NoData' + "}";
+				var measureValue = "{}";
+				var measuredef = new sap.viz.ui5.data.MeasureDefinition( {
+					group : groupValue,
+					name : measureName,
+					value : measureValue
+				});
+				dataset.addMeasure(measuredef);
+		
+				var message = com.sap.xmii.common.util.MessageBundle
+				.getText("XMSG_VALUE_COL_MISSING_ERROR");
+		
+				throw new com.sap.xmii.common.exception.MIIi5Exception(message);
+			}
+	}else{
+		if (valueColData != null && valueColData != '' && valueColData2 != null && valueColData2 != '' ) {
+			var valueColumnArray1 = valueColData.split(",");
+			var valueColumnArray2 = valueColData2.split(",");
+			if(!compMode && dualYAxis)
+				var valueColumnArray = valueColumnArray1.concat(valueColumnArray2);
+			else
+				var valueColumnArray = valueColumnArray1;
+			var chrtType = chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.CHART_TYPE);
+
+			if (valueColumnArray1.length < 3 && (chrtType == bubbleChart && compMode === true)) { //timeSeries != true
+				// Bubble chart needs atleast 3 value columns to draw a 
+				// chart.
+				throw new com.sap.xmii.common.exception.MIIi5Exception(
+						com.sap.xmii.common.util.MessageBundle
+						.getText("XMSG_BUBBLE_MEASURES_ERROR"));
+			} if (valueColumnArray1.length < 2 && (chrtType == scatterChart && compMode === true)) { //timeSeries != true
+				// Scatter chart needs atleast 2 value columns to draw a
+				// chart.
+				throw new com.sap.xmii.common.exception.MIIi5Exception(
+						com.sap.xmii.common.util.MessageBundle
+						.getText("XMSG_SCATTER_MEASURES_ERROR"));
+			}
+			if((valueColumnArray1.length < 2 || valueColumnArray1.length >= 3) && (chrtType === bubbleChart && timeSeries === true && compMode === false )){
+				throw new com.sap.xmii.common.exception.MIIi5Exception(com.sap.xmii.common.util.MessageBundle
+						.getText("XMSG_TIMESERIES_BUBBLE_ERR"));
+			}
+			if(valueColumnArray1.length > 1 && (chrtType === scatterChart && timeSeries === true && compMode === false)){
+				throw new com.sap.xmii.common.exception.MIIi5Exception(com.sap.xmii.common.util.MessageBundle
+						.getText("XMSG_TIMESERIES_SCATTER_ERR"));
+			}
+			if(valueColumnArray1.length > 1 && (chrtType === barChart && timeSeries === true && compMode === false)){
+				throw new com.sap.xmii.common.exception.MIIi5Exception(com.sap.xmii.common.util.MessageBundle
+						.getText("XMSG_TIMESERIES_BAR_ERR"));
+			}
+			
+			else {
+				if(compMode === false){
+					if (valueColumnArray1.length < 2 && chrtType === customChart) {
+						throw new com.sap.xmii.common.exception.MIIi5Exception(
+								com.sap.xmii.common.util.MessageBundle
+								.getText("XMSG_CUSTOM_MEASURES_ERROR"));
+					}
+				}
+				for ( var currColumnName in valueColumnArray) {
+					var measureName = valueColumnArray[currColumnName];
+					//PCo delimiter fix, source column has the actual column name, Name is different and that is used in Rows
+					var colItem = colArray.filter(function(item) {
+						if(item.SourceColumn === measureName){ //checking if special characters are present in measureName
+							return item.Name;
+						}
+					});
+					if(colItem.length != 0) {
+						measureName = colItem[0].Name;
+					}
+					if(!isNaN(measureName.charAt(0))) {
+						measureName = "_" + measureName;
+					}
+					
+					var measureValue = "{" + measureName + "}";
+					var groupValue;
+					if (chrtType == scatterChart || chrtType == bubbleChart) {
+						groupValue = parseInt(currColumnName) + 1;
+					} else {
+						groupValue = 1;
+					}
+					var measuredef = new sap.viz.ui5.data.MeasureDefinition( {
+						group : groupValue,
+						name : measureName,
+						value : measureValue
+					});
+					dataset.addMeasure(measuredef);
+					if (chrtType == pieChart || chrtType == donutChart) {
+						break;
+					}
+				}
+			}
+
+		} else {
+
+			var measureName = ''; 
+			//var measureValue = "{" + 'NoData' + "}";
+			var measureValue = "{}";
+			var measuredef = new sap.viz.ui5.data.MeasureDefinition( {
+				group : groupValue,
+				name : measureName,
+				value : measureValue
+			});
+			dataset.addMeasure(measuredef);
+
+			var message = com.sap.xmii.common.util.MessageBundle
+			.getText("XMSG_VALUE_COL_MISSING_ERROR");
+
+			throw new com.sap.xmii.common.exception.MIIi5Exception(message);
+		}
+	}
+},
+
+/**
+ * Creates DataSet to be attached to the Chart
+ * 
+ * @return
+ */
+createDataSet : function() {
+	// manipulate the qryResultData if Specification Limits flag is true
+
+	/*if (this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.SpecLimits.ALLOW_SPEC_LIMIT_ALARM).toString() == com.sap.xmii.common.util.GenericConstants.TRUE
+			&& this.getChartType() === com.sap.xmii.common.util.i5ChartTypes.CHART_TYPE_LINE)  {
+			//&& this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.INITIAL_UPDATE)) {
+
+			var specificationColumns = "," + this.upperSpecLimit + ","
+					+ this.centerLine + "," + this.lowerSpecLimit;
+
+			this.qryResultData = this.createValueColumnsForSpecLimits(this.chartPropertyConfig);
+
+			this.chartModel.update(this.qryResultData);
+
+			var colsWithSpecLimits = this.chartPropertyConfig
+					.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.VALUE_COLUMNS)
+					+ specificationColumns;
+
+			this.chartPropertyConfig.setProperty(com.sap.xmii.common.util.SpecLimits.VALUE_COLUMNS_WITH_SPEC_LIMITS,
+					colsWithSpecLimits);
+			this.valueColumns = colsWithSpecLimits;
+		} else {*/
+	this.valueColumns = this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.VALUE_COLUMNS);
+	//}
+
+	//if(this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.INITIAL_UPDATE) && ) {
+	var oMIIDataRows = this.chartModel.getModelData().getRowset();
+
+	this.oModel = new sap.ui.model.json.JSONModel();
+	this.oModel.setData( {
+		miiData : oMIIDataRows
+	});
+
+	var dataset = new sap.viz.ui5.data.FlattenedDataset( {
+		data : {
+		path : com.sap.xmii.common.util.GenericConstants.DATASET_PATH
+	}
+	});
+	this.labelColumns = this.chartPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.LABEL_COLUMNS);
+	
+	try{
+		//colArray - All columns returned by Query metadata
+		this.addDimensions(this.chartPropertyConfig, this.chartModel, dataset);
+		var colArray = this.chartModel.getModelMetaData().getColumns().Column; 
+		this.addMeasures(dataset, colArray, this.chartPropertyConfig);
+	} catch(err){
+		this.chartPropertyConfig.properties.ErrorMessage = err.message;
+	}	
+	//this.applyBackgroundAndBorderColor(this.chartPropertyConfig);
+	this.dataset = dataset;	
+},
+
+updateDataSet : function() {
+	var dataset = new sap.viz.ui5.data.FlattenedDataset( {
+		data : {
+		path : com.sap.xmii.common.util.GenericConstants.DATASET_PATH
+	}
+	});
+	this.addDimensions(this.chartPropertyConfig, this.chartModel, dataset);
+	//colArray - All columns returned by Query metadata
+	var colArray = this.chartModel.getModelMetaData().getColumns().Column;
+	this.addMeasures(dataset, colArray, this.chartPropertyConfig);
+	this.dataset = dataset;
+}	
+};

@@ -1,0 +1,150 @@
+@CHARSET "UTF-8";
+
+.ui5Table {
+	font-family: SansSerif;
+	font-size: 10px;
+	font-style: Plain;
+}
+
+.v-m-root {
+	position: relative !important;
+}
+
+.timeBarSlider {
+	background: #DFDFDF;
+}
+
+.sapUiSliHori.sapUiSli {
+	padding-top: 12px !important;
+	margin-right: 0px !important;
+}
+
+.leftAlign {
+	text-align: left;
+}
+
+/* style classes for context menu */
+.menu {
+	position: absolute;
+	display: none;
+	border: #c0c0c0 solid 1px;
+	font-family: calibri, arial, helvetica, sans serif;
+}
+
+div .menuOption {
+	padding: 4px 8px;
+	background-color: #f0f0f0;
+}
+
+div .active:hover {
+	cursor: pointer;
+	background-color: #3daedd;
+	color: #ffffff;
+}
+
+div .inactive {
+	color: #c0c0c0;
+}
+
+.smallPaddingTop {
+	padding-top: 8px;
+}
+
+.largePopup {
+	width: 1100px;
+}
+
+.mediumPopup {
+	width: 850px;
+}
+
+.smallPopup {
+	width: 560px
+}
+
+.colorContext {
+	padding-top: 10px !important;
+	padding-right: 50px !important;
+}
+
+.colorPicker {
+	padding-left: 50px !important;
+}
+
+.colorContextForSelect{
+	margin-left: 50px !important;
+}
+.scrollableList {
+	height: 270px;
+	overflow: auto;
+}
+
+.categoryLabelClass {
+	margin-top: 5px !important;
+	width: 200px;
+}
+
+.controlPaddingRightStyle {
+	padding-right: 10px !important;
+}
+
+.parameterValue {
+	border-bottom: 1px solid lightgray;
+	padding-right: 0px;
+	padding-top: 5px;
+	overflow: visible !important;
+}
+
+.datePicker {
+	overflow: visible !important;
+}
+
+.inputField {
+	padding-left: 20px;
+	overflow: visible !important;
+}
+
+.headerLabel {
+	display: block;
+	text-align: center !important;
+	font-size: medium;
+}
+
+.uiElementList>ul>li>span {
+	font-size: inherit;
+}
+
+.uiElementList>ul>li {
+	line-height: inherit;
+}
+
+.uiElementDropdownBox>label.sapMSltLabel {
+	line-height: inherit;
+}
+
+.uiElementDropdownBox>span.sapMSltArrow {
+	line-height: inherit;
+}
+
+.uiElementRadioButton>label{
+	width: 70%;
+	height: inherit;
+	line-height: normal;
+}
+
+.hover-line { 
+  stroke: black;  
+  fill: none;
+  stroke-width: 1;
+  shape-rendering: crispEdges;
+  /*stroke-dasharray: 20,10,5,5,5,10;*/
+}
+
+.hover-text { 
+  fill: black;
+  font-weight: normal !important;
+  font-style: normal !important;
+  font-size: 12px !important;
+  dominant-baseline: middle);
+  text-anchor: inherit;
+}

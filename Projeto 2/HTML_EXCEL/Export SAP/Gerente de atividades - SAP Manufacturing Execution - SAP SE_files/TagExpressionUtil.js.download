@@ -1,0 +1,244 @@
+/**
+ * This object has utility methods to parse the Expressions containing tags and tag properties and to evaluate the expression value.
+ * @return
+ */
+//Empty constructor
+function TagExpressionUtil() {
+	this.picTagArray = [];
+	this.tagPropertyArray = [];
+};
+
+TagExpressionUtil.prototype.parseRulesForTags = function(rules,defaultValue){
+	if(rules == undefined || rules == [])
+		return [];
+	for(var i=0; i < rules.length; i++){
+		var rule = rules[i];
+		var expression = rule.Expr;
+		this.parseExpressionForTags(expression);
+		this.parseExpressionForTags(rule.MappedValue);
+	}
+	if(isObjectNotNull(defaultValue)){
+		this.parseExpressionForTags(defaultValue);
+	}
+	return this.picTagArray;
+	
+};
+
+TagExpressionUtil.prototype.parseRulesForTagProperties = function(rules,defaultValue){
+	this.parseRulesForTags(rules,defaultValue);
+	return this.tagPropertyArray;
+};
+TagExpressionUtil.prototype.parseExpressionForTags = function(expression){
+	var tmpExpr = expression;
+	var startPos = 0;
+	var tagStartPos = 0;
+	var tagEndPos = 0;
+	var parsedTillPos = 0;
+
+	while(tmpExpr.indexOf("[") != -1){
+		var parsedTillPos = this.findTag(tmpExpr, this.picTagArray);
+		tmpExpr = tmpExpr.substring(parsedTillPos, tmpExpr.length);
+	}
+	return this.picTagArray;
+	
+};
+
+
+TagExpressionUtil.prototype.findTag = function(expression, picTagArray){
+	var startPos = expression.indexOf("[");
+	if(startPos == -1){
+		return expression.length;
+	}
+	var tagStartPos = startPos+1;
+	var endPos = expression.indexOf("]");
+	if(endPos == -1){
+		return expression.length;
+	}
+	var tagNamespace = expression.substring(tagStartPos, endPos);
+	var isProperty = tagNamespace.indexOf("->");
+	if(isProperty > -1){
+		var propStartPos = isProperty + 2;
+		var property = tagNamespace.substring(propStartPos, endPos);
+		tagNamespace = tagNamespace.substring(0, propStartPos - 2);
+		
+		var propFound = false;
+		jQuery.each(this.tagPropertyArray, function(index, propertyElement){
+			var propertyString = propertyElement.propertySetName + "/" + propertyElement.propertyName;
+			if(property == propertyString)
+				propFound = true;
+		});
+		if(propFound == false){
+			var tmpArray = property.split("/");
+			var propertySetName = tmpArray[0];
+			var propertyName = tmpArray[1];
+			this.tagPropertyArray.push({tagNamespace: tagNamespace, propertySetName: propertySetName, propertyName: propertyName})
+		}
+	}else{
+		//check if this tag is already added
+		var found = false;
+		jQuery.each(picTagArray, function(index, tag){
+			if(tag.tagNamespace == tagNamespace)
+				found = true;
+		});
+		if(found == false){
+			var picTag = this.createPICTag(tagNamespace);
+			picTagArray.push(picTag);
+		}
+	}
+	return endPos + 1;
+};
+
+
+TagExpressionUtil.prototype.calculateExpressionValue = function(rules){
+	if(rules == undefined || rules == [])
+		return [];
+	for(var i=0; i < rules.length; i++){
+		var rule = rules[i];
+		var expression = rule.Expr;
+		var parsedTillPos = 0;
+		expression = this.substituteTagsAndProperties(expression);
+		try{
+			//Replacing eval code
+			//var expressionValue = eval(expression);
+			var expressionValue = Function('return '+ expression)();
+			//end of code
+			rule.expressionValue = expressionValue;
+		}catch(err){
+			rule.expressionValue = expression;
+		}
+		var displayExpr = rule.MappedValue;
+		displayExpr = this.substituteTagsAndProperties(displayExpr);
+		try{
+			//Replacing eval code
+			//var displayValue = eval(displayExpr);
+			var displayValue = Function('return '+ displayExpr)();
+			//end of code
+			rule.displayValue = displayValue;
+		}catch(err){
+			rule.displayValue = displayExpr;
+		}
+		
+	}
+	
+};
+TagExpressionUtil.prototype.substituteTagsAndProperties = function(expression){
+
+	var tmpExpression = expression;
+	while(tmpExpression.indexOf("[") != -1){
+		
+		var startPos = tmpExpression.indexOf("[");
+		if(startPos == -1){
+			return tmpExpression.length;
+		}
+		var tagStartPos = startPos+1;
+		var endPos = tmpExpression.indexOf("]");
+		if(endPos == -1){
+			return tmpExpression.length;
+		}
+		var tempTagNamespace = tmpExpression.substring(tagStartPos, endPos);
+		var isProperty = tempTagNamespace.indexOf("->");
+		if(isProperty > -1){
+			var propStartPos = isProperty + 2;
+			var propEndPos = endPos + 1;
+			var property = tempTagNamespace.substring(propStartPos, endPos);
+			var propertyName = property.split("/")[1];
+			var propertySetName = property.split("/")[0];
+			var tagNamespace = tempTagNamespace.substring(0, propStartPos - 2);
+			// Need to get Value and replace it
+			var propertyValue = pCoSubscriber.getPropertyValue(propertyName, propertySetName, tagNamespace);
+			if(propertyValue == undefined)
+				throw "Failed";
+			propertyToBeReplaced = "[" +tempTagNamespace  +"]";
+			expression = expression.replace(propertyToBeReplaced, propertyValue);
+		}else{
+			//Replace with tag value
+			var tagValue = pCoSubscriber.getTagValue(tempTagNamespace);
+			if(tagValue == undefined){
+				throw "Failed";
+			}
+			if((typeof tagValue) == "string"){
+				tagValue =	"\""+tagValue+"\"";
+			}
+			var tagToBeReplaced = "[" +tempTagNamespace  +"]";
+			expression = expression.replace(tagToBeReplaced, tagValue);
+		}
+		endPos =  endPos + 1;
+		tmpExpression = tmpExpression.substring(endPos);
+	}
+	return expression;
+};
+
+TagExpressionUtil.prototype.createPICTag = function(namespace){
+	var tagName = namespace.substring(namespace.lastIndexOf("/")+1, namespace.length);;
+
+	var tagData = {};
+	tagData.tagName = tagName;
+	tagData.tagNamespace = namespace;
+		
+	var picTag = new com.sap.xmii.ssce.PICTag(tagData);
+	return picTag;
+};
+
+TagExpressionUtil.prototype.getConditions = function(rules){
+	var results = [];
+	for (var i = 0; i < rules.length; i++) {
+		var rule = rules[i];
+		if(rule.success == false)
+			return [];
+		var columnCondition = {};
+		columnCondition.Columns = [];
+		columnCondition.Columns[0] = {};
+
+		if (rule.Operator == "Equals") {
+			columnCondition.Columns[0].ColumnExpression = "String:EXACT_MATCH:" + rule.Value;
+		} else if (rule.Operator == "Contains") {
+			columnCondition.Columns[0].ColumnExpression = "String:SUBSTRING_MATCH:" + rule.Value;
+		} else if (rule.Operator == "Regex") {
+			columnCondition.Columns[0].ColumnExpression = "Regex:" + rule.Value;
+		} else if (rule.Value == "true") {
+			columnCondition.Columns[0].ColumnExpression = "Boolean:" + "true";
+		} else if (rule.Value == "false") {
+			columnCondition.Columns[0].ColumnExpression = "Boolean:" + "false";
+		} else if (rule.Operator == "Between") {
+			columnCondition.Columns[0].ColumnExpression = "Between:" + rule.Value;
+		} else {
+			columnCondition.Columns[0].ColumnExpression = "Numeric:" + rule.Operator + ":" + rule.Value;
+		}
+		columnCondition.Columns[0].ColumnValue = rule.expressionValue;
+		results[results.length] = columnCondition;
+	}
+	return results;
+};
+
+
+TagExpressionUtil.prototype.evaluateRules = function(rules){
+	try{
+		this.calculateExpressionValue(rules);
+	}catch(err){
+		return null;
+	}
+	
+	var conditions = this.getConditions(rules);
+	if(conditions == [])
+		return null;
+	var indexOfMatchedCondition = new com.sap.xmii.grid.expression.Expression(conditions, "#000000", true, true, true).evaluate();
+	if(indexOfMatchedCondition > -1)
+		return rules[indexOfMatchedCondition];
+	else
+		return null;
+};
+
+// evaluate the default rule
+TagExpressionUtil.prototype.evaluateDefaultRule = function(rule) {
+	var defaultExpr = rule;
+	defaultExpr = this.substituteTagsAndProperties(defaultExpr);
+	try{
+		//Replacing eval code
+		//var displayValue = eval(defaultExpr);
+		var displayValue = Function('return '+ defaultExpr)();
+		//end of code
+	}catch(err){
+		displayValue = defaultExpr;
+	}
+	return displayValue;
+};

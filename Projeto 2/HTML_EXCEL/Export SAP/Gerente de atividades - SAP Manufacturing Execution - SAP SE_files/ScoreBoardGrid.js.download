@@ -1,0 +1,138 @@
+//document.write('<scr' + 'ipt type="text/javascript" src="/XMII/JavaScript/com/sap/xmii/grid/expression/Expression.js?version='	+ Math.random() + '"></scr' + 'ipt>');
+
+com.sap.xmii.grid.ui5 = com.sap.xmii.grid.ui5 || {};
+
+var parentGridComponent = new com.sap.xmii.grid.ui5.BaseComponent();
+
+/**
+ * ScoreBoardGrid CONSTRUCTOR
+ * 
+ * @param gridConfig
+ * @param gridModel
+ */
+com.sap.xmii.grid.ui5.ScoreBoardGrid = function(gridConfig, gridModel, i5GridObj) {
+
+	this.populateData(gridConfig, gridModel, i5GridObj);
+}
+
+com.sap.xmii.grid.ui5.ScoreBoardGrid.prototype = parentGridComponent;
+com.sap.xmii.grid.ui5.ScoreBoardGrid.prototype.constructor = com.sap.xmii.grid.ui5.ScoreBoardGrid;
+
+/**
+ * ScoreBoardGrid Create Method
+ * 
+ * @return
+ */
+com.sap.xmii.grid.ui5.ScoreBoardGrid.prototype.create = function() {
+
+	var columnTemplateArray = this.gridTypeInitialization();
+	//if(this.gridPropertyConfig.getProperty(com.sap.xmii.common.util.ChartPropertyConstants.INITIAL_UPDATE)) {
+	if(this.gridModel != undefined && columnTemplateArray != undefined) {
+		//var rowHeadings = this.gridPropertyConfig.getProperty('RowHeadings').split(',');
+		//create default style
+		this.createDefaultStyle();
+		//prepare formatters for column (date and number formatters)
+		this.prepareForCellFormatting();
+		
+		if(this.rows != undefined){
+			//Iterating over all the data rows
+			for(var index=0; index < this.rows.length; index++){
+				//Row heading for rows
+				this.applyRowheadings(index);
+				/*if(rowHeadings[index] != null){
+					this.rows[index].RowHeading = rowHeadings[index];
+				}*/
+
+				// Iterating over all the Table columns
+				for(var columnIndex =1 ; columnIndex < this.columnArray.length ; columnIndex++){
+					var columnName = this.columnArray[columnIndex].Name;
+					var columnNameStyle = columnName+"Style";
+					// Applying formatting
+					this.rows[index][columnName] = this.formatCellValue(columnName, this.columnArray[columnIndex].SQLDataType,	this.rows[index][columnName]);
+					// Applying default style
+					this.rows[index][columnNameStyle] = this.defaultStyle;
+					// Creating check box columns if specified
+					this.createCheckBoxColumn(columnTemplateArray,columnIndex,columnName);
+				}
+
+				// Applying Color Context
+				if (this.isColorContextDefined()) {
+					this.applyColorContext(index);
+				}
+
+			}
+		}
+		if (this.isColorContextDefined())
+			this.createBaseComponent(columnTemplateArray,true);
+		else
+			this.createBaseComponent(columnTemplateArray,false);
+	} else {
+		this.ui5TableElement = this.oTable;
+		//this.gridPropertyConfig.setProperty(com.sap.xmii.common.util.ChartPropertyConstants.INITIAL_UPDATE,true);
+	}
+};
+com.sap.xmii.grid.ui5.ScoreBoardGrid.prototype.applyColorContext = function(index) {
+	var colors = this.getMatchColors().split(",");
+	var columns = this.getMatchColumns().split(",");
+	var colorContextRow = this.getMatchValues().split(";");
+	var defaultColor = this.getTextColor();
+	var expColor = '', columnNameStyle, oldStyle, newStyle;
+	//For a particular Row iterating over all the columns
+	for(var columnIndex =1 ; columnIndex < this.columnArray.length ; columnIndex++){
+		var colName = this.columnArray[columnIndex].Name;
+		var conditions = [];
+		//Iterating over color context rows
+		for(var i = 0; i < colors.length; i++){
+			conditions[i] = {};
+			conditions[i].Color = colors[i]; 
+			var conditionColumns = [];
+			var colorContextRowExpression = colorContextRow[i].split(",");
+			var foundColumn = false;
+			//Iterating over color context columns
+			for(var j = 0; j < columns.length; j++){
+				if(colName == columns[j]){
+					foundColumn = true;
+					conditionColumns[0] = {};
+					conditionColumns[0].ColumnName = columns[j];
+					conditionColumns[0].ColumnValue = this.rows[index][columns[j]];
+					conditionColumns[0].ColumnExpression = colorContextRowExpression[j];
+				}
+			}
+			if(foundColumn)
+				conditions[i].Columns =  conditionColumns;
+		}
+		//Call the expression evaluator only for columns which are present in color context
+		if(foundColumn){
+			//expColor = new com.sap.xmii.grid.expression.Expression(conditions, defaultColor, true).evaluate();
+			if(this.isColorContextEligible())
+				expColor = new com.sap.xmii.grid.expression.Expression(conditions, defaultColor, true).evaluate();
+			else 
+				expColor = new com.sap.xmii.grid.expression.Expression(conditions, defaultColor, true, undefined, true).evaluate();
+		}else{
+			expColor = defaultColor;
+		}
+		columnNameStyle = colName+"Style";
+		this.rows[index][columnNameStyle] = this.defaultStyle;
+
+		if(!com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(expColor)) {
+			oldStyle = this.rows[index][columnNameStyle];
+			newStyle = oldStyle + ';color:' + expColor;
+			this.rows[index][columnNameStyle] = newStyle;
+
+			if(this.getDynamicBackground() == true){
+				oldStyle = this.rows[index][columnNameStyle];
+				if (defaultColor != expColor) {
+					newStyle = oldStyle + ';background-color:' + expColor + ';color:' + defaultColor;
+					this.rows[index][columnNameStyle] = newStyle;
+				} 
+			}
+		}
+	}
+};
+com.sap.xmii.grid.ui5.ScoreBoardGrid.prototype.applyRowheadings = function(index) {
+	var rowHeadings = this.getRowHeadings().toString().split(',');
+	//Row heading for rows
+	if(rowHeadings[index] != null){
+		this.rows[index].RowHeading = rowHeadings[index];
+	}
+};

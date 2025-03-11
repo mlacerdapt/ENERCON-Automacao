@@ -1,0 +1,2323 @@
+	function getJSDoc() {
+	
+	var x = '';
+	function getAddMethods() {
+		var addMethodStr = '';
+		var propNames = [ 'AllowCellSelection:boolean', 'AllowColumnReordering:boolean', 'FreezeColumn:int', 'AllowColumnResize:boolean', 'AllowDeselect:boolean',
+		                  'AllowMultipleSelection:boolean', 'AllowSelection:boolean', 'AlwaysCenterColumnHeadings:boolean', 'BackgroundColor:Color', 'AutoRefresh:boolean',
+		                  'AutoResizeColumns:boolean', 'DateFormat:String', 'DynamicBackground:boolean', 'EnableAutoRefresh:boolean', 'TitlePosition:String', 'FontFace:String',
+		                  'FontSize:int', 'FontStyle:int', 'GridColor:Color', 'GridType:String', 'HardWrap:boolean', 'HeaderBackgroundColor:Color', 'HeaderFontFace:String',
+		                  'HeaderFontSize:int', 'HeaderFontStyle:int', 'HeaderHeight:int', 'HeaderTextColor:Color', 'InitialUpdate:boolean', 'NumberFormat:String', 'RaisedHeaders:boolean',
+		                  'RefreshRate:int', 'RowHeadingWidth:int', 'RowHeadings:String', 'RowHeight:int', 'RowSelectBackgroundColor:Color', 'RowSelectColor:Color',
+		                  'RowSelectFontStyle:int', 'ShowAppToolBar:boolean', 'ShowHeader:boolean', 'ShowHorizontalGrid:boolean', 'ShowHorizontalScrollBar:boolean',
+		                  'ShowMessageArea:boolean', 'ShowRowResizeHandle:boolean', 'ShowScrollBar:boolean', 'ShowTimeBar:boolean', 'ShowTitleArea:boolean', 'ShowVerticalGrid:boolean',
+		                  'TextColor:Color', 'Title:String', 'UseLocaleFormat:boolean',  'WordWrap:boolean', 'ZeroBasedHeaderPosition:boolean','UseBOMForCSV:boolean' ];
+		
+
+		for (prop in propNames) {
+			var propertyset = propNames[prop].split(':');
+			var getStr = 'String:' + 'get' + propertyset[0] + '()' + ';';
+			var setStr = 'void:' + 'set' + propertyset[0] + '('+propertyset[1]+')' + ';';
+			addMethodStr = addMethodStr + getStr + setStr;
+		}
+
+		return addMethodStr;
+	}
+	;
+	x = x + getAddMethods();
+	return x;
+	
+};
+
+com.sap.xmii.grid = com.sap.xmii.grid || {};
+
+/***
+ * GridComponent Class
+ * @constructor
+ */
+
+/**
+ * @Namespace com.sap.xmii.grid
+ */
+com.sap.xmii.grid.ui5 = {
+	BaseComponent : function() {
+		this.numberFormatter = {};
+		this.dateFormatter = {};
+		this.selectedRowIndices = [];
+		this.displayHeadName = [];
+		this.originalHeadName = [];
+		this.unusedHeadingIndex = [];
+	}
+};
+
+var dateStringRef = {};
+
+com.sap.xmii.grid.ui5.BaseComponent.prototype = {
+
+		gridPropertyConfig : '',
+		gridModel : '',
+		type : '',
+		ui5TableElement : '',
+		rows : '',
+		columns : '',
+		rowsets : '',
+		rowset : '',
+		columnArray : '',
+		oTable :  '',
+		selectedColumn : '',
+		selectedCellId : '',
+		i5GridInstance : '',
+		selectedCellLabelId : '',
+		numFormatForLocale : '',//com.sap.xmii.common.util.numberformatPatternForLocale,
+		loggedInUserLocale : '',//com.sap.xmii.common.util.loggedInUserLocale,
+		numberFormatter : {},
+		dateFormatter : {},
+		defaultStyle:'',
+		columnBoolean:'',
+		selectedRowIndices: [],
+		selectedRowStyle:'',
+		selectedCellRowIndex : '',
+		selectedCellColumnIndex : '',
+		selectedColumnIndex : '',
+		displayHeadName : [],
+		originalHeadName : [],
+		unusedHeadingIndex : [],
+		columnOrderArray : [],
+		
+		/**
+		 * 
+		 */
+		initializeColumnOrder : function() {
+			var displayColumns = this.getDisplayColumns().split(',');
+			for(var cI=0; cI<displayColumns.length; cI++) {
+				this.columnOrderArray[cI]=cI+1;
+			}
+		},			
+
+		/**
+		 * 
+		 * @returns {String}
+		 */
+		getSelectedCellRowIndex : function() {
+			return this.selectedCellRowIndex;
+		},
+		
+		/**
+		 * 
+		 * @param rowIndex
+		 */
+		setSelectedCellRowIndex : function(rowIndex) {
+			this.selectedCellRowIndex = rowIndex;
+		},
+		
+		/**
+		 * 
+		 * @returns {String}
+		 */
+		getSelectedCellColumnIndex : function() {
+			return this.selectedCellColumnIndex;
+		},
+		
+		/**
+		 * 
+		 * @param columnIndex
+		 */
+		setSelectedCellColumnIndex : function(columnIndex) {
+			this.selectedCellColumnIndex = columnIndex;
+		},
+		
+		/**
+		 * 
+		 * @returns {String}
+		 */
+		getI5GridInstance : function() {
+			return this.i5GridInstance;
+		},
+		
+		/**
+		 * 
+		 * @param instance
+		 */
+		setI5GridInstance : function(instance) {
+			this.i5GridInstance = instance;
+		},
+		
+		/**
+		 * 
+		 * @returns {String}
+		 */
+		getSelectedCellId : function() {
+			return this.selectedCellId;
+		},
+		
+		/**
+		 * 
+		 * @param selectedCellId
+		 */
+		setSelectedCellId : function(selectedCellId) {
+			this.selectedCellId = selectedCellId;
+		},
+		
+		/**
+		 * 
+		 * @returns {String}
+		 */
+		getSelectedCellLabelId : function() {
+			return this.selectedCellLabelId;
+		},
+		
+		/**
+		 * 
+		 * @param selectedCellLabelId
+		 */
+		setSelectedCellLabelId : function(selectedCellLabelId) {
+			this.selectedCellLabelId = selectedCellLabelId;
+		},
+		
+		/**
+		 * 
+		 * @returns {String}
+		 */
+		getSelectedCol : function() {
+			return this.selectedColumn;
+		},
+		
+		/**
+		 * 
+		 * @param selectedCol
+		 */
+		setSelectedCol : function(selectedCol) {
+			this.selectedColumn = selectedCol;
+		},
+		
+		/**
+		 * 
+		 * @returns {String}
+		 */
+		getUI5TableElement : function() {
+			return this.ui5TableElement;
+		},
+		
+		/**
+		 * 
+		 * @param gridConfig
+		 * @param gridModel
+		 * @param i5GridObj
+		 */
+		populateData: function(gridConfig, gridModel, i5GridObj) {
+			this.i5GridInstance = i5GridObj;
+			this.gridPropertyConfig = gridConfig;
+			this.addGettersAndSetters();
+			this.gridModel = gridModel;
+			if(gridModel != undefined) {
+				this.populateMIIRowsets(gridModel);
+			}	
+		},
+		
+		/**
+		 * Creates a blank table
+		 * @returns {String}
+		 */
+		create: function(){
+			this.ui5TableElement = new sap.ui.commons.layout.VerticalLayout("empty");
+			var content = new sap.ui.table.Table({
+				visibleRowCount: 5,
+				columnHeaderVisible: false,
+				noData : new sap.ui.commons.Label("l2",{text:"", design:sap.ui.commons.LabelDesign.Bold})
+			});
+			this.ui5TableElement.addContent(content);
+	    	return this.ui5TableElement;
+		},
+		
+		/**
+		 * Getters and Setters being created for additional Props
+		 * @return
+		 * @private
+		 */
+		addGettersAndSetters: function() {
+			for (prop in com.sap.xmii.common.util.GridPropNames) {
+				var propName = com.sap.xmii.common.util.GridPropNames[prop];
+				var propValue = this.gridPropertyConfig.getProperty(propName);
+				com.sap.xmii.common.util.MIIi5Util.defineProperty(this, propName, propValue);
+				var ls = 'this' + '.' + propName;
+				var rs = 'this.gridPropertyConfig.getProperty(' + '\'' + propName + '\')';
+				//Replacing eval code
+				//eval(ls + '=' + rs);
+                 this["get"+propName] = this['gridPropertyConfig.getProperty('+propName+')'];
+				//end of code	
+				// Create and Assign the getPropName function with this.propName
+				// ex.this.getTitle = this.Title so as to
+				// call as a function
+				var getFnName = 'this.get' + propName;
+				var funcnSynt = 'function(){ ';
+				var returnSynt = 'return ';
+				var getterFnToAssign = 'this.' + propName;
+				var closingSyntax = '}';
+				//Replacing eval code
+				//eval(getFnName + '=' + funcnSynt + returnSynt + getterFnToAssign + closingSyntax);
+				const actionToCall =  new Function("return "+ funcnSynt + returnSynt + getterFnToAssign + closingSyntax);
+				   this["get"+propName]  = actionToCall();
+				//end of code
+				// Create the Setter Function and assign with this.setTitle
+				var setFnName = 'this.set' + propName;
+				var setFuncnSynt = 'function(val){ ';
+				var setProp = 'this.gridPropertyConfig.setProperty(' + '\'' +propName+'\',val);';
+				var setterFnToAssign = 'this.' + propName + '=' + 'val';
+				//Replacing eval code
+				//eval(setFnName + '=' + setFuncnSynt + setProp + setterFnToAssign + closingSyntax);
+				const actionToCall2 =  new Function("return "+ setFuncnSynt + setProp + setterFnToAssign + closingSyntax);
+				   this["set"+propName]  = actionToCall2();
+				//end of code
+
+			}
+		},
+		
+		/**
+		 * 
+		 * @param gridModel
+		 */
+		populateMIIRowsets: function(gridModel) {
+			if (gridModel.getModelData().getRowsets() != undefined) {
+				this.rows = gridModel.getModelData().getRows();
+				this.rowsets = gridModel.getModelData().getRowsets();
+				this.rowset = gridModel.getModelData().getRowset();
+				this.columnArray = gridModel.getModelMetaData().getColumnArray();
+				this.columns = gridModel.getModelMetaData().getColumns();
+			}
+		},
+		
+		/**
+		 * 
+		 * @param selectedIndices
+		 */
+		setSelectedRowIndices : function(selectedIndices) {
+			this.selectedRowIndices = selectedIndices;
+		},
+		
+		/**
+		 * 
+		 * @returns {Array}
+		 */
+		getSelectedRowIndices : function() {
+			return 	this.selectedRowIndices;
+		},
+		
+		/**
+		 * 
+		 * @param rowStyle
+		 */
+		setSelectedRowStyle : function(rowStyle) {
+			this.selectedRowStyle = rowStyle;
+		},
+		
+		/**
+		 * 
+		 * @returns {String}
+		 */
+		getSelectedRowStyle : function() {
+			return 	this.selectedRowStyle;
+		},
+		
+		/**
+		 * 
+		 * @returns {String}
+		 */
+		getSelectedColumnIndex : function() {
+			return this.selectedColumnIndex;
+		},
+		
+		/**
+		 * 
+		 * @param columnIndex
+		 */
+		setSelectedColumnIndex : function(columnIndex) {
+			this.selectedColumnIndex = columnIndex;
+		},
+
+		/**
+		 * getRowCount
+		 * @return int
+		 */
+		getRowCount : function() {
+			return this.oTable._getRowCount();
+		},
+		
+		/**
+		 * getColumnCount
+		 * @return int
+		 */
+		getColumnCount : function() {
+			return this.oTable.mAggregations.columns.length - 1;
+		},
+		
+		/**
+		 * getVisibleRows
+		 * @return int
+		 */
+		getVisibleRows : function() {
+			return this.oTable.getVisibleRowCount();
+		},
+		
+		/**
+		 * getFirstVisibleRow
+		 * @return int
+		 */
+		getFirstVisibleRow : function() {
+			return this.oTable.getFirstVisibleRow() + 1;
+		},
+		
+		/**
+		 * Set FirstVisibleRow
+		 * @param index
+		 * @return
+		 */
+		setFirstVisibleRow : function(index) {
+			this.oTable.setFirstVisibleRow(index - 1);
+		},
+
+		/**
+		 * getSelectedRow 
+		 * @return int
+		 */
+		getSelectedRow : function() {
+			return this.getSelectedRowAt(1);
+		},
+
+		/**
+		 * Set SelectedRow
+		 * @param index
+		 * @return
+		 */
+		setSelectedRow : function(index) {
+			if(index <= this.getI5GridInstance().getRowCount())
+				this.oTable.setSelectedIndex(index - 1);
+		},
+
+		/**
+		 * get SelectedCellRow
+		 * @return int
+		 */
+		getSelectedCellRow : function() {
+			return this.getSelectedCellRowIndex();
+		},
+
+		/**
+		 * Get CellValue
+		 * @param rowIndex
+		 * @param colIndex
+		 * @return
+		 */
+		getCellValue : function(rowIndex, colIndex) {
+			if(rowIndex >= 0 && rowIndex <= this.oTable.getModel().oData.modelData.length && colIndex >= 0 && colIndex <= this.getColumnCount()) {
+				var colName = this.getColumnName(parseInt(colIndex));
+				var actualModelIndex = this.oTable.mBindingInfos.rows.binding.aIndices[rowIndex-1];
+				return this.oTable.getModel().oData.modelData[actualModelIndex][colName];
+			} else {
+				return '';
+			}
+		},
+
+		/**
+		 * Get SelectedCellValue
+		 * @return
+		 */
+		 getSelectedCellValue : function() {
+				alert('a');
+			},
+			
+		/**
+		 * Get SelectedCellValue
+		 * @param colIndex
+		 * @return
+		 */
+		 getSelectedCellValue : function(colIndex) {
+				var colName, actualModelIndex;
+				if(colIndex == undefined) {
+		               if(this.getAllowCellSelection() == true) {
+	                       if(this.getSelectedCellRowIndex() >= 0 && this.getSelectedCellRowIndex() <= this.oTable.mBindingInfos.rows.binding.aIndices.length 
+	                    		   && this.getSelectedCellColumn() >= 0 && this.getSelectedCellColumn() <= this.getColumnCount()) {
+	                    	   colName = this.getColumnName(parseInt(this.getSelectedCellColumn()));
+	                    	   actualModelIndex = this.oTable.mBindingInfos.rows.binding.aIndices[this.getSelectedCellRowIndex() -1];
+	                    	   return this.oTable.getModel().oData.modelData[actualModelIndex][colName];
+	                       } else {
+	                    	   return "";
+	                       }
+		               } else {
+		            	   return "";
+		               }
+
+				} else {
+					if(this.getAllowCellSelection() == true) {
+	                    if(this.getSelectedCellRowIndex() >= 0 && this.getSelectedCellRowIndex() <= this.oTable.mBindingInfos.rows.binding.aIndices.length 
+	                 		   && colIndex >= 0 && colIndex <= this.getColumnCount()) {
+	                 	   colName = this.getColumnName(parseInt(colIndex));
+	                 	   actualModelIndex = this.oTable.mBindingInfos.rows.binding.aIndices[this.getSelectedCellRowIndex() -1];
+	                 	   return this.oTable.getModel().oData.modelData[actualModelIndex][colName];
+	                    } else {
+	                 	   return "";
+	                    }
+		           } else {
+						if(this.getSelectedRowIndices() >= 0 && this.getSelectedRowIndices().length == 1
+							&& colIndex >= 0 && colIndex <=this.getColumnCount()) {
+							colName = this.getColumnName(parseInt(colIndex));
+							//actualModelIndex = this.oTable.mBindingInfos.rows.binding.aIndices[this.getSelectedRowIndices()];
+							return this.oTable.getModel().oData.modelData[this.getSelectedRowIndices()][colName];
+						} else {
+							return "";
+						}
+		        	}
+				}
+		},
+		
+		/**
+		 * 
+		 * @param rowIndex
+		 * @param colIndex
+		 * @param value
+		 */
+		setCellValue : function(rowIndex, colIndex, value) {
+			if(rowIndex > 0 && rowIndex <= this.getI5GridInstance().getRowCount() && colIndex > 0 && colIndex <= this.getColumnCount()) {
+				var colName = this.getColumnName(colIndex);
+				var actualModelIndex = this.oTable.mBindingInfos.rows.binding.aIndices[rowIndex-1];
+				this.oTable.getModel().oData.modelData[actualModelIndex][colName] = value;
+			} 
+			this.oTable.rerender();	
+		},
+
+		/**
+		 * Get SelectedColumn
+		 * @return
+		 */
+		getSelectedColumn : function() {
+			var selectedColName = this.getSelectedColFromGridUI();
+			if(!com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(selectedColName)) {
+				var allColumns = this.oTable.mAggregations.columns;
+				var index;
+				for(index=0; index<allColumns.length; index++) {
+					if(selectedColName == allColumns[index].getLabel().mProperties.textString)
+						break;
+				}
+				if(index < allColumns.length)
+					return index;
+				else
+					return 0;
+			} else {
+				return 0;
+			}
+		},
+
+		/**
+		 * 
+		 * @returns
+		 */
+		getSelectedColFromGridUI : function() {
+			if(this.getSelectedCol() != '' &&
+					this.getSelectedCol() != undefined)
+				return this.getSelectedCol().getLabel().mProperties.textString;
+			else
+				return '';
+		},
+
+		/**
+		 * Get SelectedColumnName
+		 * @return String
+		 */
+		getSelectedColumnName : function() {
+			if(this.getSelectedCol() != '' &&
+					this.getSelectedCol() != undefined)
+				return this.getSelectedCol().mProperties.filterProperty;
+			else
+				return '';
+		},
+
+		/**
+		 * Get ColumnName
+		 * @param columnIndex
+		 * @return
+		 */
+		getColumnName : function(columnIndex) {
+			if(columnIndex > 0 && columnIndex <= this.getColumnCount()) {
+				columnIndex =  this.columnOrderArray[columnIndex-1];//new column index after column reorder
+				var displayColArray = this.getDisplayColumns().split(',');
+				return displayColArray[columnIndex - 1];
+			} else {
+				return '';
+			}
+		},
+
+		/**
+		 * Get SelectedRowCount
+		 * @return
+		 */
+		getSelectedRowCount : function() {
+			return this.oTable.getSelectedIndices().length;
+		},
+
+		/**
+		 * getSelectedRowAt
+		 * @param index
+		 * @return
+		 */
+		getSelectedRowAt : function(index) {
+			if(this.getSelectedRowCount() > 0) {
+				if (index <= 0 || index > this.getSelectedRowCount()) {
+					return 0;
+				} else {
+					return this.oTable.getSelectedIndices()[index - 1] + 1;
+				}
+			} else {
+				//No rows selected
+				return 0;
+			}
+		},
+
+		/**
+		 * Deselect AllRows
+		 * @return
+		 */
+		deselectAllRows : function() {
+			this.oTable.clearSelection();
+//			this.oTable.removeSelectionInterval(0, this.getI5GridInstance().getRowCount() - 1);
+		},
+
+		/**
+		 * deleteRow
+		 * @param rowIndex
+		 * @return
+		 */
+		deleteRow : function(rowIndex) {
+			if(rowIndex > 0 && rowIndex <= this.getI5GridInstance().getRowCount()) {
+				var actualModelIndex = this.oTable.mBindingInfos.rows.binding.aIndices[rowIndex-1];
+				this.oTable.getModel().oData.modelData.splice(actualModelIndex - 1, 1);
+				this.getI5GridInstance().getOriginalRows().splice(rowIndex - 1, 1);
+				this.getI5GridInstance().update(false);
+			}
+		},
+
+		/**
+		 * Find ColumnNumber
+		 * @param columnName
+		 * @return
+		 */
+		findColumnNumber : function(columnName) {
+			if(!com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(columnName)) {
+				var displayColArray = this.getDisplayColumns().split(',');
+				var colIndex;
+				for(colIndex = 0; colIndex < displayColArray.length; colIndex++){
+					if(columnName == displayColArray[colIndex]) {
+						break;
+					}
+				}
+				if(colIndex < displayColArray.length)
+					return colIndex + 1;
+				else
+					return 0;
+			} else {
+				return 0;
+			}
+		},
+		
+		/**
+		 * getCellValueByName
+		 * @param rowIndex
+		 * @param colName
+		 * @return
+		 */
+		getCellValueByName : function(rowIndex, colName) {
+			if(rowIndex > 0 && rowIndex <= this.getI5GridInstance().getRowCount()) {
+				var colIndex = this.findColumnNumber(colName);
+				if(colIndex > 0) {
+					return this.getCellValue(rowIndex, colIndex);
+				} else {
+					return '';
+				}
+			}
+		},
+
+		/**
+		 * getSelectedCellValueByName
+		 * @param colName
+		 * @return
+		 */
+		getSelectedCellValueByName : function(colName) {
+			var colIndex = this.findColumnNumber(colName);
+			if(colIndex > 0) {
+				return this.getSelectedCellValue(colIndex);
+			} else {
+				return '';
+			}
+		},
+
+		/**
+		 * getColumnHeading
+		 * @param colIndex
+		 * @return
+		 */
+		getColumnHeading : function(colIndex) {
+			if(this.getZeroBasedHeaderPosition().toString() == com.sap.xmii.common.util.GenericConstants.TRUE) {
+				if(colIndex > -1 && colIndex < this.getColumnCount()) {
+					var colHeadingsArray = this.getColumnHeadings().split(',');
+					return colHeadingsArray[colIndex];
+				} else {
+					return '';
+				}
+			} else {
+				if(colIndex > 0 && colIndex <= this.getColumnCount()) {
+					var colHeadingsArray = this.getColumnHeadings().split(',');
+					return colHeadingsArray[colIndex - 1];
+				} else {
+					return '';
+				}
+			}
+		},
+		
+		/**
+		 * setColumnHeading
+		 * @return 
+		 */
+		setColumnHeading : function(colIndex, heading) {
+			if(this.getZeroBasedHeaderPosition().toString() == com.sap.xmii.common.util.GenericConstants.TRUE) {
+				if(colIndex > -1 && colIndex < this.getColumnCount()) {
+					var colHeadingsArray = this.getColumnHeadings().split(',');
+					colHeadingsArray[colIndex] = heading;
+					this.setColumnHeadings(colHeadingsArray.toString());
+
+					var headerLabelId = this.oTable.mAggregations.columns[colIndex + 1].mAggregations.label.sId;
+					$('#' + headerLabelId)[0].childNodes[0].data = heading;
+				}
+			} else {
+				if(colIndex > 0 && colIndex <= this.getColumnCount()) {
+					var colHeadingsArray = this.getColumnHeadings().split(',');
+					colHeadingsArray[colIndex - 1] = heading;
+					this.setColumnHeadings(colHeadingsArray.toString());
+
+					var headerLabelId = this.oTable.mAggregations.columns[colIndex].mAggregations.label.sId;
+					$('#' + headerLabelId)[0].childNodes[0].data = heading;
+				}
+			}
+		},
+		
+		/**
+		 * getColumnAlignment
+		 * @param colIndex
+		 * @return 
+		 */
+		getColumnAlignment : function(colIndex) {
+			if(colIndex > -1 && colIndex < this.getColumnCount()) {
+				var columnAlignments = this.getColumnAlignments().split(',');
+				return columnAlignments[parseInt(colIndex) + 1];
+			} else {
+				return '';
+			}
+		},
+		
+		/**
+		 * getColumnFormat
+		 * @param colIndex
+		 * @return 
+		 */
+		getColumnFormat : function(colIndex) {
+			if(colIndex > -1 && colIndex < this.getColumnCount()) {
+				var columnFormat = this.getColumnFormats().split(',');
+				return columnFormat[parseInt(colIndex) + 1];
+			} else {
+				return '';
+			}
+		},
+		
+		/**
+		 * getColumnNames
+		 * @return 
+		 */
+		getColumnNames : function() {
+			var numberOfColumns = this.getColumnCount();
+			var columnNames = [];
+			for(var colIndex = 0; colIndex<numberOfColumns; columnNames++){
+				columnNames.push(this.getColumnName(colIndex));
+			}
+			return columnNames;
+		},
+		
+		/**
+		 * getColumnWidth
+		 * @param colIndex
+		 * @return 
+		 */
+		getColumnWidth : function(colIndex) {
+			if(colIndex > -1 && colIndex < this.getColumnCount()) {
+				var columnWidth = this.getColumnWidths().split(',');
+				return columnWidth[parseInt(colIndex) + 1];
+			} else {
+				return '';
+			}
+		},
+		
+		/**
+		 * getShowColumnAsBoolean
+		 * @param colIndex
+		 * @return 
+		 */
+		getShowColumnAsBoolean : function(colIndex) {
+			if(colIndex > -1 && colIndex < this.getColumnCount()) {
+				var ShowColumnsAsBoolean = this.getShowColumnsAsBoolean().split(',');
+				return ShowColumnsAsBoolean[parseInt(colIndex) + 1];
+			} else {
+				return '';
+			}
+		},
+		
+		/**
+		 * getStringMatchType
+		 * @return 
+		 */
+		getStringMatchType : function() {
+			
+				var stringMatchType = [];
+				var matchColumns = this.getMatchColumns().split(',');
+				var matchColumnsLength = matchColumns.length;
+				var matchValues = this.getMatchValues().split(',');
+				for (var index = 0; index < matchColumnsLength; index++){
+					if (matchValues[index].split(':')[0] == "String"){
+						stringMatchType.push(matchColumns[index]);
+					}
+				}
+				return stringMatchType;
+		},
+		
+		/**
+		 * getIntegerMatchType
+		 * @return 
+		 */
+		getIntegerMatchType : function() {
+			
+				var integerMatchType = [];
+				var matchColumns = this.getMatchColumns().split(',');
+				var matchColumnsLength = matchColumns.length;
+				var matchValues = this.getMatchValues().split(',');
+				for (var index = 0; index < matchColumnsLength; index++){
+					if (matchValues[index].split(':')[0] == "Integer"){
+						integerMatchType.push(matchColumns[index]);
+					}
+				}
+				return integerMatchType;
+		},
+		
+		/**
+		 * getDoubleMatchType
+		 * @return 
+		 */
+		getDoubleMatchType : function() {
+			
+				var doubleMatchType = [];
+				var matchColumns = this.getMatchColumns().split(',');
+				var matchColumnsLength = matchColumns.length;
+				var matchValues = this.getMatchValues().split(',');
+				for (var index = 0; index < matchColumnsLength; index++){
+					if (matchValues[index].split(':')[0] == "Double"){
+						doubleMatchType.push(matchColumns[index]);
+					}
+				}
+				return doubleMatchType;
+		},
+		
+		/**
+		 * getLongMatchType
+		 * @return 
+		 */
+		getLongMatchType : function() {
+			
+				var longMatchType = [];
+				var matchColumns = this.getMatchColumns().split(',');
+				var matchColumnsLength = matchColumns.length;
+				var matchValues = this.getMatchValues().split(',');
+				for (var index = 0; index < matchColumnsLength; index++){
+					if (matchValues[index].split(':')[0] == "Long"){
+						longMatchType.push(matchColumns[index]);
+					}
+				}
+				return longMatchType;
+		},
+		
+		/**
+		 * setColumnAlignment
+		 * @param colIndex
+		 * @param alignment
+		 * @return 
+		 */
+		setColumnAlignment : function(colIndex, alignment) {
+			if(colIndex > 0 && colIndex <= this.getColumnCount()) {
+				var colAlignments = this.getColumnAlignments();
+				var colAlignmentsArray = colAlignments.split(',');
+				colAlignmentsArray[colIndex - 1] = alignment;
+				this.setColumnAlignments(colAlignmentsArray.toString());
+			}
+		},
+		
+		/**
+		 * setColumnFormat
+		 * @param colIndex
+		 * @param format
+		 * @return 
+		 */
+		setColumnFormat : function(colIndex, format) {
+			if(colIndex > 0 && colIndex <= this.getColumnCount()) {
+				var colFormat = this.getColumnFormats();
+				var colFormatsArray = colFormat.split(',');
+				colFormatsArray[colIndex - 1] = format;
+				this.setColumnFormats(colFormatsArray.toString());
+			}
+		},
+		
+		/**
+		 * setColumnWidth
+		 * @param colIndex
+		 * @param width
+		 * @return 
+		 */
+		setColumnWidth : function(colIndex, width) {
+			if(colIndex > 0 && colIndex <= this.getColumnCount()) {
+				//getColumnWidths() returns number in case there is only 1 column added to the i5Grid
+				var colWidths = this.getColumnWidths()+"";
+				var colWidthsArray = colWidths.split(',');
+				colWidthsArray[colIndex - 1] = width;
+				this.setColumnWidths(colWidthsArray.toString());
+			}
+		},
+
+		/**
+		 * setCellColorAsString
+		 * @param rowIndex
+		 * @param colIndex
+		 * @param textColor
+		 * @return 
+		 */
+		setCellColorAsString : function(rowIndex, colIndex, textColor) {
+			if(rowIndex > 0 && rowIndex <= this.getI5GridInstance().getRowCount() && colIndex > 0 && colIndex <= this.getColumnCount()) {
+				var cellLabelId = this.oTable.mAggregations.rows[rowIndex - 1].mAggregations.cells[colIndex - 1].sId;
+				var oldStyle = sap.ui.getCore().byId(cellLabelId).getLabelStyle();
+				var newStyle = oldStyle + ';color:' + textColor;
+				sap.ui.getCore().byId(cellLabelId).setLabelStyle(newStyle);
+			}
+		},
+		
+		/**
+		 * setCellBackgroundColorAsString
+		 * @param rowIndex
+		 * @param colIndex
+		 * @param bgColor
+		 * @return 
+		 */
+		setCellBackgroundColorAsString : function(rowIndex, colIndex, bgColor) {
+			if(rowIndex > 0 && rowIndex <= this.getI5GridInstance().getRowCount() && colIndex > 0 && colIndex <= this.getColumnCount()) {
+				var cellLabelId = this.oTable.mAggregations.rows[rowIndex - 1].mAggregations.cells[colIndex - 1].sId;
+				var oldStyle = sap.ui.getCore().byId(cellLabelId).getLabelStyle();
+				var newStyle = oldStyle + ';background-color:' + bgColor;
+				sap.ui.getCore().byId(cellLabelId).setLabelStyle(newStyle);
+			}
+		},
+		
+		/**
+		 * setShowColumnAsBoolean
+		 * @param colIndex
+		 * @param boolean
+		 * @return 
+		 */
+		setShowColumnAsBoolean : function(colIndex, boolean) {
+			if(colIndex > 0 && colIndex <= this.getColumnCount()) {
+				var showColumnsAsBoolean = this.getShowColumnsAsBoolean();
+				var showColumnsAsBooleanArray = showColumnsAsBoolean.split(',');
+				showColumnsAsBooleanArray[colIndex - 1] = boolean;
+				this.setShowColumnsAsBoolean(showColumnsAsBooleanArray.toString());
+			}
+		},
+		
+		/**
+		 * setSelectedCell
+		 * @param colIndex
+		 * @param rowIndex
+		 * @return 
+		 */
+		setSelectedCell : function(rowIndex, colIndex) {
+			
+			//setting style for cell selection
+			var prevRowIndex = this.getSelectedRowIndices();
+			var prevRowStyle = this.getSelectedRowStyle();
+			var prevColumnIndex = this.getSelectedColumnIndex();
+			var currentRowIndex = rowIndex - 1;
+			var currentRowStyle = "";
+            var currentColumnIndex = 0;
+            if(colIndex!=-1){
+            	if(this.getRowHeadings().toString().split(',')[0] == "" && this.columnArray[0].Name == "RowHeading"){
+            		currentColumnIndex = colIndex;
+            	}else{//else RowHeading is enabled
+            		currentColumnIndex = colIndex-1;
+            	}
+
+            	//Apply style for previous selected row
+            	if(!com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(prevColumnIndex.toString()) && typeof prevRowIndex === "number") {
+            		var columnNameStyle = this.columnArray[prevColumnIndex].Name+"Style";
+            		this.rows[prevRowIndex][columnNameStyle] = prevRowStyle;
+            	}
+
+            	//Apply style for current selected row
+            	var columnNameStyle = this.columnArray[currentColumnIndex].Name+"Style";
+            	var rowIndex = currentRowIndex;
+            	currentRowStyle = currentRowStyle+this.rows[rowIndex][columnNameStyle];
+
+            	this.applyCellStyle(rowIndex, columnNameStyle, this);
+
+            	this.oTable.rerender();
+
+            	this.setSelectedRowIndices(currentRowIndex);
+            	this.setSelectedRowStyle(currentRowStyle);
+            	this.setSelectedColumnIndex(currentColumnIndex);
+            }
+			
+		},
+		
+		/**
+		 * getSelectedCellColumn
+		 * @return int
+		 */
+		getSelectedCellColumn : function() {
+			var selectedCellId = this.getSelectedCellId();
+			if(selectedCellId) {
+				if(! com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(selectedCellId)) {
+					if(selectedCellId.indexOf("-col") > -1) {
+						var colNoString = selectedCellId.substring(selectedCellId.lastIndexOf('l') + 1);
+						return Number(colNoString) + 1;
+					} else {
+						return 0;
+					}
+				} else {
+					return 0;
+				}
+			} else {
+				return 0;
+			}
+		},
+
+		/**
+		 * 
+		 * @param colContextColumns
+		 * @returns {Array}
+		 */
+		gridTypeInitialization: function(colContextColumns) {
+			
+			this.initializeColumnOrder();
+			
+			this.oTable =  new sap.ui.table.Table({
+				selectionMode: sap.ui.table.SelectionMode.Single,
+				visibleRowCountMode: sap.ui.table.VisibleRowCountMode.Auto
+			});
+			
+			this.oTable.attachColumnMove(function(oEvent) {
+				//reset the columnOrderMap for the column move that has happened
+				var iNewPos = oEvent.getParameter("newPos");
+				var nIndex = iNewPos - 1;//zero-based indexing
+				
+				//get the original column index
+				var columnBeingMoved = oEvent.getParameter("column");
+				
+				var iOldPos = this.oTable.indexOfColumn(columnBeingMoved);//zero-based indexing
+				var oIndex = iOldPos - 1;//zero-based indexing
+				
+				if(iNewPos === iOldPos)
+					return; //do nothing
+				
+				//remove the element at the old position
+				var elAtTheColBeingMoved = this.columnOrderArray.splice(oIndex,1);
+				
+				//insert it at the new position
+				this.columnOrderArray.splice(nIndex,0,elAtTheColBeingMoved[0]);
+				
+				//reset the selected column index once columns are reordered
+				this.setSelectedColumnIndex(iNewPos);
+			},this);
+			
+			//freeze column has an issue with IE
+			//if ((!jQuery.browser.mozilla || !(jQuery.browser.fVersion <= 11)) && this.getFreezeColumn() > 0) {
+			
+			//freeze column is now working with IE
+			if (this.getFreezeColumn() > 0) {
+				this.oTable.setFixedColumnCount(this.getFreezeColumn() + 1);
+			} 
+			
+			if (this.i5GridInstance.setUI5TableProperties == true) {
+				this.oTable.setMinAutoRowCount(1);
+				this.oTable.setVisibleRowCountMode(sap.ui.table.VisibleRowCountMode.Auto);
+			}
+			this.oTable._bCallUpdateTableCell = true;
+			if(this.gridModel != undefined) {
+				
+				if (this.rowsets == null || this.rowsets == undefined){
+					this.setTableMessage("XMSG_NO_ROWS_RETURNED", true);
+				}
+				//changes to create charttemplatearray in all scenerio
+				/*else if(this.rows == null || this.rows == undefined){
+				this.setTableMessage("XMSG_NO_ROWS_RETURNED", true);
+			   }else if(this.rowsets.length == 0 || this.rows.length == 0) {
+				this.setTableMessage("XMSG_NO_ROWS_RETURNED", true);
+			   }*/
+			
+			else if(this.rowsets == null){
+
+				if( this.rows == null || this.rows == undefined){
+				       this.setTableMessage("XMSG_NO_ROWS_RETURNED", true);
+			            }
+				else if(this.rowsets.length == 0 || this.rows.length == 0) {
+				     this.setTableMessage("XMSG_NO_ROWS_RETURNED", true);
+			           }	
+ 				}else if (this.rowsets.FatalError != null) {
+				
+					this.setTableMessage(this.rowsets.FatalError, false);
+				} else {
+
+					//Load the required custom controls
+					jQuery.sap.registerModulePath("CustomControls", "/XMII/JavaScript/"  + (miiModePath || "minified"));
+					
+					jQuery.sap.require("CustomControls.ColoredLabel");
+					jQuery.sap.require("CustomControls.ColoredLight");
+					jQuery.sap.require("CustomControls.ColumnHeaderLabel");
+					jQuery.sap.require("CustomControls.ColumnCheckBox");
+					jQuery.sap.require("CustomControls.ColoredLink");
+					
+					var columnTemplateArray = new Array();
+					//Add RowHeading as the initial column
+					if(this.columnArray[0].Name != "RowHeading") {
+						this.columnArray.splice(0, 0,
+								{Name: "RowHeading", SourceColumn : "RowHeading"}
+						);
+					}
+
+					//Updating the columnArray based on the displayColumns
+					var displayColumns = this.getDisplayColumns().split(',');
+					if (displayColumns != null && displayColumns!="" && this.Dynamici5GridCheckBox != true) {
+						displayColumns.splice(0,0,"RowHeading");
+						var orderedColumns= [];
+						for(displayIndex in displayColumns){
+							var columnFound = false;
+							for(columnIndex in this.columnArray){
+								if(displayColumns[displayIndex] == this.columnArray[columnIndex].SourceColumn){
+									orderedColumns.push(this.columnArray[columnIndex]);
+									columnFound = true;
+									break;
+								}
+							}
+							//Column not found indicates, column name has been modified in layout tab
+							//Push this column into the columns list, which displays an empty column with changed column name value
+							if(!columnFound)
+								orderedColumns.push({Name: displayColumns[displayIndex], SourceColumn : displayColumns[displayIndex]});
+						}
+						
+						this.columnArray = orderedColumns;
+					}else if(this.Dynamici5GridCheckBox == true){
+					    //get the alternative query data
+					    if(this.MappedColumnQuerTemplate != null && this.MappedColumnQuerTemplate != ""){
+								var queryURL = "/XMII/Illuminator?service=CombineQueryRowsets&QueryTemplate="+this.MappedColumnQuerTemplate+"&Content-Type=text/json";
+								
+								var jsonObj = JSON.parse(com.sap.xmii.common.util.MIIi5Util.getOData(queryURL));
+								var firstRowData = null;
+								if(jsonObj.Rowsets.Rowset != undefined && jsonObj.Rowsets.Rowset != "undefined" &&
+									jsonObj.Rowsets.Rowset[0].Row!= undefined && jsonObj.Rowsets.Rowset[0].Row!= "undefined"){
+									firstRowData = jsonObj.Rowsets.Rowset[0].Row[0];
+								}
+								var newColumnNames= new Array();
+								var displayObjHeadingName = 0;
+								if(firstRowData != null){
+									for(var key in firstRowData){
+										var attrName = key;
+										var attrValue = firstRowData[key];
+										newColumnNames.push(attrValue);
+									}
+								}
+								
+								//check if the user has provided any column headings,
+								// if so, then set the column headings to the table
+								for(i =1 ; i< this.columnArray.length; i++){
+									if(newColumnNames[i] != ""){
+										this.displayHeadName[displayObjHeadingName] = newColumnNames[i-1];
+										this.originalHeadName[displayObjHeadingName] = this.columnArray[i].Name;
+										displayObjHeadingName ++;
+										if(i == newColumnNames.length){
+											break;
+										}
+									}
+								}
+						}
+						if (displayColumns != null && displayColumns!="" ){
+							 var finalDisplayColumns = null;
+								var finalShowColumnAsBoolean = null;
+								var finalColumnAlignment = null;
+								var finalWidths = null;
+								var ColumnWidthsNew = new Array();
+								if(this.getColumnWidths().toString().indexOf(",") >= 0 ){
+								    ColumnWidthsNew = this.getColumnWidths().split(',');
+								}else{
+								    ColumnWidthsNew[0] = this.getColumnWidths();
+								}
+								var ColumnAlignments = new Array();
+								if(this.getColumnAlignments().toString().indexOf(',') >= 0 ){
+								    ColumnAlignments = this.getColumnAlignments().split(',');
+								}else{
+								    ColumnAlignments[0] = this.getColumnAlignments();
+								}
+								var showColumnsAsB = new Array();
+								if(this.getShowColumnsAsBoolean().toString().indexOf(',') >= 0 ){
+								    showColumnsAsB = this.getShowColumnsAsBoolean().split(',');
+								}else{
+								    showColumnsAsB[0] = this.getShowColumnsAsBoolean();
+								}
+								displayColumns.splice(0,0,"RowHeading");
+								var orderedColumns= [];
+								var indexNotFound = 0;
+								for(displayIndex in displayColumns){
+									var columnFound = false;
+									for(columnIndex in this.columnArray){
+										if((displayColumns[displayIndex]  != "" )&& (displayColumns[displayIndex] == this.columnArray[columnIndex].SourceColumn)){
+											orderedColumns.push(this.columnArray[columnIndex]);
+											columnFound = true;
+											if(displayColumns[displayIndex] != "RowHeading"){
+												if( finalDisplayColumns === null){
+													finalDisplayColumns = displayColumns[displayIndex];
+												}else{
+													finalDisplayColumns = finalDisplayColumns + "," + displayColumns[displayIndex ];
+												}
+												if(finalShowColumnAsBoolean === null){
+													finalShowColumnAsBoolean = showColumnsAsB[displayIndex - 1];
+												}else{
+													finalShowColumnAsBoolean = finalShowColumnAsBoolean + "," + showColumnsAsB[displayIndex - 1];
+												}
+												if(finalColumnAlignment === null){
+												    finalColumnAlignment = ColumnAlignments[displayIndex -1];
+												}else{
+												    finalColumnAlignment = finalColumnAlignment + "," + ColumnAlignments[displayIndex -1];
+												}
+												if(finalWidths === null){
+												    finalWidths = ColumnWidthsNew[displayIndex -1];
+												}else{
+													finalWidths = finalWidths + "," + ColumnWidthsNew[displayIndex -1];
+												}
+											}
+											break;
+										}
+									}
+									if(columnFound == false){
+									    this.unusedHeadingIndex[indexNotFound] = displayIndex - 1;
+										indexNotFound ++;
+									}
+									//Column not found indicates, column name has been modified in layout tab
+									//Push this column into the columns list, which displays an empty column with changed column name value
+									//if(!columnFound && displayColumns[displayIndex]  != "")
+									//	orderedColumns.push({Name: displayColumns[displayIndex], SourceColumn : displayColumns[displayIndex]});
+								}
+								for(columnIndex in this.columnArray){
+									var columnFound = false;
+									for(displayIndex in orderedColumns ){
+										if(orderedColumns[displayIndex].SourceColumn == this.columnArray[columnIndex].SourceColumn ){
+										//	orderedColumns.push(this.columnArray[columnIndex]);
+											columnFound = true;
+											break;
+										}
+									}
+									//Column not found indicates, column name has been modified in layout tab
+									//Push this column into the columns list, which displays an empty column with changed column name value
+									if(!columnFound)
+										orderedColumns.push({Name: this.columnArray[columnIndex].SourceColumn, SourceColumn : this.columnArray[columnIndex].SourceColumn});
+								}
+								if(finalDisplayColumns === null) finalDisplayColumns = "";
+								this.setDisplayColumns(finalDisplayColumns);
+								if(finalShowColumnAsBoolean === null) finalShowColumnAsBoolean = "";
+								this.setShowColumnsAsBoolean(finalShowColumnAsBoolean);
+								if(finalColumnAlignment === null) finalColumnAlignment = "";
+								this.setColumnAlignments(finalColumnAlignment);
+								if(finalWidths === null) finalWidths = "";
+								this.setColumnWidths(finalWidths);
+								this.columnArray = orderedColumns;
+							}
+					}
+						else{
+						this.setTableMessage("XMSG_GRID_EMPTY_DISPLAY_COLUMNS", true);
+						return;
+					}
+
+					//Updating the array which maintains columns that need to be displayed as checkboxes
+					var colBoolean = this.getShowColumnsAsBoolean()+"";
+					this.columnBoolean = colBoolean.split(',');
+					this.columnBoolean.splice(0,0,false);
+
+					var gridType = this.getGridType();
+					//Create Column Templates by iteration over all the Table Columns
+					var urls = this.getColumnLinks().split(',');
+					urls.splice(0,0,"");
+					for(var columnIndex =0 ; columnIndex < this.columnArray.length ; columnIndex++){
+						var columnFormats = this.getColumnFormats().split(',');
+						columnFormats.splice(0,0,"");
+						var numberFormat = columnFormats[columnIndex];
+						var uom = "";
+						if(!com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(numberFormat) && numberFormat!=undefined){
+							uom = numberFormat.substr(numberFormat.lastIndexOf("0") + 1, numberFormat.length);
+						}
+						var url = urls[columnIndex];
+						
+						if(this.columnArray[columnIndex].Name == "RowHeading"){
+							columnTemplateArray[columnIndex] = new com.sap.xmii.grid.ui5.customcontrols.ColoredLabel().bindProperty("textString","RowHeading").setRowHeight(this.getRowHeight()).setDefaultBackgroundColor(this.getBackgroundColor());
+						}else if (com.sap.xmii.common.util.i5GridTypes.COLUMNLIGHTS_GRID == gridType){
+							columnTemplateArray[columnIndex] = new com.sap.xmii.grid.ui5.customcontrols.ColoredLight().setTextVisible(false).setRowHeight(this.getRowHeight()).setDefaultBackgroundColor(this.getBackgroundColor());
+						}else if(com.sap.xmii.common.util.i5GridTypes.EMBEDDEDLIGHTS_GRID == gridType){
+							var foundColContextColumn = false;
+							if(colContextColumns!=null || colContextColumns!=undefined){
+								for(var index = 0; index < colContextColumns.length; index++){
+									var columnName = this.columnArray[columnIndex].Name;
+									if(columnName == colContextColumns[index]){
+										foundColContextColumn = true;
+										columnTemplateArray[columnIndex] = new com.sap.xmii.grid.ui5.customcontrols.ColoredLight().setTextVisible(false).setRowHeight(this.getRowHeight()).setDefaultBackgroundColor(this.getBackgroundColor());
+									}
+								}
+							}
+							if(!foundColContextColumn){
+								if(url != undefined && url != null && url.trim().length > 0){
+									columnTemplateArray[columnIndex] = new com.sap.xmii.grid.ui5.customcontrols.ColoredLink().setDefaultBackgroundColor(this.getBackgroundColor());
+								}else{
+									columnTemplateArray[columnIndex] = new com.sap.xmii.grid.ui5.customcontrols.ColoredLabel().setRowHeight(this.getRowHeight()).setDefaultBackgroundColor(this.getBackgroundColor())/*.setUnitOfMeasure(uom)*/;
+								}
+							}
+										
+						}else {
+								if(url != undefined && url != null && url.trim().length > 0){
+									columnTemplateArray[columnIndex] = new com.sap.xmii.grid.ui5.customcontrols.ColoredLink().setDefaultBackgroundColor(this.getBackgroundColor());
+								}
+								else 
+								 columnTemplateArray[columnIndex] = new com.sap.xmii.grid.ui5.customcontrols.ColoredLabel().setRowHeight(this.getRowHeight()).setDefaultBackgroundColor(this.getBackgroundColor())/*.setUnitOfMeasure(uom)*/;
+							}
+					}
+
+					return columnTemplateArray;
+				}
+			}
+		},
+		
+		/**
+		 * 
+		 * @param message
+		 * @param isMessageKey
+		 */
+		setTableMessage: function(message, isMessageKey) {
+			var messageText;
+			if (isMessageKey)
+				messageText = com.sap.xmii.common.util.MessageBundle.getText(message);
+			else
+				messageText = message;
+			var oLabel = new sap.ui.commons.Label(); 
+			oLabel.setText(messageText);
+			oLabel.setTooltip(messageText);
+
+			this.oTable.setNoData(oLabel);
+		},
+		
+		/**
+		 * 
+		 */
+		createDefaultStyle: function() {
+			var inputStyleString;
+			var defaultColor = this.getTextColor();
+			var inputStyle = this.getFontStyle();
+
+			if(inputStyle ==0 || inputStyle == 2){
+				inputStyleString = ';font-style:' + com.sap.xmii.common.util.MIIFontStyles[inputStyle] + ';font-weight:normal';
+			}else if(inputStyle == 1){
+				inputStyleString = ';font-style:normal;font-weight:bold'; 
+			}else{
+				inputStyleString = ';font-style:italic;font-weight:bold';
+			}
+
+			this.defaultStyle = 'default-color:' + defaultColor + ';color:' + defaultColor + ';background-color:' + this.getBackgroundColor() + 
+			';font-size:' + this.getFontSize() + 'px' + ';font-family:' + this.getFontFace() +
+			inputStyleString;
+		},
+
+		/**
+		 * Columns that need to be displayed by check boxes
+		 */
+		createCheckBoxColumn: function(columnTemplateArray, columnIndex, columnName) {
+			if(this.columnBoolean[columnIndex] == 'true'){
+				columnTemplateArray[columnIndex] =  new com.sap.xmii.grid.ui5.customcontrols.ColumnCheckBox().addStyleClass("ui5Table").setDefaultBackgroundColor(this.getBackgroundColor());
+			}
+		},
+
+		/**
+		 * 
+		 */
+		prepareForCellFormatting: function() {
+			var useLocaleFormat = this.getUseLocaleFormat();
+			var columnFormats = this.getColumnFormats().split(',');
+			var displayColumns = this.getDisplayColumns().split(',');
+			
+			for(var columnIndex =1 ; columnIndex < this.columnArray.length ; columnIndex++){
+				var sqlDataType = this.columnArray[columnIndex].SQLDataType;
+				var columnName = this.columnArray[columnIndex].Name;
+				var index = $.inArray(columnName, displayColumns);
+				var dataTypes = com.sap.xmii.common.util.DataTypes;
+				
+				if (sqlDataType == dataTypes.DOUBLE || sqlDataType == dataTypes.INTEGER || sqlDataType == dataTypes.FLOAT || sqlDataType == dataTypes.REAL) {
+					var numberFormat = columnFormats[index];
+					var numberFormatValue = "";
+					
+					if (!com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(numberFormat) && numberFormat != undefined){
+						numberFormatValue = numberFormat.substr(0,numberFormat.lastIndexOf("0") + 1);
+					}
+					this.numberFormatter[columnName] = this.getNumberFormatter(numberFormatValue, useLocaleFormat, sqlDataType);
+				} else if(com.sap.xmii.common.util.MIIi5Util.isDateTimeColumn(sqlDataType)) { //date format
+					this.dateFormatter[columnName] = this.getDateFormatter(columnFormats[index], useLocaleFormat);
+				}
+			}
+		},
+
+		/**
+		 * 
+		 * @param columnName
+		 * @param sqlDataType
+		 * @param cellValue
+		 * @returns
+		 */
+		formatCellValue: function(columnName, sqlDataType, cellValue) {
+			var dataTypes = com.sap.xmii.common.util.DataTypes;
+			
+			if (sqlDataType == dataTypes.DOUBLE || sqlDataType == dataTypes.INTEGER || sqlDataType == dataTypes.FLOAT || sqlDataType == dataTypes.REAL) {
+				var displayColumns = this.getDisplayColumns().split(',');
+				var index = $.inArray(columnName, displayColumns);
+				var colFormats = this.getColumnFormats().split(',');
+				var colFormat = colFormats[index];
+				var numberFormatter = this.numberFormatter[columnName];
+				var isColFormat = !com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(colFormat);
+				var fallBackNumberFormatPattern = this.gridModel.modelData.NumberFormatPattern;
+				var pattern = isColFormat ? colFormat : fallBackNumberFormatPattern;
+				var percRegex = new RegExp('\u0025', 'i'); // matching for the percentage symbol, '%'
+				var unitRegex = new RegExp( // matching for spacing and the unit of measure made of letters, '%' or currency symbols
+					[ '(\\s*)([a-z\u0024\u0025\u0052\u00A2\u00A3\u00A4\u00A5\u0192\u023B\u058F\u060B\u0930\u09F2\u09F3\u0AF1'
+							+ '\u0BF9\u0E3F\u17DB\u20A0\u20A1\u20A2\u20A3\u20A4\u20A5\u20A6\u20A7\u20A8\u20A9\u20AA\u20AB'
+							+ '\u20AC\u20AD\u20AE\u20AF\u20B0\u20B1\u20B2\u20B3\u20B4\u20B5\u20B6\u20B7\u20B8\u20B9\u20BA'
+							+ '\u20BB\u20BC\u20BD\u20BE\u20BF\u2133\u2351\u2564\u3012\u5143\u5186\u5706\u5713\uFDFC]+)' ].join(''), 'i');
+				var percMatch = percRegex.exec(pattern) != null;
+				var unitMatch = unitRegex.exec(pattern);
+				var unitOfMeasure = '';
+				var isUnitOfMeasure = unitMatch != null && unitMatch[2] != null && unitMatch[2].length > 0;
+				var spacing = '';
+				var formatedValue = cellValue;
+				
+				if (isUnitOfMeasure){
+					spacing = unitMatch[1];
+					unitOfMeasure = unitMatch[2];
+				}
+				
+				if (!isNaN(cellValue) && (numberFormatter != undefined || numberFormatter != null)) {
+					if (isColFormat && percMatch) {
+						cellValue *= 100;
+					}
+					formatedValue = numberFormatter.format(cellValue);
+				}
+				
+				return formatedValue + (isUnitOfMeasure ? spacing + unitOfMeasure : '');
+				
+			} else if (com.sap.xmii.common.util.MIIi5Util.isDateTimeColumn(sqlDataType)) {
+				// date format for data types datetime
+				// IE does not support creating new Date object directly with the argument cellValue which 
+				// includes the TimeZone offset, like this -- new Date("2013-08-23T11:37:45+0200").
+				// Hence Date object should be created like this for multi browser support
+				/*				var splitDate = cellValue.split("+");
+				var utcDate = new Date(splitDate[0]).toUTCString();
+				return this.dateFormatter[columnName].format(new Date(utcDate + "+" + splitDate[1]));
+				 */			
+				// Date has to be constructed the following way to ensure it works on
+				// Chrome, IE and Firefox browsers. The above is not supported on Firefox. 
+				// if cellValue = "2013-08-23T16:46:51+0530", see comments on the right below
+				try {
+					var splitDate = cellValue.split("T"); //result: ["2013-08-23", "16:46:51+0530"]
+					var splitDateAgain = splitDate[0].split("-"); //result: ["2013", "08", "23"]
+					var sign = " UTC+";
+					var splitTimestamp = splitDate[1].split("+"); //result: ["16:46:51", "0530"]
+					if (splitTimestamp[1] == undefined ) {
+						var splitTimestamp = splitDate[1].split("-");
+						sign = " UTC-"
+					}
+					var monthNumber = splitDateAgain[1]; 
+					var monthString = com.sap.xmii.common.util.MonthNamesArray.split(",")[parseInt(monthNumber) - 1];
+					var dateString = monthString + " " + splitDateAgain[2] + " " + splitDateAgain[0] + " " + splitTimestamp[0];
+					if (splitTimestamp[1] != undefined ) {
+						dateString = dateString + sign + splitTimestamp[1];
+					}
+					
+					var actualDateString = this.dateFormatter[columnName].format(new Date(dateString));
+					dateStringRef[actualDateString.toLocaleUpperCase()] = dateString;
+									
+					return this.dateFormatter[columnName].format(new Date(dateString));
+				} catch (err) {
+					return cellValue;
+				}
+			}
+			
+			return cellValue;
+		},
+
+		/**
+		 * 
+		 * @param columnFormatValue
+		 * @param useLocaleFormat
+		 * @returns
+		 */
+		getDateFormatter: function(columnFormatValue, useLocaleFormat) {
+			if (useLocaleFormat === true)
+				return com.sap.xmii.common.util.MIIi5Util.getDateFormatterForLocale(com.sap.xmii.common.util.loggedInUserLocale);
+
+			jQuery.sap.require("sap.ui.core.format.DateFormat");
+			var locale = new sap.ui.core.Locale(sap.ui.getCore().getConfiguration().getLanguage());
+			var fallBackDateFormatPattern = this.gridModel.modelData.DateFormatPattern;
+			var pattern = com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(columnFormatValue) ? fallBackDateFormatPattern : columnFormatValue;
+			return sap.ui.core.format.DateFormat.getDateTimeInstance({style : "medium", pattern : pattern}, locale);
+		},
+
+		/**
+		 * 
+		 * @param columnFormatValue
+		 * @param useLocaleFormat
+		 * @returns
+		 */
+		getNumberFormatter: function(columnFormatValue, useLocaleFormat, sqlDataType) {
+			var integerNumberFormatting = '0';
+			var dataTypes = com.sap.xmii.common.util.DataTypes;
+			var isIntegerDataType = sqlDataType != undefined && sqlDataType == dataTypes.INTEGER;
+			
+			if (isIntegerDataType) {
+				return com.sap.xmii.common.util.MIIi5Util.getNumberFormatterForLocale(integerNumberFormatting, com.sap.xmii.common.util.loggedInUserLocale);
+			} else if (useLocaleFormat === true && (columnFormatValue == null || columnFormatValue.length == 0 )) {
+				return com.sap.xmii.common.util.MIIi5Util.getNumberFormatterForLocale(com.sap.xmii.common.util.numberformatPatternForLocale, com.sap.xmii.common.util.loggedInUserLocale);
+			}
+
+			jQuery.sap.require("sap.ui.core.format.NumberFormat");
+			var locale = new sap.ui.core.Locale(sap.ui.getCore().getConfiguration().getLanguage());
+			var fallBackNumberFormatPattern = isIntegerDataType ? integerNumberFormatting : this.gridModel.modelData.NumberFormatPattern;
+			
+			var pattern = com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(columnFormatValue) ? fallBackNumberFormatPattern : columnFormatValue;
+			var regex = /[a-zA-Z]/;
+			var match = regex.exec(pattern);
+			var decimalSeperatorIndex = pattern.indexOf('.');
+			var digitsAfterDecimal = 0;
+			
+			    if(decimalSeperatorIndex != -1){
+			    	if(match == null){  
+				digitsAfterDecimal = pattern.length - (decimalSeperatorIndex + 1);
+			    	}
+			    	else{
+			    		digitsAfterDecimal = (pattern.indexOf(match[0])) - (decimalSeperatorIndex+1);
+			    	}
+			    }
+			
+			//return sap.ui.core.format.NumberFormat.getFloatInstance({maxFractionDigits : digitsAfterDecimal}, locale);
+			return sap.ui.core.format.NumberFormat.getFloatInstance({maxFractionDigits : digitsAfterDecimal, minFractionDigits : digitsAfterDecimal}, locale);
+		},
+
+		/**
+		 * 
+		 * @returns {Boolean}
+		 */
+		isColorContextDefined: function() {
+			var matchValues = this.getMatchValues().split(';');
+			for(var j = 0 ; j < matchValues.length ; j++){
+				if(matchValues[j].trim().length > 0)
+					return true;
+			}
+			return false;
+		},	
+
+		/**
+		 * 
+		 * @returns {Boolean}
+		 */
+		isColorContextEligible: function() {
+			// check whether selected color context column is present in display columns
+			var gridType = this.getGridType();
+			var foundColumn = true;
+			var displayColumns = this.getDisplayColumns().split(',');
+			var colorContextColumns = this.getMatchColumns().split(",");
+			for(var j = 0; j < colorContextColumns.length; j++){
+				if(displayColumns.indexOf(colorContextColumns[j]) == -1){
+					foundColumn = false;
+				}
+			}
+			if(!foundColumn)
+				return false;
+			else
+				return true;
+		},
+
+		/**
+		 *  Update the style with the given name and value parameters
+		 */
+		getUpdatedStyle: function(style, name, value){
+			var rowStyle = "";
+			var cssArray = (style || "").split(";");
+			for(var i = 0; i < cssArray.length; i++){
+				if(cssArray[i].split(":")[0] == name){
+					rowStyle = rowStyle+name+":"+value+";";
+				}else{
+					rowStyle = rowStyle+cssArray[i]+";";
+				}
+			}
+			return rowStyle.substring(0, rowStyle.length - 1);
+		},
+
+		/**
+		 * ColoredLight Width is calculated based on max of FontSize and row height
+		 */
+		getColoredLightWidth: function() {
+			var cellHeight = parseInt(this.getRowHeight())+15;
+			cellHeight = Math.max(cellHeight,parseInt(this.getFontSize())+20);
+
+			return cellHeight;
+		},
+		
+		/**
+		 * 
+		 * @param rowIndex
+		 * @param columnNameStyle
+		 * @param thisObj
+		 */
+		applyCellStyle: function (rowIndex, columnNameStyle, thisObj) {
+			//Update background color
+			var style = thisObj.getUpdatedStyle(thisObj.rows[rowIndex][columnNameStyle],"background-color",thisObj.getRowSelectBackgroundColor());
+			//Update color
+			style = thisObj.getUpdatedStyle(style,"color",thisObj.getRowSelectColor());
+			//update font-style, font-weight
+			var inputStyle = thisObj.getRowSelectFontStyle();
+			if(inputStyle ==0 || inputStyle == 2){
+				style = thisObj.getUpdatedStyle(style,"font-style",com.sap.xmii.common.util.MIIFontStyles[inputStyle]);
+				style = thisObj.getUpdatedStyle(style,"font-weight","normal");
+			}else if(inputStyle == 1){
+				style = thisObj.getUpdatedStyle(style,"font-style","normal");
+				style = thisObj.getUpdatedStyle(style,"font-weight","bold");
+			}else{
+				style = thisObj.getUpdatedStyle(style,"font-style","italic");
+				style = thisObj.getUpdatedStyle(style,"font-weight","bold");
+			}
+
+			thisObj.rows[rowIndex][columnNameStyle] = style;
+		},
+		
+		/**
+		 * 
+		 * @param oControl
+		 */
+		gridReady : function(oControl) {
+			if(this.getAllowSelection()==false){
+				this.oTable.setVisibleRowCountMode(sap.ui.table.VisibleRowCountMode.Fixed);
+				this.oTable.setSelectionMode(sap.ui.table.SelectionMode.None);
+			} else {
+				if(this.getShowRowResizeHandle() == false) {
+					this.oTable.setVisibleRowCountMode(sap.ui.table.VisibleRowCountMode.Fixed);
+					this.oTable.setSelectionBehavior(sap.ui.table.SelectionBehavior.RowOnly);
+				} else {
+					if (!jQuery.browser.mozilla) {
+						 this.oTable.setMinAutoRowCount(1);
+						}
+					this.oTable.setSelectionBehavior(sap.ui.table.SelectionBehavior.Row);	
+				}
+			}
+		},
+
+		/**
+		 * 
+		 * @param columnTemplateArray
+		 * @param applyTextColor
+		 * @returns {String}
+		 */
+		createBaseComponent : function(columnTemplateArray, applyTextColor){
+			var varTable =  this.oTable;
+			var that = this;
+			var dateColName = [this.columnArray.length];
+			if(this.gridModel != null && this.rowsets != null){
+				var gridPropertyConfig = this.gridPropertyConfig;
+				var i5GridInstance = this.getI5GridInstance();
+
+				if(this.rowset != null){
+					var columnHeadings = this.getColumnHeadings().split(',');
+					//getColumnWidths() returns number in case there is only 1 column added to the i5Grid
+					var colWidths = this.getColumnWidths()+"";
+//					var columnWidths = colWidths.split(',');
+					var columnWidths = [];
+					//trimming white space in widths 
+					$.each(colWidths.split(","), function(){
+					    columnWidths.push($.trim(this));
+					});
+					
+					columnWidths.splice(0,0,this.getRowHeadingWidth());
+					var columnAlignments = this.getColumnAlignments().split(',');
+					columnAlignments.splice(0,0,'L');
+					var rowHeadings = this.getRowHeadings().toString().split(',');
+					var AllowColumnResize = (this.getAllowColumnResize() == true);
+
+					var headerTextAlign = sap.ui.core.TextAlign.Center;
+					if(this.getAlwaysCenterColumnHeadings() == false){
+						headerTextAlign = sap.ui.core.TextAlign.Begin;
+					}
+					var urls = this.getColumnLinks().split(',');
+					urls.splice(0,0,"");
+					var targets = this.getColumnTargets().split(',');
+					targets.splice(0,0,"");
+
+					
+					for(var columnIndex =0 ; columnIndex <  this.columnArray.length ; columnIndex++){
+						var columnName =  this.columnArray[columnIndex].Name;
+						columnTemplate = columnTemplateArray[columnIndex];
+						if(columnName!="RowHeading"){
+							if(columnTemplate instanceof com.sap.xmii.grid.ui5.customcontrols.ColumnCheckBox){
+								columnTemplate.bindProperty("textString",columnName);
+							}else if(columnTemplate instanceof com.sap.xmii.grid.ui5.customcontrols.ColoredLink){
+								columnTemplate.bindProperty("text",columnName);
+								columnTemplate.setHref(urls[columnIndex]);
+								columnTemplate.setTarget(targets[columnIndex]);//MainContentFrame,_top,_blank
+								columnTemplate.bindProperty("labelStyle", columnName+"Style");
+							
+								columnTemplate.attachPress(function(evt){
+									
+									var parentId = this.getUIArea().getRootControl().getDomRef().parentElement.id;
+									var len =parentId.length;
+									var lenStart = len-4;
+									parentId =parentId.substring(lenStart,len);
+									
+									var newParams = [];
+									if(sap.ui.getCore().byId(parentId)){
+										newParams = sap.ui.getCore().byId(parentId).data("Object").QueryParameters;
+									}else{
+										jQuery.each(paramOverrides,function(key,item){
+											newParams.push({"Name":key,"Value":item});
+										});
+									}
+									var oldParams = com.sap.xmii.common.util.queryConfig.Query;
+									
+									var url = sap.ui.getCore().byId(evt.mParameters.id).getHref();
+									var matches =[];
+																		
+									if(url.indexOf('?') >= 0 && url.indexOf('<') > 0 && url.indexOf('>')> 0)
+									{
+										//use regex to fetch string between <>
+										url.replace(/\<(.*?)\>/g, function(v1,v2){matches.push(v2);});
+										
+										for(var i = 0;i < matches.length;i++)
+										{
+											var tmp = matches[i];
+											var item = evt.getSource().getBindingContext().getProperty(tmp);
+											
+											if(item != undefined){
+												url = url.replace('<'+tmp+'>',encodeURIComponent(item));
+												continue;
+											}
+											
+											var ary = jQuery.grep(newParams,function(n,i){
+												return n.Name === tmp && n.Value.length > 0;
+											});
+											
+											if(ary.length > 0){
+												url = url.replace('<'+tmp+'>',encodeURIComponent(ary[0].Value));
+											}else if(oldParams[tmp] != undefined){
+												url = url.replace('<'+tmp+'>',encodeURIComponent(oldParams[tmp]));
+											}
+										
+										}
+									}
+									//this.setHref(encodeURIComponent(url));
+//									if(url.indexOf('?')>=0){
+//										url =url.substring(0,url.indexOf('?')+1) + encodeURIComponent(url.substring(url.indexOf('?') + 1,url.length));
+//									}
+									
+									this.getDomRef().href = url;
+								});
+								//com.sap.xmii.common.util.queryConfig
+							}
+							else{
+								columnTemplate.bindProperty("textString",columnName);
+								columnTemplate.bindProperty("labelStyle", columnName+"Style");
+								
+							}
+						}
+						if(columnTemplate instanceof com.sap.xmii.grid.ui5.customcontrols.ColoredLabel){
+							if (this.getWordWrap()) {
+								columnTemplate.setWordWrap(true);
+								columnTemplate.setWrapping(true);
+							}
+							if (this.getHardWrap()) {
+								columnTemplate.setHardWrap(true);
+								columnTemplate.setWrapping(true);
+							}
+						}
+
+						layoutProperties(columnWidths,columnAlignments,columnIndex);
+
+						var isVisible = true;
+						if((rowHeadings[0] == "" && columnName == "RowHeading") || columnWidths[columnIndex] == 0){
+							isVisible = false;
+						}
+
+						var columnWidth = 100;
+						var autoResizeColumns = this.getAutoResizeColumns();
+						
+						if(autoResizeColumns == true)
+							columnWidth = getColumnWidth(this.rows, this, columnName);
+						else {
+							if (columnWidths[columnIndex] > 100000) {
+								columnWidths[columnIndex] = 100000;
+							}
+							columnWidth = columnWidths[columnIndex] * calculateWidth(this,'a');
+						}
+
+						var sqlDataType = this.columnArray[columnIndex].SQLDataType;
+								
+						if(sqlDataType === 93){
+							dateColName[columnIndex] = this.columnArray[columnIndex].Name;
+						}
+									
+						var filterType = new sap.ui.model.type.String();
+						if(sqlDataType === 8 || sqlDataType === 4 || sqlDataType === 6) {//number format
+							filterType = new sap.ui.model.type.Float();
+						}
+						//Filtering on Date, only works with UI5 version 1.18.6 or above(refer CSS 325869 2014)
+						/*else if(sqlDataType === 93){
+							filterType = new sap.ui.model.type.DateTime({UTC: true});
+						}*/
+						
+						// Header panel properties
+						var columnHeaderlabel = new com.sap.xmii.grid.ui5.customcontrols.ColumnHeaderLabel();
+						columnHeaderlabel.setTextString(columnName);
+						columnHeaderlabel.setFontSize(parseInt(this.getHeaderFontSize()) + "px");
+						columnHeaderlabel.setTextColor(this.getHeaderTextColor());
+						columnHeaderlabel.setBackgroundColor(this.getHeaderBackgroundColor());
+						columnHeaderlabel.setRowHeight(this.getHeaderHeight());
+						if (this.getAlwaysCenterColumnHeadings())
+							columnHeaderlabel.setTextAlign(sap.ui.core.TextAlign.Center);
+						else {
+							if (com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(columnAlignments[columnIndex]) || 
+									columnAlignments[columnIndex] == 'Left')
+								columnHeaderlabel.setTextAlign(sap.ui.core.TextAlign.Begin);
+							else
+								columnHeaderlabel.setTextAlign(columnAlignments[columnIndex]);
+						}
+						setFontFace(this, columnHeaderlabel);
+						setFontStyle(this, columnHeaderlabel);
+						
+						this.oTable.addColumn(new sap.ui.table.Column({
+							label: columnHeaderlabel,
+							template: columnTemplate,
+							sortProperty: columnName,
+							filterProperty: columnName,
+							filterType: filterType,
+							// due to changes in SAPUI5 1.44 when Auto Resize Columns is checked the columns don't take the full grid and are resized to content
+							// when Auto Resize Columns is checked, width must be set to "auto" and the pixel value (int, 100) set to minWidth
+							// when Auto Resize Columns is unchecked, the pixel size can be set in width (string, "100px")
+							width: (autoResizeColumns ? "auto" : (columnWidth + "px")),
+							minWidth: (autoResizeColumns ? columnWidth : undefined),
+							hAlign: columnAlignments[columnIndex],
+							resizable: AllowColumnResize,
+							visible: isVisible
+						}));
+					} 
+										
+					//customer sorter for datetime column sorting
+					
+					this.oTable.attachSort(function(oEvent) 
+							{        
+								var sPath = oEvent.getParameter("column").getSortProperty();
+								var bDescending = false;
+								if (oEvent.getParameter("sortOrder") == "Descending")
+								{
+									bDescending = true;
+								}
+								var oSorter = new sap.ui.model.Sorter(sPath, bDescending );
+			                     
+								if((dateColName.indexOf(sPath) !== -1))
+								{
+									oSorter.fnCompare = function(a, b) {
+															
+										var actualA = dateStringRef[a];
+										var actualB = dateStringRef[b];
+								
+										// parse to Date object
+										var aDate = new Date(actualA);
+										var bDate = new Date(actualB);
+			                    
+										if (bDate == null)
+										{
+											return -1;
+										}
+										
+										if (aDate == null) 
+										{
+											return 1;
+										}
+										
+										if (aDate < bDate)
+										{
+											return -1;
+										}
+										
+										if (aDate > bDate)
+										{
+											return 1;
+										}
+										return 0;
+								};
+							} 
+			           
+								this.oTable.getBinding('rows').sort(oSorter);
+								//	this.getBinding('rows').sort(oSorter);
+								// prevent internal sorting by table
+								oEvent.preventDefault();
+
+							},this);
+								
+						//customer sorter for datetime column sorting
+					//changes to avoid rows.length in case query return no data
+					/*if (this.rows.length > 0)*/ 
+					if (this.rows != undefined){
+						var oModel = new sap.ui.model.json.JSONModel();
+						oModel.setData({modelData: this.rows});
+						this.oTable.setModel(oModel);
+						this.oTable.bindRows("/modelData");
+					}	
+					
+					var newColumnNames= this.displayHeadName;
+					var orginalColumnNames = this.originalHeadName;
+					var finalHeading = new Array();
+					var headIndex = 0;
+					
+					for(colIndex in columnHeadings){
+					    var headingOverwrite = true;
+					    for(columnNotFoundIndex in this.unusedHeadingIndex){
+						    if(colIndex == this.unusedHeadingIndex[columnNotFoundIndex]){
+							    headingOverwrite = false;
+							}
+						}
+						if(headingOverwrite == true){
+						    finalHeading[headIndex] = columnHeadings[colIndex];
+							headIndex ++;
+						}
+					}
+					//for dynamic i5grid set display screen
+
+					var index = 1;
+					for(colIndex in finalHeading){
+						
+						if(finalHeading[colIndex] != "" )
+							this.oTable.getColumns()[index].getLabel().setTextString(finalHeading[colIndex]);
+
+						index++;
+					}
+					
+						
+					//check if the user has provided any column headings,
+					// if so, then set the column headings to the table
+					for(i =1 ; i< this.oTable.getColumns().length; i++){
+					    for(j=0 ; j<newColumnNames.length;j++){
+							if(orginalColumnNames[j] != undefined && 
+							   newColumnNames[j] != undefined && 
+							   newColumnNames[j] !== "" && 
+							   orginalColumnNames[j] === this.oTable.getColumns()[i].getLabel().getTextString()){
+								this.oTable.getColumns()[i].getLabel().setTextString(newColumnNames[j]);
+							}
+						}
+					}
+				}
+
+				uiBehavior(this.oTable, this);
+
+				rowHeading(this.oTable, this, rowHeadings);
+
+				headerProperties(this.oTable, this);
+			}
+			//add the style class to the table
+			varTable.addDelegate({
+				onAfterRendering: function() {
+				gridAreaProperties(varTable, that);
+			}
+			});
+
+			/**
+			 * on Row select update the style property accordingly
+			 */
+			this.oTable.attachRowSelectionChange(function(oEvent) {
+				if(this.getAllowCellSelection().toString() == "false") {
+					var prevRowIndex = this.getSelectedRowIndices();
+					var prevRowStyle = this.getSelectedRowStyle();
+					var currentRowIndex = this.oTable.getSelectedIndices().slice();
+					var currentRowStyle = "";
+					var rowStyles = prevRowStyle.split("$");
+					var rowIndex,prevRowStyleArray,columnNameStyle;
+					
+					//Apply style for previous selected row
+					for(var index = 0; index<prevRowIndex.length; index++){
+						rowIndex = prevRowIndex[index];
+						prevRowStyleArray = rowStyles[index].split("@");
+						for(var columnIndex = 1 ; columnIndex <  this.columnArray.length ; columnIndex++){
+							columnNameStyle = this.columnArray[columnIndex].Name+"Style";
+							this.rows[rowIndex][columnNameStyle] = prevRowStyleArray[columnIndex-1];
+						}
+					}
+
+					//Apply style for current selected row
+					var columnNameStyle,rowIndex;
+					for(var index = 0; index<currentRowIndex.length; index++){
+						for(var columnIndex = 1 ; columnIndex <  this.columnArray.length ; columnIndex++){
+							columnNameStyle = this.columnArray[columnIndex].Name+"Style";
+							rowIndex = currentRowIndex[index];
+							currentRowStyle = currentRowStyle+this.rows[rowIndex][columnNameStyle]+"@";
+
+							applyOnClickStyle(rowIndex, columnNameStyle, this);
+						}
+						currentRowStyle = currentRowStyle + "$";
+					}
+
+					this.oTable.rerender();
+
+					var indexArray = currentRowIndex.slice();	
+					this.setSelectedRowIndices(indexArray);
+					this.setSelectedRowStyle(currentRowStyle);
+				} else {
+					//setting style for cell selection
+					var prevRowIndex = this.getSelectedRowIndices();
+					var prevRowStyle = this.getSelectedRowStyle();
+					var prevColumnIndex = this.getSelectedColumnIndex();
+					var currentRowIndex = this.getSelectedCellRowIndex() - 1;
+					if(currentRowIndex > -1) {
+					var currentRowStyle = "";
+                    var currentColumnIndex = 0;
+                    if(this.getSelectedCellColumnIndex() != null && this.getSelectedCellColumnIndex() != undefined
+                    		&& !com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(this.getSelectedCellColumnIndex().toString())
+                    		&& this.getSelectedCellColumnIndex()!=-1){
+							//if(this.getRowHeadings().toString().split(',')[0] == "" && this.columnArray[0].Name == "RowHeading"){
+							if (this.getRowHeadings().split(',')[0] == "" && this.columnArray[0].Name == "RowHeading") {
+                    		currentColumnIndex = this.getSelectedCellColumn();
+                    	}else{//else RowHeading is enabled
+                    		currentColumnIndex = this.getSelectedCellColumn()-1;
+                    	}
+
+                    	//Apply style for previous selected row
+                    	if(!com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(prevColumnIndex.toString()) && typeof prevRowIndex === "number") {
+                    		var columnNameStyle = this.getColumnName(prevColumnIndex) + "Style";
+                    		this.rows[prevRowIndex][columnNameStyle] = prevRowStyle;
+                    	}
+                    	
+                    	if(this.columnArray[currentColumnIndex]) {
+                    		//Apply style for current selected row
+                    		var columnNameStyle = this.getColumnName(currentColumnIndex) + "Style";
+                    		var rowIndex = currentRowIndex;
+                    		var actualModelIndex = this.oTable.mBindingInfos.rows.binding.aIndices[currentRowIndex];
+                        	currentRowStyle = currentRowStyle+this.rows[actualModelIndex][columnNameStyle];
+
+                        	applyOnClickStyle(actualModelIndex, columnNameStyle, this);
+
+                        	this.oTable.rerender();
+							}
+                        	this.setSelectedRowIndices(actualModelIndex);
+                        	this.setSelectedRowStyle(currentRowStyle);
+                        	this.setSelectedColumnIndex(currentColumnIndex);
+                    	}
+                    }
+				}
+			},this);
+
+			this.ui5TableElement = this.oTable;
+
+			return this.ui5TableElement;
+
+			function applyOnClickStyle(rowIndex, columnNameStyle, thisObj) {
+				thisObj.applyCellStyle(rowIndex, columnNameStyle, thisObj);
+			}
+			/**
+			 * function to set the grid Area Properties of the i5Grid
+			 * @private
+			 */
+			function gridAreaProperties(oTable,baseComponent){
+				//implementation of the grid area properties like :
+				//borlder-color,width, word-wrap,Grid line color, 
+				if (oTable != null) {
+					//PLEASE DO NOT UNCOMMENT THIS LINE OF CODE!!! 
+					//(Reason : It is making the background color all the cells in the SelfCE  to gray , 
+					//since the generic Style class :.sapUiMlt is being changed.
+//					$(".sapUiMlt").css("background-color", "#dddddd"); //to avoid white spaces between rows
+					
+					//oTable.$().find(".table,td,tr").css("border","1px solid "+this.getI5GridInstance().getGridColor'));
+					//oTable.$().find(".table,td").css("background-color",i5GridInstance.getBackgroundColor());
+
+					oTable.$().find(".sapUiTableTr>td").css("border-color", baseComponent.getGridColor());
+					oTable.$().find(".sapUiTableTr>td").css("border-right","1px solid "+baseComponent.getGridColor());
+					oTable.$().find(".sapUiTableTr>td").css("border-bottom","1px solid "+baseComponent.getGridColor());
+					
+					// setting default ToolTip to empty
+					oTable.$().find(".sapUiTableTr").attr("title", "");
+					oTable.$().find(".sapUiTableRowHdr").attr("title", "");
+
+					var horizontalGrid = baseComponent.getShowHorizontalGrid();
+					if (horizontalGrid == false)
+						oTable.$().find(".sapUiTableTr>td").css("border-bottom", "none");
+
+					var verticalGrid = baseComponent.getShowVerticalGrid();
+					if (verticalGrid == false)
+						oTable.$().find(".sapUiTableTr>td").css("border-right","none");
+
+					oTable.$().find(".sapUiTableColRsz").css("width","1px");
+					if(baseComponent.getShowScrollBar() == false){
+						jQuery("#"+oTable.getId()+"-vsb-sb").css("overflow-y","hidden");
+					}
+					if(baseComponent.getShowHorizontalScrollBar() == true) {
+						// oTable.setNavigationMode(sap.ui.table.NavigationMode.ScrollBar); // This property has been deprecated since version 1.38 and must not be used anymore, since Scrollbar is the only supported option.
+					} else {
+						oTable.$().find("#"+oTable.getId()+"-hsb-sb").css("overflow-x","hidden");
+					}
+
+					/*				if(baseComponent.getAutoResizeColumns() == false){
+					if(baseComponent.getWordWrap() == true){
+						oTable.$().find(".sapUiLblNowrap").css("text-overflow","clip");
+						oTable.$().find(".sapUiLblNowrap").css("white-space","normal");
+					}
+
+					else if(baseComponent.getHardWrap() == true){
+						//oTable.$().find(".sapUiLblNowrap").css("text-overflow","ellipsis");
+						oTable.$().find(".sapUiLblNowrap").css("white-space","normal");
+						oTable.$().find(".sapUiLblNowrap").css("word-break","break-all");
+					}
+				}
+					 */
+					// Header panel -- Background color
+					oTable.$().find(".sapUiTableCol, .sapUiTableColRowHdr, .sapUiTableRowHdr, .sapUiTableColHdrCnt").css("background-color", baseComponent.getHeaderBackgroundColor());
+					// Header panel -- Use Raised Headers
+					if (baseComponent.getRaisedHeaders() == false)
+						oTable.$().find(".sapUiTableCol").css("border-right", "0px");
+					else {
+						oTable.$().find(".sapUiTableCol").css("border-right", "1px solid "+baseComponent.getGridColor());
+						oTable.$().find(".sapUiTableCol").css("border-left", "1px solid "+baseComponent.getGridColor());
+					}
+
+					/*				oTable.$().find(".sapUiTableCol").css("position", "relative"); 
+				oTable.$().find(".sapUiTableCol").css("left", "0px"); 
+					 */
+					//Find the table ui element to attach click and dblclick events to it
+					var tableId = $("#"+that.getI5GridInstance().chartPosId+ " .sapUiTableCtrlCnt").find('table')[0].id;
+					//Attach either click or dblclick event on same element
+					//In case both events are attached on same element only click will work
+					//attaching double click event
+		        	$("#"+tableId).dblclick(function(oEvent){
+		        		that.getI5GridInstance().functionToBeCalledOnDoubleClick(oEvent);
+		        		});
+		        	//attaching click event if user hasn't registered for double click 
+		        	if(that.getI5GridInstance().chartTemplate.chartPropertyConfig.getProperty(com.sap.xmii.common.util.GridPropertyConstants.ALLOW_CELL_SELECTION) == true){
+			        	if(!(that.getI5GridInstance().doubleClick != undefined && that.getI5GridInstance().cellSelect === undefined)){ 
+				        	$("#"+tableId).click(function(oEvent){
+				        		that.getI5GridInstance().functionToBeCalledOnCellSelect(oEvent);
+				        		});
+			        	}
+		        	}
+				}
+			}
+			/**
+			 * function to set the layout properties of the i5Grid
+			 * @private
+			 * 
+			 */ 
+			function layoutProperties(columnWidths,columnAlignments,columnIndex){
+				//get the column headings, widths,format,alignment, boolean
+
+				if(columnAlignments[columnIndex] == 'L')
+					columnAlignments[columnIndex] = 'Left';
+				else if(columnAlignments[columnIndex] == 'C')
+					columnAlignments[columnIndex] = 'Center';
+				else if(columnAlignments[columnIndex] == 'R')
+					columnAlignments[columnIndex] = 'Right';
+				else 
+					columnAlignments[columnIndex] = 'Left';
+
+				if(columnWidths[columnIndex] == null || columnWidths[columnIndex].length == 0)
+					columnWidths[columnIndex] = 10;
+
+			}
+
+			/**
+			 * function to set the UI Behavior properties of the i5Grid
+			 * @private
+			 */
+			function uiBehavior(oTable,baseComponent){
+				//Setting properties for Selection,Deselection, MultiSelection of the rows
+				if(baseComponent.getAllowSelection()==true){
+					oTable.attachRowSelectionChange(function(oEvent) {
+						var iChangedIndex = oEvent.getParameter("rowIndex");
+						if (!oTable.isIndexSelected(iChangedIndex)) {
+							if(baseComponent.getAllowDeselect()==false)
+								oTable.setSelectedIndex(iChangedIndex);
+							else
+								oTable.removeSelectionInterval(iChangedIndex, iChangedIndex);
+						}
+					});
+
+					if(baseComponent.getAllowMultipleSelection() == true){
+						oTable.setSelectionMode(sap.ui.table.SelectionMode.Multi);
+					} else
+						oTable.setSelectionMode(sap.ui.table.SelectionMode.Single);
+				}
+
+				if(baseComponent.getAllowColumnReordering()==false)
+					oTable.setEnableColumnReordering(false);
+
+				// Adding CSS for Row Selection
+				if(baseComponent.getAllowCellSelection().toString() == "false") {
+					var css = '.sapUiTableRowSel, #' + baseComponent.getI5GridInstance().chartPosId 
+							  + ' tr.sapUiTableRowSel>td { background-color: ' + baseComponent.getRowSelectBackgroundColor()+ ' !important;';
+					var head = document.getElementsByTagName('head')[0];
+					var style = document.createElement('style');
+					style.scoped="scoped";
+					style.type = 'text/css';
+					if (style.styleSheet){
+						style.styleSheet.cssText = css;
+					} else {
+						style.appendChild(document.createTextNode(css));
+					}
+					head.appendChild(style);
+				} else { // Remove the added CSS above, this is required when toggling between row and cell selections via HTML/IRPT (CSN 62305 2014)
+					var styleElements = document.getElementsByTagName('style');
+					for ( var i = 0; i < styleElements.length; i++) {
+						var styleValue;
+						if (styleElements[i].styleSheet) {
+							styleValue = styleElements[i].styleSheet.cssText;
+						} else {
+							if(styleElements[i].childNodes[0] != undefined && styleElements[i].childNodes[0] != null)
+								styleValue = styleElements[i].childNodes[0].nodeValue;
+						}
+						if (!com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(styleValue) && styleValue != undefined) {
+							if (styleValue.indexOf('#'+ baseComponent.getI5GridInstance().chartPosId + ' tr.sapUiTableRowSel') != -1) {
+								document.getElementsByTagName('head')[0].removeChild(styleElements[i]);
+								break;
+							}
+						}
+					}
+				}
+			}
+
+			/**
+			 * function to set the Row Heading properties of the i5Grid
+			 */
+			function rowHeading(oTable,baseComponent){
+
+				//	oTable.setRowHeight(parseInt(this.getI5GridInstance().getRowHeight')));
+				if(parseInt(baseComponent.getFontSize())+10 < parseInt(baseComponent.getRowHeight()))
+					oTable.setRowHeight(parseInt(baseComponent.getRowHeight()));
+				if(oTable.getColumns()[0].getLabel().getTextString()== "RowHeading"){
+					oTable.getColumns()[0].getLabel().setTextString(" ");
+					// Apply FixedColumnCount only when RowHeading is present
+					if(rowHeadings[0] != "") 
+						oTable.setFixedColumnCount(oTable.getFixedColumnCount());	
+				}
+			}
+
+			/**
+			 * function to set the Header properties of the i5Grid
+			 */
+			function headerProperties(oTable, baseComponent){
+				// Show Header
+				oTable.setColumnHeaderVisible(true);
+				if (baseComponent.getShowHeader() == false)
+					oTable.setColumnHeaderVisible(false);
+
+				// Header Height - Minimum header height in UI5 table is 28px
+				// Only if the configured height > 28px, set it. Otherwise set it to 28px.
+				var headerHeight = parseInt(baseComponent.getHeaderHeight());
+				if (headerHeight > 28){
+					oTable.setColumnHeaderHeight(Math.max(headerHeight,parseInt(baseComponent.getHeaderFontSize())+20));
+				} else { //if header height is not set, column header becomes expanded in SSCE (in IE) 
+					oTable.setColumnHeaderHeight(32); 
+				}
+			}
+
+			/**
+			 * 
+			 */
+			function setFontStyle(baseComponent, customControl) {
+				var inputStyle;
+				if (customControl instanceof com.sap.xmii.grid.ui5.customcontrols.ColoredLabel ||
+						customControl instanceof com.sap.xmii.grid.ui5.customcontrols.ColoredLight)
+					inputStyle = baseComponent.getFontStyle();
+				else if (customControl instanceof com.sap.xmii.grid.ui5.customcontrols.ColumnHeaderLabel)
+					inputStyle = baseComponent.getHeaderFontStyle();
+				if(inputStyle ==0 || inputStyle == 2){
+					customControl.setFontStyle(com.sap.xmii.common.util.MIIFontStyles[inputStyle]);
+					customControl.setFontWeight("normal");
+				}else if(inputStyle == 1){
+					customControl.setFontStyle("normal");
+					customControl.setFontWeight("bold");
+				}else{
+					customControl.setFontStyle("italic");
+					customControl.setFontWeight("bold");
+				}
+			}
+
+			/**
+			 * 
+			 */
+			function setFontFace(baseComponent,customControl){
+
+				var fontFace;
+
+				if (customControl instanceof com.sap.xmii.grid.ui5.customcontrols.ColoredLabel ||
+						customControl instanceof com.sap.xmii.grid.ui5.customcontrols.ColoredLight){
+					fontFace = baseComponent.getFontFace();
+				}else if (customControl instanceof com.sap.xmii.grid.ui5.customcontrols.ColumnHeaderLabel)
+					fontFace = baseComponent.getHeaderFontFace();
+
+				customControl.setFontFamily(fontFace);
+			}
+
+			/**
+			 * 
+			 */
+			function getCanvasContext(baseComponent){
+				var canvas = document.createElement("canvas");
+				var context = canvas.getContext("2d");
+				context.font = baseComponent.getFontSize()+"px "+ baseComponent.getFontFace();
+				return context;
+			}
+
+			/**
+			 * 
+			 */
+			function calculateWidth(baseComponent,value){
+				var maxWidth = 0;
+				var context = getCanvasContext(baseComponent);
+				maxWidth = Math.max(maxWidth,parseInt(context.measureText(value).width));
+				return maxWidth;
+			}
+
+			/**
+			 * Method to Calculate max column width
+			 */
+			function getColumnWidth(rows, baseComponent, columnName){
+				var maxWidth = 0;
+				var context = getCanvasContext(baseComponent);
+				//get width from column name if rows not available
+				/*for(var index =0 ; index < rows.length ; index++){
+					var columnValue = rows[index][columnName];
+					maxWidth = Math.max(maxWidth,parseInt(context.measureText(columnValue).width)+20);
+				}*/
+				
+				if(rows!=undefined)
+				{
+					for(var index =0 ; index < rows.length ; index++){
+					var columnValue = rows[index][columnName];
+					maxWidth = Math.max(maxWidth,parseInt(context.measureText(columnValue).width)+20);
+					}
+			    }else
+					{  maxWidth = Math.max(maxWidth,parseInt(context.measureText(columnName).width)+20);}
+
+				if(columnName != "RowHeading"){
+					context.font = baseComponent.getHeaderFontSize()+"px "+ baseComponent.getHeaderFontFace();
+					var finalMaxWidth = Math.max(maxWidth,parseInt(context.measureText(columnName).width)+baseComponent.getHeaderFontSize()+3);
+					return finalMaxWidth;
+				}
+				return maxWidth;
+			}
+		}
+}

@@ -1,0 +1,247 @@
+/*
+    11.06.2020
+    Styles taken from standard.css to not load them to irrelevant pages
+    Styles taken from ActivityManager.jsp
+    todo: revise and clean-up
+ */
+
+/* MOVED FROM standard.css */
+.ActivityTreeLayout {
+    width : 100%;
+}
+
+.activity_manager_tree .sapUiTreeList {
+    overflow:auto;
+    padding: 0;
+}
+
+.activity_manager_tree .sapUiTreeNode {
+    padding: 3px 8px 3px 1.4em;
+}
+
+.activity_manager_tree .sapUiTreeNode:hover {
+    background-color: rgba(0, 124, 192, 0.54) !important;
+    border-radius: 2px;
+}
+
+.activity_manager_tree .sapUiTreeNodeContent {
+    font-size: 13px;
+    line-height: 1rem;
+    text-decoration: none;
+    white-space: normal;
+    color: #ffffff;
+}
+
+.activity_manager_tree .sapUiTreeNodeExpanded .sapUiTreeNodeContent:before,
+.activity_manager_tree .sapUiTreeNodeCollapsed .sapUiTreeNodeContent:before {
+    font-family: 'SAP-icons';
+    color: #cae4fb;
+    font-size: 0.75rem;
+    width: 1.4rem;
+    height: 1.5rem;
+    margin-left: -1.4rem;
+    line-height: 1.5rem;
+    cursor: pointer;
+    position: relative;
+    text-align: center;
+    display: inline-block;
+    vertical-align: baseline;
+}
+
+
+.activity_manager_tree .sapUiTreeNodeExpanded .sapUiTreeNodeContent:before {
+    content: "";
+}
+
+.activity_manager_tree .sapUiTreeNodeCollapsed .sapUiTreeNodeContent:before {
+    content: "";
+}
+
+.activity_manager_tree .sapMLnk.sapUiTreeNodeContent:hover,
+.activity_manager_tree .sapMLnk.sapUiTreeNodeContent:hover:focus,
+.activity_manager_tree .sapMLnk.sapUiTreeNodeContent:active,
+.activity_manager_tree .sapMLnk.sapUiTreeNodeContent:visited {
+    color: #ffffff;
+    text-decoration: none !important;
+}
+
+.activity_manager_tree .sapMLnk.sapUiTreeNodeContent:focus {
+    color: #91C8F6;
+    outline: none !important;
+}
+
+.activity_manager_tree .sapUiTreeNodeContent.sapUiTreeNodeNotSelectable {
+    font-size: 1.2em;
+    font-weight: bold;
+    text-decoration: none;
+    text-transform: uppercase;
+    color: #ffffff;
+    padding-left: 1.4rem;
+    margin-left: -1.4rem;
+}
+
+.activity_manager_tree .sapUiTreeNodeContent.sapUiTreeNodeNotSelectable:hover {
+    color: white;
+}
+
+.activity_manager_tree .sapUiTreeNodeSelectedParent, .sapUiTreeNodeSelected {
+    color:#333333;
+    background-color:rgba(76, 96, 115, 1);
+}
+
+/* MOVED FROM INLINED <style> BLOCK */
+
+body {
+    overflow: hidden;
+    height:100%;
+    min-height: 100%;
+}
+
+div#activity_mgr_wrapper {
+    position:absolute;
+    padding: 0 0 0 0;
+    top: 0;
+    bottom:0;
+    left:0;
+    right:0;
+}
+
+div#activity_mgr_header {
+    position: absolute;
+    margin-top:-35px;
+    height: 58px;
+    width: 100%;
+}
+
+div#activity_mgr_container {
+    max-height:100%;
+    overflow: hidden;
+}
+
+div#activity_mgr_leftcolumn {
+    position: absolute;
+    top: 44px;
+    bottom: 0;
+    left: 0;
+    width: 285px;
+    box-sizing: border-box;
+    box-shadow: 2px 0.5rem 0.5rem rgba(47, 60, 72, 0.25);
+    z-index: 1;
+}
+
+div#activity_mgr_content {
+    position: absolute;
+    top: 44px;
+    bottom: 0;
+    left: 285px;
+    right: 0;
+    margin-left: 0;
+}
+
+.resizeFrame {
+    display: block;
+    width:100%;
+    height:100%;
+}
+
+.resizeHeader {
+    display: block;
+    width:100%;
+    height: 35px;
+}
+
+.iframeWrapper {
+    height:100%;
+}
+
+iframe {
+    border: none;
+}
+
+.topNavigationContainer {
+    background-color: #2f3c48;
+    width: 100%;
+    min-height: 44px;
+}
+
+.sapMfgMainHeader.sapTntToolHeader.sapMTB {
+    background-color: #2f3c48;
+    border: none;
+}
+
+.sapTntToolHeader .sapMTitle.sapMfgMainTitle {
+    font-weight: bold;
+}
+
+.sapTntToolHeader > .sapMBtn.sapMfgSiteButton .sapMBtnContent {
+    color: #ffffff;
+    margin-left: 2px;
+}
+
+.sapMfgMainHeader.sapTntToolHeader .sapMBtn:hover:not(.sapMBtnDisabled) .sapMBtnInner.sapMBtnHoverable.sapMBtnTransparent:not(.sapMBtnActive):not(.sapMToggleBtnPressed) {
+    border: 1px solid #d1e8ff;
+}
+
+/* Below are styles for the Activity Manager tree placeholder displaying while actual tree is loading. */
+
+.activityTree_placeholder {
+    position: absolute;
+    top: 44px;
+    bottom: 0;
+    left: 0;
+    width: 285px;
+    box-sizing: border-box;
+    padding: 2px 4px;
+    background-color: #3F5161;
+}
+.search {
+    margin: 2px;
+    height: 26px;
+    background-color: #495e70;
+    border: 1px solid #7891a7;
+}
+.group, .node {
+    width: 200px;
+    margin: 12px;
+    height: 16px;
+    border-radius: 5px;
+    animation-duration: 30s;
+    animation-iteration-count: 1;
+    animation-timing-function: linear;
+    animation-name: moveShadow;
+}
+.group {
+    background-color: #b7cfe4;
+    background: linear-gradient(to right, rgba(186, 209, 227, 0.7), rgba(186, 209, 227, 0.3) 60%, rgba(186, 209, 227, 0.7));
+    background-size: 300px 16px;
+}
+.node {
+    margin: 14px;
+    height: 14px;
+    background-color: #fafafa;
+    background: linear-gradient(to right, rgba(250, 250, 250, 0.8), rgba(250, 250, 250, 0.4) 60%, rgba(250, 250, 250, 0.8));
+    background-size: 300px 16px;
+    margin-left: 60px;
+}
+.group1 {
+    width: 150px;
+    margin-left: 20px;
+}
+.group2 {
+    margin-left: 40px;
+}
+.node2 {
+    width: 160px;
+}
+.node3 {
+    width: 180px;
+}
+@keyframes moveShadow {
+    0% {
+        background-position: 0 0;
+    }
+
+    100% {
+        background-position: 2000px 0;
+    }
+}

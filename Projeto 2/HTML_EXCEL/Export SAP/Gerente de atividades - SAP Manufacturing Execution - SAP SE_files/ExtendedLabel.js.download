@@ -1,0 +1,43 @@
+
+com.sap.xmii.common.tools = com.sap.xmii.common.tools||{};
+
+jQuery.sap.require("sap.ui.commons.Label");
+sap.ui.commons.Label.extend("ExtendedLabel", { // call the new Control type "Square" and let it inherit
+	 init: function() {
+	},
+
+	metadata : {
+		
+		properties : { // setter and getter are created behind the scenes, 
+		textcolor : "string",
+		width : "string",
+		fontStyle : "string",
+		fontSize : "string",
+		font : "string",
+		visible : "string",
+		textAlign : "string",
+		fontWeight : "string",
+		backgroundColor:"string"
+		}
+	},
+	
+	renderer : function(oRm, oControl) { // static function, so use the given "oControl" instance 
+		oRm.write("<div");
+		oRm.writeControlData(oControl); // writes the Control ID and enables event handling - important!
+		oRm.addStyle('color', oControl.getTextcolor()); // this change could also be done with plain CSS!!
+		oRm.addStyle('width', oControl.getWidth());
+		oRm.addStyle('font-style', oControl.getFontStyle());
+		oRm.addStyle('font-size', oControl.getFontSize());
+		oRm.addStyle('font-family', oControl.getFont());
+		oRm.addStyle('visibility', oControl.getVisible());
+		oRm.addStyle('text-align', oControl.getTextAlign());
+		oRm.addStyle('font-weight', oControl.getFontWeight());
+		oRm.addStyle('background-color', oControl.getBackgroundColor());
+		oRm.writeStyles();
+		oRm.write(">");
+		oRm.writeEscaped(oControl.getText()); // write another Control property, with protection 
+		oRm.write("</div>");
+	}
+});
+
+

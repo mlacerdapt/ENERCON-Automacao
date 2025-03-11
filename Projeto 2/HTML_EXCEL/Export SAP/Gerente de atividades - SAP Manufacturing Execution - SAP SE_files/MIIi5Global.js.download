@@ -1,0 +1,346 @@
+//This space would be used to put all GLOBAL Variables and  functions if needed
+
+com.sap.xmii.common.util = com.sap.xmii.common.util || {};
+
+var mURL = "/XMII/JavaScript/resources/messages.properties";
+var cURL = "/XMII/JavaScript/resources/constants.properties";
+
+//this is defined as to take the SSCE level locale according to the MII Preferences
+var chartLocale;
+
+/**
+ * This function is responsible for fetching the locale from the server as the Locale has to be set according
+ * to the MII preferences and not according to the UI5 Preferences
+ * @return
+ */
+function determineMIILocale() {
+	try {
+		//Replacing eval code
+		//chartLocale = eval('ssceSpecificUserLocale');
+		chartLocale = Function('return '+'ssceSpecificUserLocale')();
+		//end of code
+		if (chartLocale !== undefined && chartLocale != null && chartLocale != "")
+			return chartLocale;
+	} catch (error) {
+		//the variable ssceSpecificUserLocale does not exist hence moving on
+	}
+	$.ajax({
+		type: 'POST',
+		url: "/XMII/PropertyAccessServlet",
+		data : {Mode : "List", "Content-Type" : "text/json"},
+		dataType: 'json',
+		cache: false,
+		async: false,
+		crossDomain : true
+	}).done(function (data, textStatus, jqXHR) {
+		var language, country;
+		if (data.Rowsets !== undefined && data.Rowsets.Rowset !== undefined && data.Rowsets.Rowset[0] !== undefined &&
+				data.Rowsets.Rowset[0].Row !== undefined && data.Rowsets.Rowset[0].Row.length > 0) {
+			var rows = data.Rowsets.Rowset[0].Row;
+			for (var i = 0; i < rows.length; i++) {
+				if (rows[i].Name == "Language") {
+					language = rows[i].Value; 
+				} else if (rows[i].Name == "Country") {
+					country = rows[i].Value;
+				}
+			}
+		} else {
+			chartLocale = sap.ui.getCore().getConfiguration().getLocale().getLanguage();
+		}
+		//if the language is chinese then need to take care of the region as well
+		if (language == "zh") {
+			chartLocale = language + "_" + country;
+		} else {
+			chartLocale = language;
+		}
+	}).fail(function(data, textStatus, jqXHR){
+		chartLocale = sap.ui.getCore().getConfiguration().getLocale().getLanguage();
+	});
+	
+	return chartLocale;
+}
+
+/**
+ * Function to check whether the dashboard is IRPT
+ *
+ * Returns:
+ * {boolean}	the current dashboard is IRPT or not
+ */
+function isIRPT() {
+	var oDashboardFileName = sap.ui.getCore().byId('FileName');
+	return oDashboardFileName && oDashboardFileName.mAggregations.tooltip && endsWith(oDashboardFileName.mAggregations.tooltip.toLowerCase() ,'.irpt');
+};
+
+//intializing charts specific message bundle
+com.sap.xmii.common.util.MessageBundle = jQuery.sap.resources( {
+	url : mURL,
+	locale : determineMIILocale()
+});
+
+com.sap.xmii.common.util.ChartTypes = {
+	LINE : 0,
+	BAR : 1,
+	PIE : 2,
+	STACKED : 3,
+	GROUP_BAR : 4,
+	CUSTOM : 5,
+	HORIZONTAL_BAR : 6,
+	HORIZONTAL_GROUP_BAR : 7,
+	SCATTER : 8,
+	BUBBLE : 9,
+	DONUT : 10,
+	GAUGE : 11
+};
+com.sap.xmii.common.util.GridTypes = {
+		GRID : 0,
+		LIGHTS : 1,
+		COLUMNLIGHTS : 2,
+		MULTILIGHTS : 3,
+		SCOREBOARD : 4,
+		EMBEDDEDLIGHTS : 5
+	};
+
+com.sap.xmii.common.util.SPCChartTypes = {
+		XBAR : 0,
+		XBAR_MR : 1,
+		XBAR_RANGE :2,
+		XBAR_SDEV : 3,
+		INDIVIDUALS : 4,
+		INDIVIDUALS_MR : 5,
+		MR : 6,
+		MEDIAN : 7,
+		MEDIAN_RANGE : 8,
+		EWMA : 9,
+		EWMA_RANGE : 10,
+		EWMA_SDEV : 11,
+		HISTOGRAM : 12,
+		INDIVIDUALS_SHORT_RUN : 13,
+		INDIVIDUALS_MR_SHORT_RUN : 14,
+		XBAR_RANGE_SHORT_RUN : 15,
+		MR_SHORT_RUN : 16,
+		P : 17,
+		NP : 18,
+		C : 19,
+		U : 20
+	};
+
+com.sap.xmii.common.util.MIIFontStyles = ['normal','Bold','Italic','Bold Italic'];
+com.sap.xmii.common.util.MIIFontAlignment = ['Center','Left','Right'];
+
+// Display Template Property Names
+
+com.sap.xmii.common.util.DisplayTempPropNames = [ 'ShowMessageArea', 'Title',
+		'MappedQueryTemplate', 'GridLineColor', 'ShowGridLine',
+		'MarkerSize', 'MarkerStyle', 'LegendDescriptionLabel',
+		'EnableItemSelection', 'ShowValueByMarker', 
+		'ShowAppToolBar', 'TitleFontSize', 'TitleFontFace', 'TitleColor',
+		'ShowTitle', 'LabelColumns', 'ValueColumns', 
+		'AllowSpecificationLimitAlarm', 'UpperLimitColumn',
+		'CenterLimitColumn', 'LowerLimitColumn', 'UpperLimit', 'CenterLimit',
+		'LowerLimit', 'UpperLimitLineColor', 'CenterLimitLineColor',
+		'LowerLimitLineColor', 'name', 'ChartType', 'TitleFontStyle', 'TitlePosition', 'Glossy',
+		'AutoRefresh', 'RefreshRate', 'InitialUpdate', 'EnableAutoRefresh', 'TimePosition', 'ShowTimeBar','ShowYAxisLabel','ShowXAxisLabel',
+		'YAxisLabelColor','YAxisFontFace','YAxisFontSize','YAxisFontStyle','YAxisShowTicks','ShowYAxis','YAxisWidth','YAxisLabel','YAxisTickColor',
+		'ShowXAxis','XAxisLabelColor','XAxisFontFace','XAxisFontSize','XAxisFontStyle','XAxisLabel','XAxisTickColor','XAxisNumberFormat',
+		'XAxisDateFormat','XAxisTimeFormat','ShowLegend','ShowToolTip', 'GlobalAutoScale', 'UseScaling', 'GlobalMinRange', 'GlobalMaxRange', 'UseLocaleFormat', 'DateFormat', 'ChartBorderColor', 'ChartBackgroundColor',
+		'ChartShape','HorizontalGridLineCount','NumberofVerticalGridLines','XAxisStart','XAxisEnd','XAxisUnitLabel','MajorTicks','MinorTicks','ColorIndicator', 'AllValueColumns',
+		'XDimensions','YDimensions','BackgroundTransparent','StaticLabel','Filling','UseFillingColor','FillingColor','Opacity','CompatibilityMode','XAxisLabelAutoRotation','XAxisRotationAngle','DualYAxis','ValueColumns2','TimeSeries',
+		'ApplySpecRules','EnableZooming','EnableVerticalMarker','InterpolateLines','LegendOnTop','LegendSelectionBorderColor','LegendLabelColor','LegendFontFace','LegendFontSize','LegendFontStyle','LegendWidth','LegendHeight','LegendUseScrollbars'];
+
+//i5Chart Y-Axis 2 property names
+
+com.sap.xmii.common.util.i5ChartYAxisProps = [ 'ShowYAxis', 'YAxisLabelColor','YAxisFontFace','YAxisFontSize','YAxisFontStyle',
+                                               'YAxisShowTicks','YAxisWidth','YAxisLabel','YAxisTickColor', 'ShowYAxisLabel',
+                                               'GlobalAutoScale', 'UseScaling', 'GlobalMinRange', 'GlobalMaxRange'];
+
+//i5SPC chart property names
+com.sap.xmii.common.util.SPCChartPropNames =  ['Type', 'User', 'AttributeColumns', 'AutoRefresh', 'BoxLowerLimit', 'BoxUpperLimit', 
+                                               'ChartName', 'ChartType', 'DateFormat', 'ShowToolTip', 'CompatibilityMode',
+                                               'EnableAutoRefresh', 'EnableItemSelection', 'EnableSpecificationLimitTransitions', 'EnableControlLimitTransitions',
+                                               'HistogramCellCount', 'IDColumns', 'UpperSigmaCoefficient',  'LowerSigmaCoefficient',
+                                               'InitialUpdate', 'LSL', 'LSLColumn', 'Lambda', 'LowerAlarmsColor',
+                                               'LowerBarColor', 'LowerCL', 'LowerCLColumn', 'LowerCalculateControlLimits', 'LowerCenterlineColor', 
+                                               'LowerChartBackgroundColor', 'LowerChartBorderColor', 'LowerControlLimitColor', 'LowerControlLimitSource', 
+                                               'LowerInnerLimitColor', 'LowerLCL', 'LowerLCLColumn', 'LowerLineColor', 
+                                               'LowerLineStyle', 'LowerLineThickness', 'LowerMarkerColor', 'LowerMaxRange', 'LowerMinRange', 
+                                               'LowerSelectedMarkerColor', 'LowerShowControlLimits', 'LowerShowInnerLimits', 'LowerShowLabels', 
+                                               'LowerShowRegions', 'LowerShowSpecificationLimits', 'LowerShowTicks', 'LowerShowUserSpecificationLimits', 
+                                               'LowerShowUserTarget', 'LowerShowWarningLimits', 'LowerSpecLimitsLineThickness', 'LowerSpecificationLimitColor', 'LowerSpecificationLimitSource',
+                                               'LowerUSLColumn','LowerLSLColumn','LowerTargetColumn',
+                                               'LowerTargetColor', 'LowerUCL', 'LowerUCLColumn', 'LowerUserLSL', 
+                                               'LowerUserSpecificationLimitColor', 'LowerUserTarget', 'LowerUserTargetColor', 'LowerUserUSL', 
+                                               'LowerViolationBorderColor', 'LowerViolationBorderLineThickness', 'LowerWEAlternatingAlarmEnabled', 
+                                               'LowerWEControlLimitAlarmEnabled', 'LowerWEInsideZoneCAlarmEnabled', 'LowerWEOutsideZoneCAlarmEnabled', 
+                                               'LowerWERunAlarmEnabled', 'LowerWESigmaDifferentAlarmEnabled', 'LowerWESpecificationLimitAlarmEnabled', 
+                                               'LowerWETrendAlarmEnabled', 'LowerWEZoneAAlarmEnabled', 'LowerWEZoneBAlarmEnabled', 'LowerWarningLimitColor', 
+                                               'MainBackgroundColor', 'MainBorderColor', 'MappedQueryTemplate', 'MarkerSize', 
+                                               'NumberFormat', 'RefreshRate', 'ReversePointOrder', 'SampleSize', 'SampleSizeColumn', 
+                                               'ShowAppToolBar', 'ShowCommentFlag', 'ShowLegend', 'LegendBackgroundColor', 'LegendBorderColor', 'LegendFontFace', 
+                                               'LegendFontSize', 'LegendFontStyle', 'ShowLimitTransitions', 'ShowLowerViolationBorder', 
+                                               'ShowMessageArea', 'ShowSuppressedPoints', 'ShowTitle', 'ShowUpperViolationBorder', 
+                                               'ShowXAxis', 'ShowYAxis', 'ShowYAxisLabel', 'SpecificationLimitSource', 'SubgroupSize', 'Target', 
+                                               'TargetColumn', 'TimestampColumn', 'Title', 'TitleColor', 'TitleFontFace', 'TitleFontSize', 'TitleFontStyle', 
+                                               'TitlePosition', 'ToleranceType', 'USL', 'USLColumn', 'UpperAlarmsColor', 'UpperBarColor', 'UpperCL', 'UpperCLColumn', 
+                                               'UpperCalculateControlLimits', 'UpperCenterlineColor', 'UpperChartBackgroundColor', 'UpperChartBorderColor', 
+                                               'UpperControlLimitColor', 'UpperControlLimitSource', 'UpperInnerLimitColor', 
+                                               'UpperLCL', 'UpperLCLColumn', 'UpperLineColor', 'UpperLineStyle', 'UpperLineThickness', 'UpperMarkerColor', 
+                                               'UpperMaxRange', 'UpperMinRange', 'UpperSelectedMarkerColor', 'UpperShowControlLimits', 'UpperShowInnerLimits', 
+                                               'UpperShowLabels', 'UpperShowSpecificationLimits', 'UpperShowTicks', 'UpperShowUserSpecificationLimits', 
+                                               'UpperShowUserTarget', 'UpperShowWarningLimits', 'UpperSpecLimitsLineThickness', 'UpperSpecificationLimitColor', 
+                                               'UpperTargetColor', 'UpperUCL', 'UpperUCLColumn', 'UpperUserLSL', 'UpperUserSpecificationLimitColor', 'UpperUserTarget', 
+                                               'UpperUserTargetColor', 'UpperUserUSL', 'UpperViolationBorderColor', 'UpperViolationBorderLineThickness', 
+                                               'UpperWEAlternatingAlarmEnabled', 'UpperWEControlLimitAlarmEnabled', 'UpperWEInsideZoneCAlarmEnabled', 
+                                               'UpperWEOutsideZoneCAlarmEnabled', 'UpperWERunAlarmEnabled', 'UpperWESigmaDifferentAlarmEnabled', 
+                                               'UpperWESpecificationLimitAlarmEnabled', 'UpperWETrendAlarmEnabled', 'UpperWEZoneAAlarmEnabled', 
+                                               'UpperWEZoneBAlarmEnabled', 'UpperWarningLimitColor', 'UseLocaleFormat', 'ValueColumns', 'WEAlternatingAlarmLength', 
+                                               'WEAlternatingAlarmLimit', 'WEControlLimitAlarmLength', 'WEControlLimitAlarmLimit', 'WEInsideZoneCAlarmLength', 
+                                               'WEInsideZoneCAlarmLimit', 'WEOutsideZoneCAlarmLength', 'WEOutsideZoneCAlarmLimit', 'WERunAlarmLength', 'WERunAlarmLimit', 
+                                               'WESigmaDifferentAlarmLength', 'WESigmaDifferentAlarmLimit', 'WESpecificationLimitAlarmLength', 
+                                               'WESpecificationLimitAlarmLimit', 'WETrendAlarmLength', 'WETrendAlarmLimit', 'WEZoneAAlarmLength', 'WEZoneAAlarmLimit', 
+                                               'WEZoneBAlarmLength', 'WEZoneBAlarmLimit', 'WhiskerLowerLimit', 'WhiskerUpperLimit', 'XAxisFontFace', 'XAxisFontSize', 
+                                               'XAxisFontStyle','XAxisLabelForUpperChart','XAxisLabelForLowerChart','YAxisLabelForUpperChart','YAxisLabelForLowerChart', 'XAxisLabelAttribute', 'XAxisLabelColor', 'XAxisNumberFormat', 'XAxisTickColor', 
+                                               'YAxisFontFace', 'YAxisFontSize', 'YAxisFontStyle', 'YAxisLabelColor', 'YAxisNumberFormat', 
+                                               'YAxisShowLabels', 'YAxisShowTicks', 'YAxisTickColor', 'YAxisWidth', 'ShowTimeBar',
+                                               'LowerUseScaling', 'UpperUseScaling', 'EnableMenu','EnableComments', 'EnablePointSuppression',
+                                               'PointSuppressionRoles', 'CommentEditingRoles', 'DisplayUpperWECORuleNumbers', 'UpperAlarmTextColor', 'UpperAlarmFontSize', 
+                                               'UpperAlarmFontStyle', 'UpperAlarmTextDelimiter', 'DisplayLowerWECORuleNumbers', 'LowerAlarmTextColor', 'LowerAlarmFontSize', 
+                                               'LowerAlarmFontStyle', 'LowerAlarmTextDelimiter','ShowUpperUCLText', 'UpperUCLFontSize', 'UpperUCLFontStyle',
+                                               'ShowUpperCLText', 'UpperCLFontSize', 'UpperCLFontStyle', 'ShowUpperLCLText', 'UpperLCLFontSize', 'UpperLCLFontStyle',
+                                               'ShowUpperUSLText', 'UpperUSLFontSize', 'UpperUSLFontStyle', 'ShowUpperTargetText', 'UpperTargetFontSize', 'UpperTargetFontStyle',
+                                               'ShowUpperLSLText', 'UpperLSLFontSize', 'UpperLSLFontStyle', 'ShowLowerUCLText', 'LowerUCLFontSize', 'LowerUCLFontStyle',
+                                               'ShowLowerCLText', 'LowerCLFontSize', 'LowerCLFontStyle', 'ShowLowerLCLText', 'LowerLCLFontSize', 'LowerLCLFontStyle',
+                                               'ShowLowerUSLText', 'LowerUSLFontSize', 'LowerUSLFontStyle', 'ShowLowerTargetText', 'LowerTargetFontSize', 'LowerTargetFontStyle',
+                                               'ShowLowerLSLText', 'LowerLSLFontSize', 'LowerLSLFontStyle', 'WEUpperChartUCLAlarmLimit', 'WEUpperChartUCLAlarmLength', 
+                                               'WEUpperChartLCLAlarmLimit', 'WEUpperChartLCLAlarmLength', 'WELowerChartUCLAlarmLimit', 'WELowerChartUCLAlarmLength',
+                                               'WELowerChartLCLAlarmLimit', 'WELowerChartLCLAlarmLength', 'WEUpperChartUSLAlarmLimit', 'WEUpperChartUSLAlarmLength',
+                                               'WEUpperChartLSLAlarmLimit', 'WEUpperChartLSLAlarmLength', 'WELowerChartUSLAlarmLimit', 'WELowerChartUSLAlarmLength',
+                                               'WELowerChartLSLAlarmLimit', 'WELowerChartLSLAlarmLength', 'WEUpperChartAlternatingAlarmLimit', 'WEUpperChartAlternatingAlarmLength',
+                                               'WELowerChartAlternatingAlarmLimit', 'WELowerChartAlternatingAlarmLength', 'WEUpperChartAboveCLRunAlarmLimit', 
+                                               'WEUpperChartAboveCLRunAlarmLength', 'WEUpperChartBelowCLRunAlarmLimit', 'WEUpperChartBelowCLRunAlarmLength', 
+                                               'WELowerChartAboveCLRunAlarmLimit', 'WELowerChartAboveCLRunAlarmLength', 'WELowerChartBelowCLRunAlarmLimit', 
+                                               'WELowerChartBelowCLRunAlarmLength', 'WEUpperChartTrendAlarmLimit', 'WEUpperChartTrendAlarmLength', 
+                                               'WELowerChartTrendAlarmLimit', 'WELowerChartTrendAlarmLength', 'WEUpperChartUpperZoneAAlarmLimit',
+                                               'WEUpperChartUpperZoneAAlarmLength', 'WEUpperChartLowerZoneAAlarmLimit', 'WEUpperChartLowerZoneAAlarmLength', 
+                                               'WELowerChartUpperZoneAAlarmLimit', 'WELowerChartUpperZoneAAlarmLength', 'WELowerChartLowerZoneAAlarmLimit',
+                                               'WELowerChartLowerZoneAAlarmLength', 'WEUpperChartUpperZoneBAlarmLimit', 'WEUpperChartUpperZoneBAlarmLength',
+                                               'WEUpperChartLowerZoneBAlarmLimit', 'WEUpperChartLowerZoneBAlarmLength', 'WELowerChartUpperZoneBAlarmLimit',
+                                               'WELowerChartUpperZoneBAlarmLength', 'WELowerChartLowerZoneBAlarmLimit', 'WELowerChartLowerZoneBAlarmLength', 
+                                               'WEUpperChartInsideZoneCAlarmLimit', 'WEUpperChartInsideZoneCAlarmLength', 'WELowerChartInsideZoneCAlarmLimit',
+                                               'WELowerChartInsideZoneCAlarmLength', 'WEUpperChartOutsideZoneCAlarmLimit', 'WEUpperChartOutsideZoneCAlarmLength',
+                                               'WELowerChartOutsideZoneCAlarmLimit', 'WELowerChartOutsideZoneCAlarmLength', 'UpperWEAltCenterLineAlarmEnabled',
+                                               'LowerWEAltCenterLineAlarmEnabled', 'WEAltCenterLineAlarmLimit', 'WEAltCenterLineAlarmLength',
+                                               'WEUpperChartAltCenterLineAlarmLimit', 'WEUpperChartAltCenterLineAlarmLength', 'WELowerChartAltCenterLineAlarmLimit',
+                                               'WELowerChartAltCenterLineAlarmLength', 'LowerUSL', 'LowerTarget', 'LowerLSL', 'ShowNormDistCurveForHistogram', 
+                                               'UseSubGroupAvg', 'LowerAutoScale', 'UpperAutoScale', 'ShowSpecLimits', 'ShowUserSpecLimits', 'ShowComments',
+                                               'ShowAttributes', 'TooltipAttributeColumns', 'ShowAdditionalXAxis', 'Description', 'UpperShowRegions', 'LowerShowRegions',
+                                               'HighlightAttributeName','HighlightAttributeValue','UpperHighlightedMarkerColor','LowerHighlightedMarkerColor'];
+
+com.sap.xmii.common.util.GridPropNames = [  'AllowCellSelection', 'AllowColumnReordering', 'FreezeColumn',
+                                    		'AllowColumnResize', 'AllowDeselect', 'AllowMultipleSelection',
+                                    		'AllowSelection','AlwaysCenterColumnHeadings','BackgroundColor', 'AutoRefresh',
+                                    		'AutoResizeColumns', 'ColumnAlignments', 'ColumnFormats',
+                                    		'ColumnHeadings', 'ColumnWidths', 
+                                    		'ColumnLinks','ColumnTargets',
+                                    		'DateFormat', 'DisplayColumns',
+                                    		'DynamicBackground', 'EnableAutoRefresh', 'TitlePosition',
+                                    		'FontFace', 'FontSize','FontStyle','GridColor','GridType',
+                                    		'HardWrap', 'HeaderBackgroundColor', 'HeaderFontFace', 'HeaderFontSize',
+                                    		'HeaderFontStyle', 'HeaderHeight', 'HeaderTextColor','InitialUpdate',
+                                    		'MappedQueryTemplate', 'MatchColors', 'MatchIcons', 'MatchColumns', 'MatchValues', 'NumberFormat',
+                                    		'RaisedHeaders','RefreshRate','RowHeadingWidth','RowHeadings','RowHeight','RowSelectBackgroundColor',
+                                    		'RowSelectColor','RowSelectFontStyle','SaveDate','ShowAppToolBar','ShowColumnsAsBoolean',
+                                    		'ShowHeader','ShowHorizontalGrid','ShowHorizontalScrollBar','ShowMessageArea','ShowRowResizeHandle',
+                                    		'ShowScrollBar','ShowTimeControl','ShowTitleArea','ShowVerticalGrid','TextColor','TimePosition',
+                                    		'Title','UseLocaleFormat','WordWrap','ZeroBasedHeaderPosition', 'ShowTimeBar','Dynamici5GridCheckBox', 'MappedColumnQuerTemplate','UseBOMForCSV'];
+
+com.sap.xmii.common.util.TagQueryPropNames = [ 'AllowBuffering',
+		'AllowFuture', 'CacheDuration', 'CacheDurationUnits', 'Comment',
+		'Connector', 'DateFormat', 'Duration', 'DurationUnits',
+		'EndDate', 'Group', 'InlineTransform', 'IntervalCount', 
+		'IsCachable', 'Mask', 'Method', 'Mode', 'Resolution', 
+		'RestrictedPropertyOverride', 'RowCount', 'SaveDate',
+		'Schedule', 'Server', 'Service', 'StartDate', 'Time', 'TimePeriod',
+		'TotalizerFactor', 'UseGroupMask', 'NumberFormat' ];
+
+com.sap.xmii.common.util.ETCQueryPropNames = [ 'SelectedObjects', 'SelectedAliases', 'SelectedMetadata',
+  		'SelectedSecondary', 'AllowBuffering', 'AllowFuture', 'CacheDuration',
+  		'CacheDurationUnits', 'Connector', 'DateFormat', 'Description',
+  		'DocType', 'Mode', 'Method', 'Mask', 'IsCachable', 'Duration',
+  		'DurationUnits', 'StartDate', 'EndDate', 'Granularity', 'Resolution', 'RowCount', 'Schedule', 
+  		'Server', 'TimePeriod', 'TotalizerFactor', 'NumberFormat','AdditionalTimeDimensions',
+  		'AnalysisAggregationModes','NodeSelectionExpression','UseIntermediateTag',
+  		'SelectedGroupCategories',
+  		'SelectedTagCategoryUOMs','SelectedTagCategories','SelectedTagCategoryAliases','DrillDownType',
+  		'SelectedNodes','SelectedGroupByProperties','SelectedTimeDimension','ScopePropertyExpression','ScopePeColExpression',
+  		'IsTimeZoneFormatRequired','SelectedTagCategoryIntermediates','DisplayTagCategories'];
+
+com.sap.xmii.common.util.SQLQueryPropNames = [ 'Query', 'QueryParams', 'RowCount',
+		'SaveDate', 'Server', 'Service', 'SortExpr', 'StartDate', 'Time',
+		'TimePeriod', 'FilterExpr', 'GroupingExpr', 'Columns', 'DateColumn', 
+		'CacheDuration', 'CacheDurationUnits', 'JoinExpr', 'Mode', 'NumberFormat', 
+		'Tables', 'UseTypedParams', 'DateFormat', 'AllowBuffering', 'AllowFuture',
+		'Connector', 'IsCachable' ];
+
+com.sap.xmii.common.util.PCoQueryPropNames = [ 'SelectedTags', 'SelectedTagsDisplayName', 
+        'SelectedTagsValue', 'SelectedTagsTime', 'SelectedAggregates', 
+        'IntegralFactor', 'TagQuality', 'SelectedSecondaries', 'SelectedMetadata', 
+        'QueryParams', 'Columns', 'DateColumn', 'JoinExpr','FixedQuery', 'FilterExpr', 'GroupingExpr', 'Tables',
+		'ColumnListingMask', 'CustomFeatures', 'DisplayGroups', 'DocType',
+		'Duration', 'DurationUnits', 'Groups', 'EndDate', 'HistoryStore', 
+		'HistoryWrite', 'IsSQLBased', 'LegacyMask', 'Mode', 'MultiRowsetResponse',
+		'NamespacingPartitioning', 'NativeMask', 'NumberFormat', 'QueryPartitioning',
+		'RowCount', 'SortExpr', 'SelectedView', 'IsCachable','AllowFuture' ];
+
+com.sap.xmii.common.util.XAcuteQueryPropNames = [ 'EndDateMappedParam',
+		'StartDateMappedParam', 'Folder', 'MappedParamTarget', 'Transaction',
+		'IsCachable','AllowFuture', 'NumberFormat'];
+
+com.sap.xmii.common.util.XMLQueryPropNames = [ 'URL', 'Transform', 'DateFormat',
+		'Mode', 'NumberFormat', 'IsCached','AllowFuture', 'RowCount' ];
+
+com.sap.xmii.common.util.AlarmQueryPropNames = [ 'Mode', 'FilterExpr', 'Tables',
+		'DateFormat', 'GroupingExpr', 'Group', 'IsCached','AllowFuture', 'NumberFormat' ];
+
+com.sap.xmii.common.util.AggregateQueryPropNames = [ 'SourceName', 'SourceTemplate',
+		'MappedParamTarget', 'MappedParamSource', 'IsCached', 'AllowFuture', 'NumberFormat' ];
+
+com.sap.xmii.common.util.KPIQueryPropNames = [ 'Mode', 'KPI', 'Granularity', 'SelectedDimensions', 'Query', 'QueryParams',
+		'Attributes', 'FilterExpr', 'IsCached', 'AllowFuture', 'DateColumn', 'NumberFormat', 'AdditionalTimeDimensions', 'AddKPIDetails', 'IncludeTimestamp'];
+
+com.sap.xmii.common.util.MDOQueryPropNames = [ 'Mode', 'Query', 'QueryParams',
+		'Attributes', 'DateColumn', 'JoinExpr', 'FilterExpr', 'GroupingExpr',
+		'SortExpr', 'IsCached', 'AllowFuture', 'NumberFormat' ];
+
+com.sap.xmii.common.util.I5CommandPropNames = ['CommandAudit','CommandCategory','CommandMessageReturn','CommandRole1','CommandRole2','CommandText',
+                                               'CommandUser1LoginRequired','ConfirmRole1Name','ConfirmRole2Name','DateFormat','FocusOnInputField',
+                                               'NumberFormat','UseLocaleFormat','UseServerTimeZone','FailureMessage'];
+
+com.sap.xmii.common.util.loggedInUser = '';
+com.sap.xmii.common.util.loggedInUserLocale = '';
+com.sap.xmii.common.util.datetimePatterForLocale = '';
+com.sap.xmii.common.util.numberformatPatternForLocale = '';
+com.sap.xmii.common.util.chartConfig = {},
+com.sap.xmii.common.util.queryConfig = {},
+com.sap.xmii.common.util.DEBUG_MODE_ON = false;
+com.sap.xmii.common.util.FCCHART = false;
+com.sap.xmii.common.util.FCQUERY = false;
+com.sap.xmii.common.util.ERRORMESSAGE = '';
+com.sap.xmii.common.util.ERRNODATA = false;
+com.sap.xmii.common.util.confPopupType = null;
+com.sap.xmii.common.util.SameUserError = false;
+
+
+$.fn.loadWithoutCache = function(elem,url){
+	//AJAX Call without Cache
+	$.ajax({
+		url:url,
+		cache:false,
+		dataType:"html",
+		success:function(data, textStatus, XMLHttpRequest){
+			elem.html(data);
+		}
+	
+	});
+	return elem;
+	
+};

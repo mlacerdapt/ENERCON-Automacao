@@ -1,0 +1,110 @@
+function getJSDoc() {
+    var x = '';
+
+    function getAddMethods() {
+	var addMethodStr = '';
+	var propNames = [ 'SelectedObjects', 'SelectedAliases', 'SelectedMetadata', 'SelectedSecondary',
+		'AllowBuffering', 'AllowFuture', 'CacheDuration', 'CacheDurationUnits',
+		'Connector', 'DateFormat', 'Description', 'DocType', 'Mode', 'Method', 'Mask',
+		'IsCachable', 'Duration', 'DurationUnits', 'EndDate', 'ExcludeRemotes',
+		'Resolution', 'RowCount', 'Schedule', 'Server', 'TimePeriod', 'TotalizerFactor',
+		'UseGroupMask', 'UserName', 'NumberFormat','AdditionalTimeDimensions',
+		'AnalysisAggregationModes','NodeSelectionExpression','UseIntermediateTag',
+		'SelectedGroupCategories','SelectedNodes','SelectedTagCategoryAliases',
+		'SelectedTagCategoryUOMs','SelectedTagCategories','SelectedGroupByProperties',
+		'SelectedTagCategoryIntermediates','DisplayTagCategories','ScopePropertyExpression','ScopePeColExpression'];
+
+	for (prop in propNames) {
+	    var getStr = 'String:' + 'get' + propNames[prop] + ';';
+	    var setStr = 'void:' + 'set' + propNames[prop] + '(val)' + ';';
+	    addMethodStr = addMethodStr + getStr + setStr;
+	}
+
+	return addMethodStr;
+    }
+    ;
+    x = x + getAddMethods();
+    return x;
+};
+
+/**
+ * @Namespace
+ */
+com.sap.xmii.querytemplate.query = com.sap.xmii.querytemplate.query || {};
+
+// FOR INHERITANCE
+var parentQueryObj = new com.sap.xmii.querytemplate.query.Query();
+
+/***
+ * CATALOGQUERY CLASS
+ * 
+ * @constructor
+ * 
+ */
+com.sap.xmii.querytemplate.query.CatalogQuery = function CatalogQuery(queryTemplateName,
+	queryMetaData) {
+
+    this.setQueryMetaData(queryMetaData);
+    this.setQueryTemplateName(queryTemplateName);
+    this.addGettersAndSetters(com.sap.xmii.common.util.ETCQueryPropNames);
+
+    this.MODE_HISTORY = com.sap.xmii.common.util.QueryConstants.HISTORY;
+    this.MODE_HISTORYEVENT = com.sap.xmii.common.util.QueryConstants.HISTORY_EVENT;
+    this.MODE_STATISTICS = com.sap.xmii.common.util.GenericConstants.STATISTICS;
+    this.MODE_PICANALYSIS= com.sap.xmii.common.util.QueryConstants.MODE_PICANALYSIS;
+}
+
+// Inheritance
+com.sap.xmii.querytemplate.query.CatalogQuery.prototype = parentQueryObj;
+com.sap.xmii.querytemplate.query.CatalogQuery.prototype.constructor = com.sap.xmii.querytemplate.query.CatalogQuery;
+
+/**
+ * isTimeBasedQuery Method
+ * @private
+ * @return
+ */
+com.sap.xmii.querytemplate.query.CatalogQuery.prototype.isTimeBasedQuery = function() {
+    return this.MODE_HISTORY.toUpperCase() == this.getMode().toUpperCase()
+	    || this.MODE_HISTORYEVENT.toUpperCase() == this.getMode().toUpperCase()
+	    || this.MODE_STATISTICS.toUpperCase() == this.getMode().toUpperCase()
+	    || this.MODE_PICANALYSIS.toUpperCase() == this.getMode().toUpperCase();
+};
+
+/**
+ * Get SelectedMetadataAndSecondary value
+ * @return String
+ */
+com.sap.xmii.querytemplate.query.CatalogQuery.prototype.getSelectedMetadataAndSecondary = function() {
+    return this.queryMetaData.ETCQueryInfo;
+};
+
+/**
+ * Get SelectedProperties Value
+ * @return
+ */
+com.sap.xmii.querytemplate.query.CatalogQuery.prototype.getSelectedProperties = function() {
+    return this.queryMetaData.ETCQueryPropertiesInfo;
+};
+
+/**
+ *  Set SelectedMetadataAndSecondary Value
+ * @param metadata
+ * @return
+ */
+com.sap.xmii.querytemplate.query.CatalogQuery.prototype.setSelectedMetadataAndSecondary = function(
+	metadata) {
+    var etcQueryInfoObject = com.sap.xmii.common.util.MIIi5Util.evalJSONStr(metadata);
+    this.queryMetaData.ETCQueryInfo = etcQueryInfoObject;
+    this.overrides[com.sap.xmii.common.util.QueryConstants.ETC_QUERY_INFO] = etcQueryInfoObject;
+};
+
+/**
+ * Set SelectedProperties Value
+ * @param properties
+ * @return
+ */
+com.sap.xmii.querytemplate.query.CatalogQuery.prototype.setSelectedProperties = function(properties) {
+    var etcQueryPropertiesInfoObject = com.sap.xmii.common.util.MIIi5Util.evalJSONStr(properties);
+    this.queryMetaData.ETCQueryPropertiesInfo = etcQueryPropertiesInfoObject;
+    this.overrides[com.sap.xmii.common.util.QueryConstants.ETC_QUERY_PROP_INFO ] = etcQueryPropertiesInfoObject;
+};

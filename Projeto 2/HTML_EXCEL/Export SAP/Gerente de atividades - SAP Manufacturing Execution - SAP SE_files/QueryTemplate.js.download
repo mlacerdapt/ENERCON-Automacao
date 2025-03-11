@@ -1,0 +1,189 @@
+/**
+ * Loading of Query JS Files
+ */
+/*document.write('<scr'+'ipt type="text/javascript" src="/XMII/JavaScript/com/sap/xmii/querytemplate/query/Query.js"></scr'+'ipt>');
+document.write('<scr'+'ipt type="text/javascript" src="/XMII/JavaScript/com/sap/xmii/querytemplate/query/TAGQuery.js"></scr'+'ipt>');
+document.write('<scr'+'ipt type="text/javascript" src="/XMII/JavaScript/com/sap/xmii/querytemplate/query/XMLQuery.js"></scr'+'ipt>');
+document.write('<scr'+'ipt type="text/javascript" src="/XMII/JavaScript/com/sap/xmii/querytemplate/query/SQLQuery.js"></scr'+'ipt>');
+document.write('<scr'+'ipt type="text/javascript" src="/XMII/JavaScript/com/sap/xmii/querytemplate/query/KPIQuery.js"></scr'+'ipt>');
+document.write('<scr'+'ipt type="text/javascript" src="/XMII/JavaScript/com/sap/xmii/querytemplate/query/AlarmQuery.js"></scr'+'ipt>');
+document.write('<scr'+'ipt type="text/javascript" src="/XMII/JavaScript/com/sap/xmii/querytemplate/query/AggregateQuery.js"></scr'+'ipt>');
+document.write('<scr'+'ipt type="text/javascript" src="/XMII/JavaScript/com/sap/xmii/querytemplate/query/CatalogQuery.js"></scr'+'ipt>');
+document.write('<scr'+'ipt type="text/javascript" src="/XMII/JavaScript/com/sap/xmii/querytemplate/query/MDOQuery.js"></scr'+'ipt>');
+document.write('<scr'+'ipt type="text/javascript" src="/XMII/JavaScript/com/sap/xmii/querytemplate/query/OLAPQuery.js"></scr'+'ipt>');
+document.write('<scr'+'ipt type="text/javascript" src="/XMII/JavaScript/com/sap/xmii/querytemplate/query/PCoQuery.js"></scr'+'ipt>');
+document.write('<scr'+'ipt type="text/javascript" src="/XMII/JavaScript/com/sap/xmii/querytemplate/query/XacuteQuery.js"></scr'+'ipt>');*/
+
+com.sap.xmii = com.sap.xmii ||{}; 
+
+/**
+ * QueryTemplate Constructor
+ * @param queryTemplateName
+ */
+com.sap.xmii.querytemplate = {
+	QueryTemplate:function(queryTemplateName,queryURL){
+	
+		//Private function to get the QueryMetaData object
+		var getQueryMetadata = function(queryTemplateName){
+			var qryMetaDataObj = '';
+			var qryMetaDataURL = "/XMII/Catalog?mode=Load&class=Template&ObjectName="+queryTemplateName+com.sap.xmii.common.util.GenericConstants.CONTENT_TYPE_URL_SUFFIX;
+			var qryMetaDataJSONStr = com.sap.xmii.common.util.MIIi5Util.getOData(qryMetaDataURL);
+			if(qryMetaDataJSONStr!=null){
+				qryMetaDataObj = com.sap.xmii.common.util.MIIi5Util.evalJSONStr(qryMetaDataJSONStr);
+			}else{
+				var message = com.sap.xmii.common.util.MessageBundle.getText("XMSG_QT_METADATA_ERROR");
+				throw new com.sap.xmii.common.exception.MIIi5Exception(message); 
+			}
+			// For wrong Query Template assign error message to this.fatalError and set this.FCQuery 
+			if(qryMetaDataObj.Query === null){
+				 var message = com.sap.xmii.common.util.MessageBundle.getText("XMSG_QUERY") + " " + qryMetaDataObj.Rowsets.FatalError;
+				 qryMetaDataObj.Type = "";
+				 qryMetaDataObj.Query = new Object();
+				 com.sap.xmii.common.util.ERRORMESSAGE = message;
+				 com.sap.xmii.common.util.FCQUERY = true;
+				 return qryMetaDataObj.Query;
+				 //throw new com.sap.xmii.common.exception.MIIi5Exception(message); 
+			} else {
+			return qryMetaDataObj.Query;
+			}
+			
+		};
+		
+		//PRIVATE CreateQueryObject Method
+		var createQueryObject = function(queryTemplateName,queryURL){
+			var qryObj ;
+			if(com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(queryTemplateName)) {
+			
+				qryObj = new com.sap.xmii.querytemplate.query.Query();
+				if(com.sap.xmii.common.util.MIIi5Util.isNullOrEmpty(queryURL)){
+				com.sap.xmii.common.util.FCQUERY = true;
+				com.sap.xmii.common.util.ERRORMESSAGE = com.sap.xmii.common.util.MessageBundle.getText("XMSG_QT_INITIALIZATION_ERROR");
+				}
+				return qryObj;
+			}
+			//var queryMetaData = getQueryMetadata(queryTemplateName);
+			var queryMetaData = com.sap.xmii.common.util.queryConfig.Query;
+			
+			if((queryMetaData != null) && (queryMetaData.Type !== undefined))
+				var queryType = queryMetaData.Type;
+			else{
+				//Create the Metadata Object
+				var queryMetaData = getQueryMetadata(queryTemplateName);
+				var queryType = queryMetaData.Type;
+			}
+			
+			
+			switch(queryType){
+			
+				case com.sap.xmii.common.util.QueryConstants.QUERY_TYPE_TAG: {
+					qryObj = new com.sap.xmii.querytemplate.query.TagQuery(queryTemplateName, queryMetaData);
+					return qryObj;
+				}
+				case com.sap.xmii.common.util.QueryConstants.QUERY_TYPE_XML : {
+					qryObj = new com.sap.xmii.querytemplate.query.XMLQuery(queryTemplateName, queryMetaData);
+					return qryObj;
+				}
+				case com.sap.xmii.common.util.QueryConstants.QUERY_TYPE_SQL  : {
+					qryObj = new com.sap.xmii.querytemplate.query.SQLQuery(queryTemplateName, queryMetaData);
+					return qryObj;
+				}
+				case com.sap.xmii.common.util.QueryConstants.QUERY_TYPE_KPI : {
+					qryObj = new com.sap.xmii.querytemplate.query.KPIQuery(queryTemplateName, queryMetaData);
+					return qryObj;
+				}
+				case com.sap.xmii.common.util.QueryConstants.QUERY_TYPE_ALARM : {
+					qryObj = new com.sap.xmii.querytemplate.query.AlarmQuery(queryTemplateName, queryMetaData);
+					return qryObj;
+				}
+				case com.sap.xmii.common.util.QueryConstants.QUERY_TYPE_AGGREGATE : {
+					qryObj = new com.sap.xmii.querytemplate.query.AggregateQuery(queryTemplateName, queryMetaData);
+					return qryObj;
+				}
+				case com.sap.xmii.common.util.QueryConstants.QUERY_TYPE_CATALOG : {
+					qryObj = new com.sap.xmii.querytemplate.query.CatalogQuery(queryTemplateName, queryMetaData);
+					return qryObj;
+				}
+				case com.sap.xmii.common.util.QueryConstants.QUERY_TYPE_MDO : {
+					qryObj = new com.sap.xmii.querytemplate.query.MDOQuery(queryTemplateName, queryMetaData);
+					return qryObj;
+				}
+				case com.sap.xmii.common.util.QueryConstants.QUERY_TYPE_OLAP : {
+					qryObj = new com.sap.xmii.querytemplate.query.OLAPQuery(queryTemplateName, queryMetaData);
+					return qryObj;
+				}
+				case com.sap.xmii.common.util.QueryConstants.QUERY_TYPE_PCo : {
+					qryObj = new com.sap.xmii.querytemplate.query.PCoQuery(queryTemplateName, queryMetaData);
+					return qryObj;
+				}
+				case com.sap.xmii.common.util.QueryConstants.QUERY_TYPE_XACUTE : {
+					qryObj = new com.sap.xmii.querytemplate.query.XacuteQuery(queryTemplateName, queryMetaData);
+					return qryObj;
+				}
+				case "TemplateQuery" :{
+					qryObj = new com.sap.xmii.querytemplate.query.Query(queryTemplateName, queryMetaData);
+					qryObj.setQueryTemplateName(queryTemplateName);
+					qryObj.setQueryMetaData(queryMetaData);
+					return qryObj;
+				}
+				
+				// create queryObject in case of wrong query template
+				default : {
+					qryObj = new Object();
+					qryObj.queryMetaData = queryMetaData;
+					return qryObj;
+				}
+				
+			}
+			
+		}
+		
+		
+		this.queryTemplateName = queryTemplateName;
+		if(queryURL != undefined && queryURL != 'undefined' ){
+			this.queryURL = queryURL;
+		}else{
+			this.queryURL = '';
+		}
+		//Create the Query Object
+			this.queryObject = createQueryObject(this.queryTemplateName,this.queryURL);// ,
+																			// queryDataUrl);
+		/**
+		 * IsTimeBased Query Method
+		 */
+		this.isTimeBasedQuery = function(){
+			if(this.queryObject!=null){
+				return this.queryObject.isTimeBasedQuery();
+			}else{
+				var message = com.sap.xmii.common.util.MessageBundle.getText("XMSG_QT_TIMEBASED_QUERY");
+				throw new com.sap.xmii.common.exception.MIIi5Exception(message);
+			}
+		}
+		
+	}
+
+}
+
+/**
+ * QueryTemplate Class
+ */
+com.sap.xmii.querytemplate.QueryTemplate.prototype = {
+		
+		queryName:'',
+		queryTemplateName:'',
+		queryURL:'',
+		queryObject:'',
+		getQueryName:function(){
+			return this.queryName;
+		},
+		setQueryName:function(queryName){
+			this.queryName = queryName;
+		},
+		getQueryObject:function(){
+			return this.queryObject;
+		}
+		
+}
+
+
+
+

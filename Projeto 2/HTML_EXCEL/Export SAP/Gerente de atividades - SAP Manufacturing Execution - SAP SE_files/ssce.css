@@ -1,0 +1,195 @@
+@CHARSET "UTF-8";
+/*@keyframes marquee {
+  	0%		{	text-indent: 100%; }
+    100%	{	text-indent: -100%; }
+}
+
+@-webkit-keyframes marquee {
+  	0%		{	text-indent: 100%; }
+    100%	{	text-indent: -100%; }
+}
+
+@keyframes alertbkground {
+  	0%		{	background: lightgrey }
+    100%		{	background: white }
+}
+
+@-webkit-keyframes alertbkground {
+  	0%		{	background: lightgrey }
+    100%		{	background: white }
+}
+
+
+.alert{
+	background: lightgrey;
+	 -webkit-animation: alertbkground  20s linear infinite;
+    animation: alertbkground  20s linear infinite;
+}
+*/
+.borderWhite{
+border:0.5vh solid whitesmoke ;
+}
+
+.borderWhite > div{
+margin: 1px;
+box-shadow:  0 2px 3px rgba(7, 7, 7, 0.31);
+}
+
+.highalert  .sapUiIcon{
+	color: red !important;
+}
+
+.mediumalert  .sapUiIcon{
+	color: #FFFF66 !important;
+}
+
+.lowalert .sapUiIcon{
+	color : #738AD4 !important;
+}
+
+.VdsPopUp{
+	background-color: #FFFFFF !important;
+	padding : "5px";
+}
+
+.sapMHtml5ViewerStepNavigationImg.selected {
+  border: 4px solid;
+  border-color: #006ca7;
+  margin-right : 15px;
+  margin-left : -10px;
+}
+
+.sapVizKitStepNavigationPopoverStepInfo {
+    width: "20%";
+    height: "15%";
+    background-color: rgba(255, 255, 255, 0.498039) !important;
+}
+
+.vdsRoundedCorner {
+    border-radius: 10px;
+    border: 2px solid #000000;
+    background-color : rgba(255, 255, 255, 0.5);
+    padding : 5px;
+    
+}
+.sapMHtml5ViewerStepNavigationImg:hover:not(.selected) {
+  border: 4px solid;
+  border-color: #000000;
+}
+
+.sapMHtml5ViewerStepNavigationImg {
+  border: 4px solid;
+  border-color: transparent;
+  margin-right : 15px;
+  margin-left : -10px;
+}
+.sapUiCrslItm{
+	height : auto !important;
+	/*border-style: solid;*/
+	border-width: 1px;
+	border-color: #cccccc;
+	margin-left: 5px;
+	margin-right: 5px; 	
+}
+.addCommentsStyle {
+	right : 40px;
+	float : right;
+}
+.rolesLayoutStyle{
+	overflow : auto;
+	height : 270px;
+}
+.controlPaddingLeft{
+	padding-left : 20px !important;
+}
+.commentsLayoutStyle{
+	padding-top : 10px;
+	width : 100% !important;
+}
+.sapBlueColor{
+color: #007CC0
+}
+.boldText{
+font-weight: bolder;
+}
+.alertLabel{
+	position: fixed;
+	background-color: red;
+ 	color: white;
+ 	font-weight: bolder;
+ 	font-size: 10px;
+  	padding: 2px 2px 2px 2px ;
+  	-webkit-box-shadow: 0 1px 1px rgba(0, 0, 0, .7);
+ 	border-radius: 3px;
+ 	text-indent: 2px; 
+}
+
+label#L-RefreshAuto {
+	margin: 3px 0 0 .5em;
+}
+
+.kpiConfigLabel {
+	margin: 3px 0 0 .5em;
+}
+.colorContext {
+	padding-top : 10px !important;
+	padding-right : 50px !important;
+}
+.colorContextForSelect{
+	margin-left: 50px !important;
+}
+.colorPicker{
+	padding-left: 50px !important;
+}
+
+.Animate-Draw {
+  animation-timing-function: ease-in-out;
+  animation-fill-mode: forwards;
+  animation-iteration: 1;
+  
+  animation-name: DrawLine, FadeStroke, FillIn;
+  animation-duration: 4s, 1s, 1s;
+  animation-delay: 0, 3.5s, 3.5s;
+}
+
+#Draw-Mark {
+  stroke-dashArray: 1100;
+  stroke-dashoffset: 1100; 
+}
+
+#Draw-Frame { 
+  animation-delay: .5s, 3.5s, 3.5s;
+  animation-duration: 3.5s, 1s, 1s; 
+  stroke-dashArray: 1500;
+  stroke-dashoffset: 1500;
+}
+
+#Draw-Text { 
+  animation-delay: 2s, 3.5s, 3.5s; 
+  animation-duration: 2s, 1s, 1s; 
+  stroke-dashArray: 300;
+  stroke-dashoffset: 300;
+  //animation-duration: 4s;
+}
+
+@keyframes DrawLine {
+  to { stroke-dashOffset: 0; }
+}
+
+@keyframes FadeStroke {
+  to { stroke-opacity: 0; }
+}
+
+@keyframes FillIn {
+  from { fill-opacity: 0; }
+  to { fill-opacity: 1; }
+}
+
+/* IE fix for UIElementCheckBoxM and UIElementRadioButtonM second dotted line on focus */
+.sapMCb:focus:before, .sapMRb:focus:before {
+  border: 0px!important;
+}
+
+.sapMSelectListItem {
+	font-family:Arial,Helvetica,sans-serif;
+}

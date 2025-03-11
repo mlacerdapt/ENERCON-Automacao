@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Invoices Dashboard</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <div class="logo">Salesforce</div>
+      <nav class="menu">
+        <a href="#">Estimates</a>
+        <a href="#" class="active">Invoices</a>
+        <a href="#">Payments</a>
+        <a href="#">Recurring Invoices</a>
+        <a href="#">Checkout</a>
+      </nav>
+      <div class="user-menu">
+        <img src="user-avatar.png" alt="User Avatar">
+      </div>
+    </header>
+
+    <main class="main-content">
+      <section class="overview">
+        <div class="stat-card">
+          <p>Overdue</p>
+          <h2>$31,211.00</h2>
+        </div>
+        <div class="stat-card">
+          <p>Due within next month</p>
+          <h2>$172,560.00</h2>
+        </div>
+        <div class="stat-card">
+          <p>Average time to get paid</p>
+          <h2>12 days</h2>
+        </div>
+        <div class="stat-card">
+          <p>Available for instant payout</p>
+          <h2>$214,390.00</h2>
+        </div>
+      </section>
+
+      <section class="filters">
+        <button class="filter-btn">All Invoices</button>
+        <button class="filter-btn">Draft</button>
+        <button class="filter-btn active">Unpaid</button>
+      </section>
+
+      <section class="invoices">
+        <div class="invoice-card">
+          <div class="invoice-info">
+            <p><strong>Invoice #427-012</strong></p>
+            <p>Company: BlueRock</p>
+            <p>Customer: Maria Jones</p>
+          </div>
+          <div class="invoice-amount">
+            <p>$53,154.00</p>
+            <button class="pay-now-btn">Pay Now</button>
+          </div>
+        </div>
+        <!-- Repeat similar cards for other invoices -->
+      </section>
+    </main>
+  </div>
+</body>
+</html>

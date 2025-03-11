@@ -1,0 +1,16 @@
+com.sap.xmii.common.tools = com.sap.xmii.common.tools||{};
+
+var parentToolComponent = new com.sap.xmii.common.tools.AppToolBar();
+
+com.sap.xmii.common.tools.MessageArea = function(width,chartBackgroundColor,height){
+	
+	this.messageArea = new ExtendedLabel({text: com.sap.xmii.common.util.MessageBundle.getText("XFLD_MESSAGE_AREA"),
+	    width: width,
+		height:height,
+	    textAlign: 'left',
+	   // backgroundColor: "#FFFFFF"});
+	    backgroundColor: chartBackgroundColor});
+	
+}
+com.sap.xmii.common.tools.MessageArea.prototype = parentToolComponent;
+com.sap.xmii.common.tools.MessageArea.prototype.constructor = com.sap.xmii.common.tools.MessageArea;

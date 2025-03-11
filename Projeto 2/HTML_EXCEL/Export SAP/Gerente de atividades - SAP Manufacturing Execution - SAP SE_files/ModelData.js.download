@@ -1,0 +1,59 @@
+com.sap.xmii.common.model = com.sap.xmii.common.model || {};
+
+/**
+ * ModelData holds the ModelData representation
+ * 
+ * @param data
+ */
+com.sap.xmii.common.model.ModelData = function(data) {
+
+	this.data = data;
+
+};
+
+com.sap.xmii.common.model.ModelData.prototype = {
+	data : '',
+	rows : '',
+	rowsets : '',
+	getRowsets : function() {
+		return this.data.getProperty("/Rowsets/Rowset");
+	},
+	getRowset : function(rowsetIndex) {
+		var rowSets = this.getRowsets();
+		if(rowSets === undefined)
+			return null;
+		if(rowsetIndex == undefined)
+			return rowSets[0];
+		else {
+			if(!isNaN(rowsetIndex)) {
+				return rowSets[rowsetIndex];
+			}
+		}
+	},
+	getRows : function(rowsetIndex) {
+		if(this.getRowset(rowsetIndex) != undefined)
+			return this.getRowset(rowsetIndex).Row;
+		else
+			return undefined;
+	},
+	getRow : function(rowIndex, rowsetIndex) {
+		var rows = this.getRows(rowsetIndex);
+		if(rows != undefined)
+			return rows[rowIndex];
+		else
+			return undefined;
+	},
+	getStartDate : function() {
+		return this.data.getProperty("/Rowsets").StartDate;
+	},
+	getEndDate : function() {
+		return this.data.getProperty("/Rowsets").EndDate;
+	},
+	getFatalError : function() {
+		return this.data.getProperty("/Rowsets").FatalError;
+	},
+	update : function(data) {
+		this.data = data;
+	}
+
+};
